@@ -7,15 +7,15 @@
 <meta name="generator" content="Jekyll v3.8.3" />
 <meta property="og:title" content="BitbucketとCircle CIでLatexする" />
 <meta property="og:locale" content="en_US" />
-<meta name="description" content="前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．" />
-<meta property="og:description" content="前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．" />
+<meta name="description" content="前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．" />
+<meta property="og:description" content="前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．" />
 <link rel="canonical" href="/2017/08/29/bitbucket-circleci.html" />
 <meta property="og:url" content="/2017/08/29/bitbucket-circleci.html" />
 <meta property="og:site_name" content="めもちょー" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2017-08-29T11:10:58+09:00" />
 <script type="application/ld+json">
-{"headline":"BitbucketとCircle CIでLatexする","dateModified":"2017-08-29T11:10:58+09:00","url":"/2017/08/29/bitbucket-circleci.html","datePublished":"2017-08-29T11:10:58+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/08/29/bitbucket-circleci.html"},"description":"前回からだいぶ空いてしまったが，小ネタを投下する． 以前\bに， という記事を書いた． ここでは，CIを用いてlatexdiffによる差分\b\bLatexの生成， \bコンパイル，Downloadsへのアップロード を行うようなものを\b作ってみた．","@type":"BlogPosting","@context":"http://schema.org"}</script>
+{"headline":"BitbucketとCircle CIでLatexする","dateModified":"2017-08-29T11:10:58+09:00","url":"/2017/08/29/bitbucket-circleci.html","datePublished":"2017-08-29T11:10:58+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/08/29/bitbucket-circleci.html"},"description":"前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．","@type":"BlogPosting","@context":"http://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 <link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="めもちょー" /></head>
 <body><header class="site-header" role="banner">
@@ -46,24 +46,26 @@
 
   <div class="post-content e-content" itemprop="articleBody">
     <p>前回からだいぶ空いてしまったが，小ネタを投下する．
-以前に，
-<a href=""></a>
+以前に，
+<a href="http://retrage01.hateblo.jp/entry/2014/10/04/191435">Jenkins+Bitbucket(Git)でLaTeX</a>
 という記事を書いた．
-ここでは，CIを用いてlatexdiffによる差分Latexの生成，
-コンパイル，Downloadsへのアップロード
-を行うようなものを作ってみた．</p>
+ここでは，CIを用いてlatexdiffによる差分Latexの生成，
+コンパイル，Downloadsへのアップロード
+を行うようなものを作ってみた．</p>
 
-<p>Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
+<p>Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
 Circle CIと比較して，一ヶ月あたりの無料枠が小さいため，
 ここではCircle CIを利用する．
 なお，Circle CI 2.0を対象とする．</p>
 
 <h2 id="tldr">TL;DR</h2>
 
+<p><a href="https://gist.github.com/retrage/dc0980ec4c79b33cd522c4f4f4b82900#file-config-yml">config.yml for Latex on Circle CI 2.0</a></p>
+
 <h2 id="既存のdockerイメージの利用">既存のDockerイメージの利用</h2>
 
 <p>Latex環境構築，特に日本語文書を扱う場合，やや手続きが煩雑となるが，
-Circle CIでは任意のDockerイメージが利用できる．
+Circle CIでは任意のDockerイメージが利用できる．
 ここでは，
 <code class="highlighter-rouge">paperist/alpine-texlive-ja</code>
 を使わせてもらった[1]．</p>
@@ -77,7 +79,7 @@ apk add --update ca-certificates openssl &amp;&amp; update-ca-certificates
 tlmgr install ulem latexdiff
 </code></pre></div></div>
 
-<p>latexmkを利用するために，<code class="highlighter-rouge">.latexmkrc</code>を置いておく．
+<p>latexmkを利用するために，<code class="highlighter-rouge">.latexmkrc</code>を置いておく．
 あまり良いやり方ではないが，
 リポジトリに元となるファイルを含ませておく．</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cp .latexmkrc ~/.latexmkrc
@@ -106,8 +108,8 @@ cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
 
 <h2 id="bitbucketのdownloadsへのアップロード">BitbucketのDownloadsへのアップロード</h2>
 
-<p>基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
-Circle CI側にEnvironment Variableとして与えてやる．
+<p>基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
+Circle CI側にEnvironment Variableとして与えてやる．
 以下のようにartifactsをcurlを使ってアップロードする．</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>curl -X POST "https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads" --form files=@"/tmp/artifacts/main.pdf";
  curl -X POST "https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads" --form files=@"/tmp/artifacts/main-diffHEAD^-HEAD.pdf";
@@ -118,13 +120,19 @@ cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
 <p>ざっくり説明をしてみた．
 Circle CI 2.0向けの資料は公式ドキュメントが揃っているとはいえ
 まだそんなに多くない印象．
-App Passwordだけは外に漏らさないようにしたい．</p>
+App Passwordだけは外に漏らさないようにしたい．</p>
 
-<p>[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920</p>
-
-<p>[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html</p>
-
-<p>[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html</p>
+<ul>
+  <li>
+    <p>[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920</p>
+  </li>
+  <li>
+    <p>[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html</p>
+  </li>
+  <li>
+    <p>[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html</p>
+  </li>
+</ul>
 
   </div><a class="u-url" href="/2017/08/29/bitbucket-circleci.html" hidden></a>
 </article>

@@ -49,7 +49,7 @@
 ただ触ってみただけでは面白くないので、
 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。</p>
 
-<p>##準備</p>
+<h2 id="準備">準備</h2>
 
 <p>ホストとしてGentoo Linux上のVMware Player 7.1.2で動作させたUbuntu 14.04 LTSを用いた。</p>
 
@@ -72,7 +72,7 @@
 
 <p>を行う場合に、<code class="highlighter-rouge">libncurses5-dev</code>が必要であることに注意したい。</p>
 
-<p>##コードについて</p>
+<h2 id="コードについて">コードについて</h2>
 
 <p>Zephyrリポジトリにあるsample/shellをベースにBrainfuckインタプリタを実装した。
 今回はホストで適当に作成したBrainfuckインタプリタを移植する形をとった。
@@ -85,7 +85,7 @@
 現時点ではZephyrのlibc実装は独自のminimalしかないが、newlibを移植する予定があるようである。
 また、スタックの制限から配列の要素数は正規の30000未満の500とした。</p>
 
-<p>##実行結果</p>
+<h2 id="実行結果">実行結果</h2>
 
 <p>以下に実行結果を示す。ここでは簡単なHello, world!プログラムをqemu_x86上で実行させてみる。</p>
 
@@ -104,7 +104,7 @@ Hello, world!&gt; QEMU: Terminated
 
 <p>確かに動作していることが確認できる。</p>
 
-<p>##まとめ</p>
+<h2 id="まとめ">まとめ</h2>
 
 <p>今回はちょっとしたインタプリタを移植してみた。
 Zephyrは公開された時点で公式ドキュメントが充実しているので、比較的簡単に動作させることができた。
@@ -112,13 +112,19 @@ Zephyrは公開された時点で公式ドキュメントが充実している�
 できる点で非常に導入がしやすかった。
 Linux Foundationが関わっているためか、kernel configやディレクトリの構造がLinux似であるように感じた。</p>
 
-<p>##参考</p>
+<h2 id="参考">参考</h2>
 
-<p>https://www.zephyrproject.org/</p>
-
-<p>https://www.zephyrproject.org/doc/</p>
-
-<p>https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck</p>
+<ul>
+  <li>
+    <p>https://www.zephyrproject.org/</p>
+  </li>
+  <li>
+    <p>https://www.zephyrproject.org/doc/</p>
+  </li>
+  <li>
+    <p>https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck</p>
+  </li>
+</ul>
 
   </div><a class="u-url" href="/2016/03/02/zephyr-brainfuck.html" hidden></a>
 </article>

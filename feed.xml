@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-06-13T18:39:30+09:00</updated><id>/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">8cc in Lazy K</title><link href="/2018/04/01/8cc-lazyk.html" rel="alternate" type="text/html" title="8cc in Lazy K" /><published>2018-04-01T21:17:53+09:00</published><updated>2018-04-01T21:17:53+09:00</updated><id>/2018/04/01/8cc-lazyk</id><content type="html" xml:base="/2018/04/01/8cc-lazyk.html">&lt;p&gt;本日は4月1日で，エイプリルフールの日である．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-06-13T19:05:00+09:00</updated><id>/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">8cc in Lazy K</title><link href="/2018/04/01/8cc-lazyk.html" rel="alternate" type="text/html" title="8cc in Lazy K" /><published>2018-04-01T21:17:53+09:00</published><updated>2018-04-01T21:17:53+09:00</updated><id>/2018/04/01/8cc-lazyk</id><content type="html" xml:base="/2018/04/01/8cc-lazyk.html">&lt;p&gt;本日は4月1日で，エイプリルフールの日である．
 ただ，書いている現在は午後9時で，ちょっと嘘をつくには遅すぎる時間である．そこで，今回は何にも役に立たないものを作ってみようと思った．
 そこで，表題の通り，Lazy Kで書かれた8ccを生成して遊んでみた．&lt;/p&gt;
 
@@ -677,26 +677,30 @@ EZP2010をUSBでマシンに接続する．
 
 &lt;p&gt;参考文献&lt;/p&gt;
 
-&lt;p&gt;[1] http://www.minokasago.org/HobbyElectronicsWiki/index.php?EZP2010
-[2] https://docs.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option&lt;/p&gt;</content><author><name></name></author><summary type="html">EZP2010はAmazonなどで安価に販売されているROMライタである． すでに公式のWebサイトが閉鎖されていたりして Windows 10のドライバは公式には配布されていない． Windows 7でのインストール手順を記している方がいらっしゃるが[1]， この方法ではうまく動かなかった． 非常に汚い方法ではあるがメモ程度にやり方をまとめておく．</summary></entry><entry><title type="html">BitbucketとCircle CIでLatexする</title><link href="/2017/08/29/bitbucket-circleci.html" rel="alternate" type="text/html" title="BitbucketとCircle CIでLatexする" /><published>2017-08-29T11:10:58+09:00</published><updated>2017-08-29T11:10:58+09:00</updated><id>/2017/08/29/bitbucket-circleci</id><content type="html" xml:base="/2017/08/29/bitbucket-circleci.html">&lt;p&gt;前回からだいぶ空いてしまったが，小ネタを投下する．
-以前に，
-&lt;a href=&quot;&quot;&gt;&lt;/a&gt;
+&lt;ul&gt;
+  &lt;li&gt;[1] http://www.minokasago.org/HobbyElectronicsWiki/index.php?EZP2010&lt;/li&gt;
+  &lt;li&gt;[2] https://docs.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">EZP2010はAmazonなどで安価に販売されているROMライタである． すでに公式のWebサイトが閉鎖されていたりして Windows 10のドライバは公式には配布されていない． Windows 7でのインストール手順を記している方がいらっしゃるが[1]， この方法ではうまく動かなかった． 非常に汚い方法ではあるがメモ程度にやり方をまとめておく．</summary></entry><entry><title type="html">BitbucketとCircle CIでLatexする</title><link href="/2017/08/29/bitbucket-circleci.html" rel="alternate" type="text/html" title="BitbucketとCircle CIでLatexする" /><published>2017-08-29T11:10:58+09:00</published><updated>2017-08-29T11:10:58+09:00</updated><id>/2017/08/29/bitbucket-circleci</id><content type="html" xml:base="/2017/08/29/bitbucket-circleci.html">&lt;p&gt;前回からだいぶ空いてしまったが，小ネタを投下する．
+以前に，
+&lt;a href=&quot;http://retrage01.hateblo.jp/entry/2014/10/04/191435&quot;&gt;Jenkins+Bitbucket(Git)でLaTeX&lt;/a&gt;
 という記事を書いた．
-ここでは，CIを用いてlatexdiffによる差分Latexの生成，
-コンパイル，Downloadsへのアップロード
-を行うようなものを作ってみた．&lt;/p&gt;
+ここでは，CIを用いてlatexdiffによる差分Latexの生成，
+コンパイル，Downloadsへのアップロード
+を行うようなものを作ってみた．&lt;/p&gt;
 
-&lt;p&gt;Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
+&lt;p&gt;Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
 Circle CIと比較して，一ヶ月あたりの無料枠が小さいため，
 ここではCircle CIを利用する．
 なお，Circle CI 2.0を対象とする．&lt;/p&gt;
 
 &lt;h2 id=&quot;tldr&quot;&gt;TL;DR&lt;/h2&gt;
 
+&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/dc0980ec4c79b33cd522c4f4f4b82900#file-config-yml&quot;&gt;config.yml for Latex on Circle CI 2.0&lt;/a&gt;&lt;/p&gt;
+
 &lt;h2 id=&quot;既存のdockerイメージの利用&quot;&gt;既存のDockerイメージの利用&lt;/h2&gt;
 
 &lt;p&gt;Latex環境構築，特に日本語文書を扱う場合，やや手続きが煩雑となるが，
-Circle CIでは任意のDockerイメージが利用できる．
+Circle CIでは任意のDockerイメージが利用できる．
 ここでは，
 &lt;code class=&quot;highlighter-rouge&quot;&gt;paperist/alpine-texlive-ja&lt;/code&gt;
 を使わせてもらった[1]．&lt;/p&gt;
@@ -710,7 +714,7 @@ apk add --update ca-certificates openssl &amp;amp;&amp;amp; update-ca-certificat
 tlmgr install ulem latexdiff
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;latexmkを利用するために，&lt;code class=&quot;highlighter-rouge&quot;&gt;.latexmkrc&lt;/code&gt;を置いておく．
+&lt;p&gt;latexmkを利用するために，&lt;code class=&quot;highlighter-rouge&quot;&gt;.latexmkrc&lt;/code&gt;を置いておく．
 あまり良いやり方ではないが，
 リポジトリに元となるファイルを含ませておく．&lt;/p&gt;
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;cp .latexmkrc ~/.latexmkrc
@@ -739,8 +743,8 @@ cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
 
 &lt;h2 id=&quot;bitbucketのdownloadsへのアップロード&quot;&gt;BitbucketのDownloadsへのアップロード&lt;/h2&gt;
 
-&lt;p&gt;基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
-Circle CI側にEnvironment Variableとして与えてやる．
+&lt;p&gt;基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
+Circle CI側にEnvironment Variableとして与えてやる．
 以下のようにartifactsをcurlを使ってアップロードする．&lt;/p&gt;
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main.pdf&quot;;
  curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main-diffHEAD^-HEAD.pdf&quot;;
@@ -751,19 +755,25 @@ cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
 &lt;p&gt;ざっくり説明をしてみた．
 Circle CI 2.0向けの資料は公式ドキュメントが揃っているとはいえ
 まだそんなに多くない印象．
-App Passwordだけは外に漏らさないようにしたい．&lt;/p&gt;
+App Passwordだけは外に漏らさないようにしたい．&lt;/p&gt;
 
-&lt;p&gt;[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920&lt;/p&gt;
-
-&lt;p&gt;[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html&lt;/p&gt;
-
-&lt;p&gt;[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html&lt;/p&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry><entry><title type="html">ELVMのLLVM IRバックエンドをつくった</title><link href="/2017/03/25/elvm-llvm-ir.html" rel="alternate" type="text/html" title="ELVMのLLVM IRバックエンドをつくった" /><published>2017-03-25T23:03:01+09:00</published><updated>2017-03-25T23:03:01+09:00</updated><id>/2017/03/25/elvm-llvm-ir</id><content type="html" xml:base="/2017/03/25/elvm-llvm-ir.html">&lt;p&gt;LLVMはよく知られてるコンパイラ基盤であり，
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry><entry><title type="html">ELVMのLLVM IRバックエンドをつくった</title><link href="/2017/03/25/elvm-llvm-ir.html" rel="alternate" type="text/html" title="ELVMのLLVM IRバックエンドをつくった" /><published>2017-03-25T23:03:01+09:00</published><updated>2017-03-25T23:03:01+09:00</updated><id>/2017/03/25/elvm-llvm-ir</id><content type="html" xml:base="/2017/03/25/elvm-llvm-ir.html">&lt;p&gt;LLVMはよく知られてるコンパイラ基盤であり，
 中間表現としてLLVM IRを持っている．
 様々なところでこのLLVM IRが使われているが，
 今まで触ってこなかったということもあり，
 今回LLVM IRで何かしら遊んでみようと思っていた．&lt;/p&gt;
 
-&lt;p&gt;[http://itchyny.hatenablog.com/entry/2017/02/27/100000:embed:cite]&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;http://itchyny.hatenablog.com/entry/2017/02/27/100000&quot;&gt;LLVMを始めよう！ 〜 LLVM IRの基礎はclangが教えてくれた・Brainf**kコンパイラを作ってみよう 〜&lt;/a&gt;&lt;/p&gt;
 
 &lt;p&gt;最近になって，上記のようなBrainF**kを題材にLLVM IRを出力するような
 記事が上がっており，こちらの記事に刺激を受け，
@@ -779,7 +789,7 @@ ELVMのLLVM IRバックエンドを作成した．&lt;/p&gt;
 
 &lt;p&gt;今回作成したバックエンドのコードは以下．&lt;/p&gt;
 
-&lt;p&gt;[https://github.com/retrage/elvm.git:title]&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/retrage/elvm/tree/retrage/ll&quot;&gt;retrage/elvm at retrage/ll&lt;/a&gt;&lt;/p&gt;
 
 &lt;h2 id=&quot;cからelvm-irを経由してllvm-irへ変換してみる&quot;&gt;CからELVM IRを経由してLLVM IRへ変換してみる&lt;/h2&gt;
 
@@ -848,7 +858,7 @@ void func0() {
 &lt;p&gt;elcにより生成されたhello.c.eir.cは
 11,290行あり，Cコードへ変換されていることがわかる．&lt;/p&gt;
 
-&lt;p&gt;ここで得られたCコード’をclangにより
+&lt;p&gt;ここで得られたCコードをclangにより
 LLVM IRに変換し,
 さらにLLVM IRのインタプリタであるlliにより実行してみる．&lt;/p&gt;
 
@@ -926,7 +936,7 @@ Cコード’のうち，&lt;/p&gt;
   &lt;/li&gt;
   &lt;li&gt;case文の扱い
     &lt;ul&gt;
-      &lt;li&gt;Cコード’では変数pcの値をswitch-caseすることで
+      &lt;li&gt;Cコードでは変数pcの値をswitch-caseすることで
   実行する．caseはLLVM IRではlabelとなっているが，
   事前にlabelのUnnamed Identityを知ることができないため，
   最初にswitch文を置くことができない．
@@ -1034,14 +1044,17 @@ wastをsexpr-wasmにより
 
 &lt;p&gt;なお，これまでで得られた8ccのファイルを以下に示す．&lt;/p&gt;
 
-&lt;p&gt;LLVM IRに変換した8cc
-[https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b]&lt;/p&gt;
+&lt;p&gt;LLVM IRに変換した8cc&lt;/p&gt;
 
-&lt;p&gt;上記のものをopt -O3で最適化したもの
-[https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a]&lt;/p&gt;
+&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b&quot;&gt;retrage/8cc.c.eir.ll&lt;/a&gt;&lt;/p&gt;
 
-&lt;p&gt;上記のものをllcによりWebAssemblyのアセンブリコードにしたもの
-[https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7]&lt;/p&gt;
+&lt;p&gt;上記のものをopt -O3で最適化したもの&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a&quot;&gt;retrage/8cc.c.eir.ll.opt.ll&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;上記のものをllcによりWebAssemblyのアセンブリコードにしたもの&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7&quot;&gt;retrage/8cc.c.eir.ll.opt.s&lt;/a&gt;&lt;/p&gt;
 
 &lt;h1 id=&quot;まとめ&quot;&gt;まとめ&lt;/h1&gt;
 
@@ -1053,23 +1066,33 @@ wastをsexpr-wasmにより
 
 &lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
 
-&lt;p&gt;[http://shinh.hatenablog.com/entry/2016/10/18/095437]&lt;/p&gt;
-
-&lt;p&gt;[https://github.com/shinh/elvm]&lt;/p&gt;
-
-&lt;p&gt;[http://shinh.skr.jp/slide/elvm/000.html]&lt;/p&gt;
-
-&lt;p&gt;[http://shinh.skr.jp/slide/llel/000.html]&lt;/p&gt;
-
-&lt;p&gt;[http://llvm.org/docs/LangRef.html]&lt;/p&gt;
-
-&lt;p&gt;[http://hak7a3.hatenablog.com/entry/2016/11/13/153418]&lt;/p&gt;
-
-&lt;p&gt;[http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f]&lt;/p&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry><entry><title type="html">Zephyr上でBrainfuckを(一部)動かしてみる</title><link href="/2016/03/02/zephyr-brainfuck.html" rel="alternate" type="text/html" title="Zephyr上でBrainfuckを(一部)動かしてみる" /><published>2016-03-02T02:26:07+09:00</published><updated>2016-03-02T02:26:07+09:00</updated><id>/2016/03/02/zephyr-brainfuck</id><content type="html" xml:base="/2016/03/02/zephyr-brainfuck.html">&lt;p&gt;ZephyrはLinux Foundationが発表したのRTOSである。
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://shinh.hatenablog.com/entry/2016/10/18/095437&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;https://github.com/shinh/elvm&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://shinh.skr.jp/slide/elvm/000.html&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://shinh.skr.jp/slide/llel/000.html&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://llvm.org/docs/LangRef.html&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://hak7a3.hatenablog.com/entry/2016/11/13/153418&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry><entry><title type="html">Zephyr上でBrainfuckを(一部)動かしてみる</title><link href="/2016/03/02/zephyr-brainfuck.html" rel="alternate" type="text/html" title="Zephyr上でBrainfuckを(一部)動かしてみる" /><published>2016-03-02T02:26:07+09:00</published><updated>2016-03-02T02:26:07+09:00</updated><id>/2016/03/02/zephyr-brainfuck</id><content type="html" xml:base="/2016/03/02/zephyr-brainfuck.html">&lt;p&gt;ZephyrはLinux Foundationが発表したのRTOSである。
 ただ触ってみただけでは面白くないので、
 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。&lt;/p&gt;
 
-&lt;p&gt;##準備&lt;/p&gt;
+&lt;h2 id=&quot;準備&quot;&gt;準備&lt;/h2&gt;
 
 &lt;p&gt;ホストとしてGentoo Linux上のVMware Player 7.1.2で動作させたUbuntu 14.04 LTSを用いた。&lt;/p&gt;
 
@@ -1092,7 +1115,7 @@ wastをsexpr-wasmにより
 
 &lt;p&gt;を行う場合に、&lt;code class=&quot;highlighter-rouge&quot;&gt;libncurses5-dev&lt;/code&gt;が必要であることに注意したい。&lt;/p&gt;
 
-&lt;p&gt;##コードについて&lt;/p&gt;
+&lt;h2 id=&quot;コードについて&quot;&gt;コードについて&lt;/h2&gt;
 
 &lt;p&gt;Zephyrリポジトリにあるsample/shellをベースにBrainfuckインタプリタを実装した。
 今回はホストで適当に作成したBrainfuckインタプリタを移植する形をとった。
@@ -1105,7 +1128,7 @@ wastをsexpr-wasmにより
 現時点ではZephyrのlibc実装は独自のminimalしかないが、newlibを移植する予定があるようである。
 また、スタックの制限から配列の要素数は正規の30000未満の500とした。&lt;/p&gt;
 
-&lt;p&gt;##実行結果&lt;/p&gt;
+&lt;h2 id=&quot;実行結果&quot;&gt;実行結果&lt;/h2&gt;
 
 &lt;p&gt;以下に実行結果を示す。ここでは簡単なHello, world!プログラムをqemu_x86上で実行させてみる。&lt;/p&gt;
 
@@ -1124,7 +1147,7 @@ Hello, world!&amp;gt; QEMU: Terminated
 
 &lt;p&gt;確かに動作していることが確認できる。&lt;/p&gt;
 
-&lt;p&gt;##まとめ&lt;/p&gt;
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
 
 &lt;p&gt;今回はちょっとしたインタプリタを移植してみた。
 Zephyrは公開された時点で公式ドキュメントが充実しているので、比較的簡単に動作させることができた。
@@ -1132,10 +1155,16 @@ Zephyrは公開された時点で公式ドキュメントが充実している�
 できる点で非常に導入がしやすかった。
 Linux Foundationが関わっているためか、kernel configやディレクトリの構造がLinux似であるように感じた。&lt;/p&gt;
 
-&lt;p&gt;##参考&lt;/p&gt;
+&lt;h2 id=&quot;参考&quot;&gt;参考&lt;/h2&gt;
 
-&lt;p&gt;https://www.zephyrproject.org/&lt;/p&gt;
-
-&lt;p&gt;https://www.zephyrproject.org/doc/&lt;/p&gt;
-
-&lt;p&gt;https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck&lt;/p&gt;</content><author><name></name></author><summary type="html">ZephyrはLinux Foundationが発表したのRTOSである。 ただ触ってみただけでは面白くないので、 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。</summary></entry></feed>
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;https://www.zephyrproject.org/&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;https://www.zephyrproject.org/doc/&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ZephyrはLinux Foundationが発表したのRTOSである。 ただ触ってみただけでは面白くないので、 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。</summary></entry></feed>

@@ -54,7 +54,7 @@ x86のハードウェア仮想化支援を前提としている。</p>
 <p>vmmはOpenBSDの-currentツリーにあるものの、-releaseの現時点での最新版である5.8には入っていない。
 そのため、最新のsnapshotをインストールする。ここでは2016年2月4日変更を参照する。</p>
 
-<p>##環境</p>
+<h2 id="環境">環境</h2>
 
 <p>Mac OS X 10.11.3上のVMware Fusion 7.1.3で「ハイパーバイザー　アプリケーション」を有効にしたVM上に
 OpenBSDをインストールした。インストールされたOpenBSDがvmmのホスト側として動作する。</p>
@@ -65,7 +65,7 @@ OpenBSDをインストールした。インストールされたOpenBSDがvmmの
 cpu0: FPU,VME,DE,PSE,TSC,MSR,PAE,MCE,CX8,APIC,SEP,MTRR,PGE,MCA,CMOV,PAT,PSE36,CFLUSH,DS,MMX,FXSR,SSE,SSE2,SS,SSE3,PCLMUL,VMX,SSSE3,CX16,PCID,SSE4.1,SSE4.2,x2APIC,POPCNT,DEADLINE,AES,XSAVE,AVX,F16C,RDRAND,HV,NXE,LONG,LAHF,PERF,ITSC,FSGSBASE,SMEP,ERMS,SENSOR,ARAT
 </code></pre></div></div>
 
-<p>##ソースコードの取得とカーネルビルド</p>
+<h2 id="ソースコードの取得とカーネルビルド">ソースコードの取得とカーネルビルド</h2>
 
 <p>ホスト側がインストールできたら、次にOpenBSDのCVSリポジトリを取得する。</p>
 
@@ -95,7 +95,7 @@ $ su -m
 vmm0 at mainbus0: VMX/EPT
 </code></pre></div></div>
 
-<p>##vmdの起動とVMの起動</p>
+<h2 id="vmdの起動とvmの起動">vmdの起動とVMの起動</h2>
 
 <p>ここでは<code class="highlighter-rouge">/bsd.rd</code>をカーネルとして起動してみる。
 以下ではrootでvmdを立ち上げ、”myvm”という名前のVMにを起動し、
@@ -149,15 +149,22 @@ Welcome to the OpenBSD/amd64 5.9 installation program.
 #
 </code></pre></div></div>
 
-<p>##参考</p>
+<h2 id="参考">参考</h2>
 
-<p>http://www.openbsd.org/anoncvs.html</p>
-
-<p>https://marc.info/?l=openbsd-tech&amp;m=144104398132541&amp;w=2</p>
-
-<p>http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man8/vmctl.8?query=vmctl&amp;sec=8</p>
-
-<p>http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man8/vmd.8?query=vmd&amp;sec=8</p>
+<ul>
+  <li>
+    <p>http://www.openbsd.org/anoncvs.html</p>
+  </li>
+  <li>
+    <p>https://marc.info/?l=openbsd-tech&amp;m=144104398132541&amp;w=2</p>
+  </li>
+  <li>
+    <p>http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man8/vmctl.8?query=vmctl&amp;sec=8</p>
+  </li>
+  <li>
+    <p>http://www.openbsd.org/cgi-bin/man.cgi/OpenBSD-current/man8/vmd.8?query=vmd&amp;sec=8</p>
+  </li>
+</ul>
 
   </div><a class="u-url" href="/2016/02/17/vmm-introduction.html" hidden></a>
 </article>

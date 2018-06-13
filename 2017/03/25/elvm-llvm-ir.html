@@ -51,7 +51,7 @@
 今まで触ってこなかったということもあり，
 今回LLVM IRで何かしら遊んでみようと思っていた．</p>
 
-<p>[http://itchyny.hatenablog.com/entry/2017/02/27/100000:embed:cite]</p>
+<p><a href="http://itchyny.hatenablog.com/entry/2017/02/27/100000">LLVMを始めよう！ 〜 LLVM IRの基礎はclangが教えてくれた・Brainf**kコンパイラを作ってみよう 〜</a></p>
 
 <p>最近になって，上記のようなBrainF**kを題材にLLVM IRを出力するような
 記事が上がっており，こちらの記事に刺激を受け，
@@ -67,7 +67,7 @@ ELVMのLLVM IRバックエンドを作成した．</p>
 
 <p>今回作成したバックエンドのコードは以下．</p>
 
-<p>[https://github.com/retrage/elvm.git:title]</p>
+<p><a href="https://github.com/retrage/elvm/tree/retrage/ll">retrage/elvm at retrage/ll</a></p>
 
 <h2 id="cからelvm-irを経由してllvm-irへ変換してみる">CからELVM IRを経由してLLVM IRへ変換してみる</h2>
 
@@ -136,7 +136,7 @@ void func0() {
 <p>elcにより生成されたhello.c.eir.cは
 11,290行あり，Cコードへ変換されていることがわかる．</p>
 
-<p>ここで得られたCコード’をclangにより
+<p>ここで得られたCコードをclangにより
 LLVM IRに変換し,
 さらにLLVM IRのインタプリタであるlliにより実行してみる．</p>
 
@@ -214,7 +214,7 @@ Cコード’のうち，</p>
   </li>
   <li>case文の扱い
     <ul>
-      <li>Cコード’では変数pcの値をswitch-caseすることで
+      <li>Cコードでは変数pcの値をswitch-caseすることで
   実行する．caseはLLVM IRではlabelとなっているが，
   事前にlabelのUnnamed Identityを知ることができないため，
   最初にswitch文を置くことができない．
@@ -322,14 +322,17 @@ wastをsexpr-wasmにより
 
 <p>なお，これまでで得られた8ccのファイルを以下に示す．</p>
 
-<p>LLVM IRに変換した8cc
-[https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b]</p>
+<p>LLVM IRに変換した8cc</p>
 
-<p>上記のものをopt -O3で最適化したもの
-[https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a]</p>
+<p><a href="https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b">retrage/8cc.c.eir.ll</a></p>
 
-<p>上記のものをllcによりWebAssemblyのアセンブリコードにしたもの
-[https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7]</p>
+<p>上記のものをopt -O3で最適化したもの</p>
+
+<p><a href="https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a">retrage/8cc.c.eir.ll.opt.ll</a></p>
+
+<p>上記のものをllcによりWebAssemblyのアセンブリコードにしたもの</p>
+
+<p><a href="https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7">retrage/8cc.c.eir.ll.opt.s</a></p>
 
 <h1 id="まとめ">まとめ</h1>
 
@@ -341,19 +344,29 @@ wastをsexpr-wasmにより
 
 <h2 id="参考文献">参考文献</h2>
 
-<p>[http://shinh.hatenablog.com/entry/2016/10/18/095437]</p>
-
-<p>[https://github.com/shinh/elvm]</p>
-
-<p>[http://shinh.skr.jp/slide/elvm/000.html]</p>
-
-<p>[http://shinh.skr.jp/slide/llel/000.html]</p>
-
-<p>[http://llvm.org/docs/LangRef.html]</p>
-
-<p>[http://hak7a3.hatenablog.com/entry/2016/11/13/153418]</p>
-
-<p>[http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f]</p>
+<ul>
+  <li>
+    <p>http://shinh.hatenablog.com/entry/2016/10/18/095437</p>
+  </li>
+  <li>
+    <p>https://github.com/shinh/elvm</p>
+  </li>
+  <li>
+    <p>http://shinh.skr.jp/slide/elvm/000.html</p>
+  </li>
+  <li>
+    <p>http://shinh.skr.jp/slide/llel/000.html</p>
+  </li>
+  <li>
+    <p>http://llvm.org/docs/LangRef.html</p>
+  </li>
+  <li>
+    <p>http://hak7a3.hatenablog.com/entry/2016/11/13/153418</p>
+  </li>
+  <li>
+    <p>http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f</p>
+  </li>
+</ul>
 
   </div><a class="u-url" href="/2017/03/25/elvm-llvm-ir.html" hidden></a>
 </article>
