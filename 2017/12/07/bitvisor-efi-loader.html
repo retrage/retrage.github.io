@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる | めもちょー</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．" />
+<meta property="og:description" content="この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．" />
+<link rel="canonical" href="/2017/12/07/bitvisor-efi-loader.html" />
+<meta property="og:url" content="/2017/12/07/bitvisor-efi-loader.html" />
+<meta property="og:site_name" content="めもちょー" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-12-07T02:05:28+09:00" />
+<script type="application/ld+json">
+{"headline":"BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる","dateModified":"2017-12-07T02:05:28+09:00","url":"/2017/12/07/bitvisor-efi-loader.html","datePublished":"2017-12-07T02:05:28+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/12/07/bitvisor-efi-loader.html"},"description":"この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．","@type":"BlogPosting","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="めもちょー" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">めもちょー</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2017-12-07T02:05:28+09:00" itemprop="datePublished">Dec 7, 2017
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>この記事は
+<a href="https://qiita.com/advent-calendar/2017/bitvisor">BitVisor Advent Calendar</a>
+7日目の記事として書かれた．
+ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．</p>
+
+<p>EFI Loaderのコードは
+<a href="https://bitbucket.org/bitvisor/bitvisor/src/34fa14de2421cd3564323eec998f8e0c465e99a0/boot/uefi-loader/loadvmm.c?at=default&amp;fileviewer=file-view-default"><code class="highlighter-rouge">boot/uefi-loader/loadvmm.c</code></a>
+にある．</p>
+
+<p><code class="highlighter-rouge">efi_main</code>をみていく．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        status = systab-&gt;BootServices-&gt;
+                HandleProtocol (image, &amp;LoadedImageProtocol, &amp;tmp);
+</code></pre></div></div>
+<p>LoadedImageProtocolがサポートされているかを確認．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        status = systab-&gt;BootServices-&gt;
+                HandleProtocol (loaded_image-&gt;DeviceHandle,
+                                &amp;FileSystemProtocol, &amp;tmp);
+</code></pre></div></div>
+<p>FileSystemProtocolがサポートされているかを確認．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        create_file_path (loaded_image-&gt;FilePath, L"bitvisor.elf", file_path,
+                          sizeof file_path / sizeof file_path[0]);
+</code></pre></div></div>
+<p>ここで，<code class="highlighter-rouge">bitvisor.elf</code>までのパスを作成する．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        status = fileio-&gt;OpenVolume (fileio, &amp;file);
+</code></pre></div></div>
+<p>ボリュームを開く．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        status = file-&gt;Open (file, &amp;file2, file_path, EFI_FILE_MODE_READ, 0);
+</code></pre></div></div>
+<p>先で作成したファイルパスのファイルを開く．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        status = systab-&gt;BootServices-&gt;AllocatePages (AllocateMaxAddress,
+                                                      EfiLoaderData, 0x10,
+                                                      &amp;paddr);
+</code></pre></div></div>
+<p>4KiB*0x10=64KiBだけページをAllocateする．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	readsize = 0x10000;
+	status = file2-&gt;Read (file2, &amp;readsize, (void *)paddr);
+</code></pre></div></div>
+<p><code class="highlighter-rouge">bitvisor.elf</code>のうち0x10000だけpaddrに展開する．
+このあたりのマジックナンバーについては榮樂さんによる<a href="https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf">スライド</a>
+に詳しく書いてある．
+それによれば，</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>BitVisorのVMMローダ(2nd stage)ではELFバイナリの先頭64KiB
+</code></pre></div></div>
+<p>(20ページ目)
+とある．この部分はその先頭64KiBを読み出していると考えられる．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	entry = *(uint32_t *)(paddr + 0x18);
+	entry_func = (entry_func_t *)(paddr + (entry &amp; 0xFFFF));
+</code></pre></div></div>
+<p>ELFの先頭アドレスからエントリポイントを計算し，<code class="highlighter-rouge">entry_func</code>とする．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>	struct bitvisor_boot boot_ext = {
+		UEFI_BITVISOR_BOOT_UUID,
+		paddr,
+		readsize,
+		file2
+	};
+	void *boot_exts[] = {
+		&amp;boot_ext,
+		NULL
+	};
+
+	boot_error = entry_func (image, systab, boot_exts);
+</code></pre></div></div>
+<p>必要な情報を構造体に抱えて<code class="highlighter-rouge">entry_func</code>に飛び込む．</p>
+
+<p>以上を簡単にまとめると，
+ファイルの読み出し-&gt;エントリポイントの計算-&gt;エントリポイントへのジャンプ
+のようになっている．
+ELFのパースを行わないことで，簡素な実装となっていることが見て取れる．
+また，</p>
+
+<h2 id="最後に">最後に</h2>
+
+<p>EFIアプリケーションの開発と言えばEDK2やgnu-efiがあるが，
+BitVisorのEFI Loaderの場合，EDKからのヘッダを利用し，
+<code class="highlighter-rouge">x86_64-w64-mingw32-gcc</code>によりコンパイルを行う．
+このため依存関係が少なくコンパイルが容易であると言える．</p>
+
+<p>BitVisorの<code class="highlighter-rouge">uefi-loader</code>に加え，品川先生の<a href="https://github.com/utshina/uefi-simple">uefi-simple</a>に刺激を受け，
+<a href="https://github.com/retrage/uefi-sample">uefi-sample</a>
+というサンプルを作成した．
+これにより，EDK2やgnu-efiに頼ることなくEFIアプリケーションを作成することができる．</p>
+
+<p>ここでは，BitVisor のVMMローダ(1st stage)のコードを読んだ．
+機会があれば，2nd stageのコードも読んでみたい．</p>
+
+<h2 id="参考文献">参考文献</h2>
+<ul>
+  <li>https://bitbucket.org/bitvisor/bitvisor</li>
+  <li>https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf</li>
+  <li>https://qiita.com/hdk_2/items/b73161f08fefce0d99c3</li>
+  <li>https://github.com/utshina/uefi-simple</li>
+  <li>https://github.com/retrage/uefi-sample</li>
+</ul>
+
+  </div><a class="u-url" href="/2017/12/07/bitvisor-efi-loader.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">めもちょー</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">めもちょー</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

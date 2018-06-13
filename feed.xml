@@ -1,13 +1,1141 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-06-13T18:11:23+09:00</updated><id>/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">Welcome to Jekyll!</title><link href="/jekyll/update/2018/06/13/welcome-to-jekyll.html" rel="alternate" type="text/html" title="Welcome to Jekyll!" /><published>2018-06-13T17:33:04+09:00</published><updated>2018-06-13T17:33:04+09:00</updated><id>/jekyll/update/2018/06/13/welcome-to-jekyll</id><content type="html" xml:base="/jekyll/update/2018/06/13/welcome-to-jekyll.html">&lt;p&gt;You’ll find this post in your &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run &lt;code class=&quot;highlighter-rouge&quot;&gt;jekyll serve&lt;/code&gt;, which launches a web server and auto-regenerates your site when a file is updated.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-06-13T18:39:30+09:00</updated><id>/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">8cc in Lazy K</title><link href="/2018/04/01/8cc-lazyk.html" rel="alternate" type="text/html" title="8cc in Lazy K" /><published>2018-04-01T21:17:53+09:00</published><updated>2018-04-01T21:17:53+09:00</updated><id>/2018/04/01/8cc-lazyk</id><content type="html" xml:base="/2018/04/01/8cc-lazyk.html">&lt;p&gt;本日は4月1日で，エイプリルフールの日である．
+ただ，書いている現在は午後9時で，ちょっと嘘をつくには遅すぎる時間である．そこで，今回は何にも役に立たないものを作ってみようと思った．
+そこで，表題の通り，Lazy Kで書かれた8ccを生成して遊んでみた．&lt;/p&gt;
 
-&lt;p&gt;To add new posts, simply add a file in the &lt;code class=&quot;highlighter-rouge&quot;&gt;_posts&lt;/code&gt; directory that follows the convention &lt;code class=&quot;highlighter-rouge&quot;&gt;YYYY-MM-DD-name-of-post.ext&lt;/code&gt; and includes the necessary front matter. Take a look at the source for this post to get an idea about how it works.&lt;/p&gt;
+&lt;h2 id=&quot;生成&quot;&gt;生成&lt;/h2&gt;
+&lt;ol&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/shinh/bflisp/blob/master/8cc.bf&quot;&gt;ELVMで生成された8cc.bf&lt;/a&gt;
+をダウンロード&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;&lt;a href=&quot;https://github.com/msullivan/LazyK/blob/master/eg/bf2lazy.c&quot;&gt;bf2lazy.c&lt;/a&gt;
+をダウンロード&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;2.で1.をLazy Kに変換
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;gcc bf2lazy.c -o bf2lazy
+./bf2lazy &amp;lt; 8cc.bf &amp;gt; 8cc.bf.lazy
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+  &lt;/li&gt;
+  &lt;li&gt;生成されたLazy Kのコード
+    &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ du -h 8cc.bf.lazy
+ 12G	8cc.bf.lazy
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;    &lt;/div&gt;
+    &lt;p&gt;バカみたいにでかくなる．&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;p&gt;Jekyll also offers powerful support for code snippets:&lt;/p&gt;
+&lt;h2 id=&quot;検証&quot;&gt;検証&lt;/h2&gt;
+&lt;p&gt;おそらくは正しく動くはずであるが，8cc.bfだけで検証するのが相当かかるようなので，8cc.bf.lazyではさらに検証に時間がかかるはずなので，やらないこととする．&lt;/p&gt;
 
-&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-ruby&quot; data-lang=&quot;ruby&quot;&gt;&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-  &lt;span class=&quot;nb&quot;&gt;puts&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;Hi, &lt;/span&gt;&lt;span class=&quot;si&quot;&gt;#{&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;si&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;print_hi&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;'Tom'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;c1&quot;&gt;#=&amp;gt; prints 'Hi, Tom' to STDOUT.&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+&lt;p&gt;適当にやったらLazy Kのコードがバカでかくなった．
+生成されたコードは無用の長物なので，どこにもあげないが，簡単に生成できるので，暇な人はやってみよう．&lt;/p&gt;</content><author><name></name></author><summary type="html">本日は4月1日で，エイプリルフールの日である． ただ，書いている現在は午後9時で，ちょっと嘘をつくには遅すぎる時間である．そこで，今回は何にも役に立たないものを作ってみようと思った． そこで，表題の通り，Lazy Kで書かれた8ccを生成して遊んでみた．</summary></entry><entry><title type="html">Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる</title><link href="/2018/03/04/v8-wasm-i32add-internal.html" rel="alternate" type="text/html" title="Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる" /><published>2018-03-04T14:43:55+09:00</published><updated>2018-03-04T14:43:55+09:00</updated><id>/2018/03/04/v8-wasm-i32add-internal</id><content type="html" xml:base="/2018/03/04/v8-wasm-i32add-internal.html">&lt;p&gt;WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため，
+wasmについての説明は割愛する．
+ここでは，wasmがどのように実装され，実行されるのかを見ていく．
+参照する実装はGoogle V8 JavaScript Engineの
+&lt;code class=&quot;highlighter-rouge&quot;&gt;1b254a25163fd84a7696ff62e87cb6dcde7e13f2&lt;/code&gt;である．&lt;/p&gt;
 
-&lt;p&gt;Check out the &lt;a href=&quot;https://jekyllrb.com/docs/home&quot;&gt;Jekyll docs&lt;/a&gt; for more info on how to get the most out of Jekyll. File all bugs/feature requests at &lt;a href=&quot;https://github.com/jekyll/jekyll&quot;&gt;Jekyll’s GitHub repo&lt;/a&gt;. If you have questions, you can ask them on &lt;a href=&quot;https://talk.jekyllrb.com/&quot;&gt;Jekyll Talk&lt;/a&gt;.&lt;/p&gt;</content><author><name></name></author><summary type="html">You’ll find this post in your _posts directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run jekyll serve, which launches a web server and auto-regenerates your site when a file is updated.</summary></entry></feed>
+&lt;h2 id=&quot;簡単なコード例&quot;&gt;簡単なコード例&lt;/h2&gt;
+&lt;p&gt;次のようなwasmのコードを考える．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;(module
+    (func (param $lhs i32) (param $rhs i32) (result i32)
+        get_local $lhs
+        get_local $rhs
+        i32.add
+    )
+)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;このコードは2つのパラメータを加算して返す関数を表している．
+具体的には，パラメータ$lhsと$rhsをスタックにプッシュし，
+i32.addによりそれらの加算を行なっている．&lt;/p&gt;
+
+&lt;h2 id=&quot;i32addの実装からたどる&quot;&gt;i32.addの実装からたどる&lt;/h2&gt;
+&lt;p&gt;最初にi32.addはどのように実装されているのかを見ていく．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;src/wasm/wasm-interpreter.cc&lt;/code&gt;には次のような定義がある．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#define FOREACH_SIMPLE_BINOP(V) \
+  V(I32Add, uint32_t, +)        \
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;I32Add&lt;/code&gt;とあるので，ここがi32.addの定義であることがわかる．
+次に&lt;code class=&quot;highlighter-rouge&quot;&gt;FOREACH_SIMPLE_BINOP&lt;/code&gt;が使われている部分を見る．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#define EXECUTE_SIMPLE_BINOP(name, ctype, op)               \
+  case kExpr##name: {                                       \
+    WasmValue rval = Pop();                                 \
+    WasmValue lval = Pop();                                 \
+    auto result = lval.to&amp;lt;ctype&amp;gt;() op rval.to&amp;lt;ctype&amp;gt;();     \
+    possible_nondeterminism_ |= has_nondeterminism(result); \
+    Push(WasmValue(result));                                \
+    break;                                                  \
+  }
+          FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;EXECUTE_SIMPLE_BINOP&lt;/code&gt;を引数として&lt;code class=&quot;highlighter-rouge&quot;&gt;FOREACH_SIMPLE_BINOP&lt;/code&gt;を
+呼び出していることがわかる．
+ここでは，何らかのcase文となっておりその中で，
+スタックから値をポップしrvalとlvalに代入し，与えられたopで計算を行い，
+resultに代入し，値をプッシュしていることがわかる．
+つまり，ここで実際の計算が行われていることがわかる．&lt;/p&gt;
+
+&lt;p&gt;では，このcase文の大元を見てみる．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      switch (orig) {
+        case kExprNop:
+          break;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここから，origにより判定していることがわかる．
+origは&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      byte orig = code-&amp;gt;start[pc];
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;であり，codeは&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  void Execute(InterpreterCode* code, pc_t pc, int max) {
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;から&lt;code class=&quot;highlighter-rouge&quot;&gt;Execute&lt;/code&gt;の引数であることがわかる．
+さらに，&lt;code class=&quot;highlighter-rouge&quot;&gt;Execute&lt;/code&gt;は&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  WasmInterpreter::State Run(int num_steps = -1) {
+    DCHECK(state_ == WasmInterpreter::STOPPED ||
+           state_ == WasmInterpreter::PAUSED);
+    DCHECK(num_steps == -1 || num_steps &amp;gt; 0);
+    if (num_steps == -1) {
+      TRACE(&quot;  =&amp;gt; Run()\n&quot;);
+    } else if (num_steps == 1) {
+      TRACE(&quot;  =&amp;gt; Step()\n&quot;);
+    } else {
+      TRACE(&quot;  =&amp;gt; Run(%d)\n&quot;, num_steps);
+    }
+    state_ = WasmInterpreter::RUNNING;
+    Execute(frames_.back().code, frames_.back().pc, num_steps);
+    // If state_ is STOPPED, the current activation must be fully unwound.
+    DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED,
+                   current_activation().fp == frames_.size());
+    return state_;
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;より&lt;code class=&quot;highlighter-rouge&quot;&gt;WasmInterpreter::State Run&lt;/code&gt;から呼び出されている．
+コードを追うのは一旦このあたりでやめておく．&lt;/p&gt;
+
+&lt;h2 id=&quot;スタックの実装&quot;&gt;スタックの実装&lt;/h2&gt;
+&lt;p&gt;wasmはスタックマシンとなっている．ここでは，これまでで出てきた関数
+&lt;code class=&quot;highlighter-rouge&quot;&gt;Pop&lt;/code&gt;や&lt;code class=&quot;highlighter-rouge&quot;&gt;Push&lt;/code&gt;からスタックの実装をみていく．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  WasmValue Pop() {
+    DCHECK_GT(frames_.size(), 0);
+    DCHECK_GT(StackHeight(), frames_.back().llimit());  // can't pop into locals
+    return *--sp_;
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  void Push(WasmValue val) {
+    DCHECK_NE(kWasmStmt, val.type());
+    DCHECK_LE(1, stack_limit_ - sp_);
+    *sp_++ = val;
+  }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Pop&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;Push&lt;/code&gt;，いずれも実装はたったの1行だけであることがわかる．&lt;/p&gt;
+
+&lt;p&gt;以上，Google V8 JavaScript Engineでのwasmの実装を簡単に見ていった．
+正直なところ，最適化などで非常に複雑かつ高度な実装になっていると思っていたが，
+今回読んだ部分はナイーブな実装となっており，読みやすいといえる．
+一方で，JavaScriptとのインターフェースとなる部分は相当複雑であることが
+容易に想像できる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://webassembly.github.io/spec/core/index.html&lt;/li&gt;
+  &lt;li&gt;https://developer.mozilla.org/ja/docs/WebAssembly/Understanding_the_text_format&lt;/li&gt;
+  &lt;li&gt;https://github.com/v8/v8/blob/master/src/wasm/wasm-interpreter.cc&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．</summary></entry><entry><title type="html">Rustでcoreboot payload</title><link href="/2017/12/18/coreboot-ffi.html" rel="alternate" type="text/html" title="Rustでcoreboot payload" /><published>2017-12-18T23:28:27+09:00</published><updated>2017-12-18T23:28:27+09:00</updated><id>/2017/12/18/coreboot-ffi</id><content type="html" xml:base="/2017/12/18/coreboot-ffi.html">&lt;p&gt;この記事は&lt;a href=&quot;https://adventar.org/calendars/2282&quot;&gt;自作OS Advent Calendar&lt;/a&gt;
+の19日目の記事として書かれた．
+ここでは，corebootのpayloadをRustを使って作ってみる．
+corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．&lt;/p&gt;
+
+&lt;h2 id=&quot;corebootについて&quot;&gt;corebootについて&lt;/h2&gt;
+&lt;p&gt;corebootとは既存のプロプライエタリなBIOSを置き換えるBIOSと
+そのプロジェクトのことである．
+corebootは大きくcoreboot本体とPayloadの2つがあり，
+Payloadには様々なソフトウェアを載せることができる．
+今回はPayloadをRustで作ってみようということである．
+ここでは，Libpayloadと呼ばれるPayload向けのライブラリの関数を
+Rustから呼び出してみる．&lt;/p&gt;
+
+&lt;h2 id=&quot;rustでのベアメタルプログラミング&quot;&gt;Rustでのベアメタルプログラミング&lt;/h2&gt;
+&lt;p&gt;Rustでのベアメタルプログラミングについてはκeenさんの&lt;a href=&quot;http://keens.github.io/blog/2016/05/04/rustdebeametaruraspberry_pinolchika/&quot;&gt;記事&lt;/a&gt;
+が詳しい．ほとんどここを参考にした．&lt;/p&gt;
+
+&lt;p&gt;ホストの環境はx86_64であるとする．
+最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;cargo new --bin cb-ffi&lt;/code&gt;とかやって新規のCargoプロジェクトを作成する．&lt;/p&gt;
+
+&lt;p&gt;次に以下のような内容で&lt;code class=&quot;highlighter-rouge&quot;&gt;main.rs&lt;/code&gt;を書く．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#![feature(lang_items, asm)]
+#![crate_type = &quot;staticlib&quot;]
+#![no_std]
+
+#[link(name = &quot;libpayload&quot;, kind = &quot;static&quot;)]
+extern {
+    fn putchar(c: u32);
+}
+
+#[no_mangle]
+pub extern fn main() {
+    loop{
+        unsafe { putchar(65) };
+    }   
+}
+
+#[lang = &quot;eh_personality&quot;]
+extern fn eh_personality() {}
+
+#[lang = &quot;panic_fmt&quot;]
+extern fn panic_fmt() {}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ほとんど上記の記事と同じであるが，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#[link(name = &quot;libpayload&quot;, kind = &quot;static&quot;)]
+extern {
+    fn putchar(c: u32);
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;でlibpayloadの&lt;code class=&quot;highlighter-rouge&quot;&gt;putchar&lt;/code&gt;の参照を定義しており，&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#[no_mangle]
+pub extern fn main() {
+    loop{
+        unsafe { putchar(65) };
+    }   
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;で上記のputcharを呼び出していることがわかる．&lt;/p&gt;
+
+&lt;p&gt;次に&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;rustc --target i686-unknown-linux-gnu --emit=obj main.rs
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;とかやって&lt;code class=&quot;highlighter-rouge&quot;&gt;main.o&lt;/code&gt;を作成する．&lt;/p&gt;
+
+&lt;p&gt;最後に，あらかじめ作成しておいた&lt;code class=&quot;highlighter-rouge&quot;&gt;libpayload.a&lt;/code&gt;とリンクする．
+ここでは，Libpayloadの&lt;code class=&quot;highlighter-rouge&quot;&gt;lpgcc&lt;/code&gt;を用いる．Libpayloadについては
+&lt;a href=&quot;https://www.coreboot.org/Libpayload&quot;&gt;ここ&lt;/a&gt;を参照のこと．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;~/src/coreboot/payloads/libpayload/bin/lpgcc main.o libpayload.a
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;できた&lt;code class=&quot;highlighter-rouge&quot;&gt;a.out&lt;/code&gt;をcorebootのPayloadに指定すればできあがり．&lt;/p&gt;
+
+&lt;p&gt;以上，ファームウェアといいつつも，
+ただのベアメタルプログラミングであることがわかる．
+しかも一切アセンブリに触れずにできていることからも簡単であると言える．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;http://keens.github.io/blog/2016/05/04/rustdebeametaruraspberry_pinolchika/&lt;/li&gt;
+  &lt;li&gt;https://www.coreboot.org/Libpayload&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は自作OS Advent Calendar の19日目の記事として書かれた． ここでは，corebootのpayloadをRustを使って作ってみる． corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．</summary></entry><entry><title type="html">Linux kernelの5-Level Paging有効化部分を読んでみる</title><link href="/2017/12/13/five-level-paging.html" rel="alternate" type="text/html" title="Linux kernelの5-Level Paging有効化部分を読んでみる" /><published>2017-12-13T20:22:09+09:00</published><updated>2017-12-13T20:22:09+09:00</updated><id>/2017/12/13/five-level-paging</id><content type="html" xml:base="/2017/12/13/five-level-paging.html">&lt;p&gt;この記事は&lt;a href=&quot;https://qiita.com/advent-calendar/2017/linux&quot;&gt;Linux Advent Calendar&lt;/a&gt; 
+14日目の記事として書かれた．
+本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．&lt;/p&gt;
+
+&lt;h2 id=&quot;5-level-pagingとは&quot;&gt;5-Level Pagingとは&lt;/h2&gt;
+&lt;p&gt;これまで，x86_64では物理アドレス下位48bitのみが使用されてきた．
+このため，64TiBの物理アドレス空間と256TiBの仮想アドレス空間に限られてきた．
+Intelはこれを拡張し，物理アドレス下位52bitへと拡張させた．
+これにより，4PiBの物理アドレス空間と128PiBの仮想アドレス空間が利用できるようになった．
+この拡張に対応するため新たに導入されたのが，ここで紹介する5-Level Pagingである．
+基本的な考え方は4-Level Pagingと同一であり，
+PML4にさらに上位にPML5が追加された形となっている．&lt;/p&gt;
+
+&lt;h2 id=&quot;サポート状況について&quot;&gt;サポート状況について&lt;/h2&gt;
+&lt;p&gt;現在，一部のサーバが5-Level Pagingに対応しているようである．
+では，個人では触ることができないか，というとそんなことはなく，
+QEMUのmasterブランチには5-Level Pagingのエミュレーションが
+&lt;a href=&quot;https://github.com/qemu/qemu/commit/6c7c3c21f95dd9af8a0691c0dd29b07247984122#diff-0517790436e7f5831f2b14f1e93ac740&quot;&gt;取り込まれている&lt;/a&gt;．
+このため，対応ハードウェアを持っていないくても楽しむことができる．
+面白いことに，Library OSの1つであるOSvにおいて，
+Avi Kivityさんが5-Level Paging対応のパッチを
+&lt;a href=&quot;https://groups.google.com/forum/#!topic/osv-dev/9Y1q0j5qhXI&quot;&gt;投稿している&lt;/a&gt;．&lt;/p&gt;
+
+&lt;h2 id=&quot;5-level-pagingの確認&quot;&gt;5-Level Pagingの確認&lt;/h2&gt;
+&lt;p&gt;Linux kernerでコンパイル時に5-Level Pagingを有効にするかを決めているので，
+あまり関係がないが一応記しておく．
+5-Level Pagingの機能を持っているかどうかはCPUID命令を用いることで確かめることができる．
+具体的には&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    mov $7, %eax
+    mov $0, %ecx
+    cpuid
+    test $1&amp;lt;&amp;lt;16, %ecx /* ? */
+    jz .no_5level_paging
+    /* 以下，5Level Paging有効化のコード */
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;となる．&lt;/p&gt;
+
+&lt;h2 id=&quot;5-level-pagingの有効化&quot;&gt;5-Level Pagingの有効化&lt;/h2&gt;
+&lt;p&gt;次に実際に5-Level Pagingを以下のような流れで有効にする．&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;現在のPagingとmodeを確認&lt;/li&gt;
+  &lt;li&gt;long modeの場合はcompatibility modeなどに切り替える&lt;/li&gt;
+  &lt;li&gt;Pagingを無効化&lt;/li&gt;
+  &lt;li&gt;PAEとLA57の有効化&lt;/li&gt;
+  &lt;li&gt;WRMSRでIA32_EFER.LMEを設定&lt;/li&gt;
+  &lt;li&gt;CR3が5-Level Pagingを指すように設定&lt;/li&gt;
+  &lt;li&gt;Pagingの有効化&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ここで注意したい点は，long modeでは直接LA57を変更できない点である．
+long modeでLA57を変更しようとした場合，general protection exceptionが発生するようである．&lt;/p&gt;
+
+&lt;h2 id=&quot;linux-kernelでの実装&quot;&gt;Linux kernelでの実装&lt;/h2&gt;
+&lt;p&gt;では実際のコードを見ていく．
+なお，参照するkernelはtorvalds/linux v4.14 bebc608 である．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/x86/boot/compressed/head_64.S&lt;/code&gt;の&lt;code class=&quot;highlighter-rouge&quot;&gt;startup_64&lt;/code&gt;のコードを見ていく．
+おおよそコード内のコメントにある通りであるが，簡単コメントしていく．
+ここでは，long modeが有効になっており，まだカーネルが圧縮されている状態である．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movq	%cr4, %rax
+	testl	$X86_CR4_LA57, %eax
+	jnz	lvl5
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;最初にcr4レジスタの値から5-Level Pagingが有効であるかを確認する．
+有効でなければ以下を行う．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	leaq	lvl5_pgtable(%rbx), %rdi
+	xorq	%rax, %rax
+	movq	$(PAGE_SIZE/8), %rcx
+	rep	stosq
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;追加のPML5のテーブル(lvl5_pgtable)をクリアする．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movq	%cr3, %rdi
+	leaq	0x7 (%rdi), %rax
+	movq	%rax, lvl5_pgtable(%rbx)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここでCR3を最初かつ勇逸のトップレベルページテーブルのエントリとするらしい．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	pushq	$__KERNEL32_CS
+	leaq	compatible_mode(%rip), %rax
+	pushq	%rax
+	lretq
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;compatibility modeに移行&lt;/p&gt;
+
+&lt;p&gt;compatible_modeの内容は次にようになっている．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	%cr0, %eax
+	btrl	$X86_CR0_PG_BIT, %eax
+	movl	%eax, %cr0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Pagingを無効&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	leal	lvl5_pgtable(%ebx), %eax
+	movl	%eax, %cr3
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;CR3がPML5のテーブルを指すように設定&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	%cr4, %eax
+	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+	movl	%eax, %cr4
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;PAEとLA57の有効化&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
+	movl	%eax, %cr0
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Pagingの有効化&lt;/p&gt;
+
+&lt;p&gt;以上のような流れとなっている．
+意外と短くまとまっていることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf&lt;/li&gt;
+  &lt;li&gt;https://lwn.net/Articles/708526/&lt;/li&gt;
+  &lt;li&gt;https://lwn.net/Articles/717293/&lt;/li&gt;
+  &lt;li&gt;https://lwn.net/Articles/716324/&lt;/li&gt;
+  &lt;li&gt;https://github.com/qemu/qemu/commit/6c7c3c21f95dd9af8a0691c0dd29b07247984122#diff-0517790436e7f5831f2b14f1e93ac740&lt;/li&gt;
+  &lt;li&gt;https://groups.google.com/forum/#!topic/osv-dev/9Y1q0j5qhXI&lt;/li&gt;
+  &lt;li&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．</summary></entry><entry><title type="html">EFI stubなLinux kernelのヘッダ部分を見てみる</title><link href="/2017/12/09/efi-stub-header.html" rel="alternate" type="text/html" title="EFI stubなLinux kernelのヘッダ部分を見てみる" /><published>2017-12-09T00:12:14+09:00</published><updated>2017-12-09T00:12:14+09:00</updated><id>/2017/12/09/efi-stub-header</id><content type="html" xml:base="/2017/12/09/efi-stub-header.html">&lt;p&gt;EFI環境においてLinux kernelの起動方法には
+ブートローダを用いる方法とEFI stubの2通りがある．
+EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで
+EFIから直接kernelを起動する．
+ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで
+どのように直接起動できるようにしているかを見ていく．
+実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．&lt;/p&gt;
+
+&lt;p&gt;最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;CONFIG_EFI_STUB=y&lt;/code&gt;としてビルドしたときのbzImageのhexdumpの一部を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000: 4d5a ea07 00c0 078c c88e d88e c08e d031  MZ.............1
+00000010: e4fb fcbe 4000 ac20 c074 09b4 0ebb 0700  ....@.. .t......
+00000020: cd10 ebf2 31c0 cd16 cd19 eaf0 ff00 f000  ....1...........
+00000030: 0000 0000 0000 0000 0000 0000 8200 0000  ................
+00000040: 5573 6520 6120 626f 6f74 206c 6f61 6465  Use a boot loade
+00000050: 722e 0d0a 0a52 656d 6f76 6520 6469 736b  r....Remove disk
+00000060: 2061 6e64 2070 7265 7373 2061 6e79 206b   and press any k
+00000070: 6579 2074 6f20 7265 626f 6f74 2e2e 2e0d  ey to reboot....
+00000080: 0a00 5045 0000 6486 0400 0000 0000 0000  ..PE..d.........
+00000090: 0000 0100 0000 a000 0602 0b02 0214 4020  ..............@ 
+000000a0: 5f00 0000 0000 c0ad e800 1040 0000 0002  _..........@....
+000000b0: 0000 0000 0000 0000 0000 2000 0000 2000  .......... ... .
+000000c0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+000000d0: 0000 00d0 4701 0002 0000 0000 0000 0a00  ....G...........
+000000e0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+000000f0: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000100: 0000 0000 0000 0600 0000 0000 0000 0000  ................
+00000110: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000120: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000130: 0000 0000 0000 0000 0000 2e73 6574 7570  ...........setup
+00000140: 0000 e03b 0000 0002 0000 e03b 0000 0002  ...;.......;....
+00000150: 0000 0000 0000 0000 0000 0000 0000 2000  .............. .
+00000160: 5060 2e72 656c 6f63 0000 2000 0000 e03d  P`.reloc.. ....=
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;EFI ApplicationはPEフォーマットを採用している．
+PEフォーマットではDOSヘッダが最初にあり，次にPEヘッダが置かれている．
+それぞれのシグネチャを手がかりに先のhexdumpの結果を見ていく．
+最初に0x00に0x4d5a(=”MZ”)があり，DOSヘッダであることを示している．
+次に0x3cを見ると，0x0082があり，これがPEヘッダの先頭位置を表している．
+0x0082には0x5045(=”PE”)があり．確かにこれがPEヘッダの始まりであることがわかる．
+以下、PEヘッダの定義が続くが、ここでは深追いしない．
+以上のように，確かにbzImageがEFI Applicationの形式となっていることがわかる．&lt;/p&gt;
+
+&lt;p&gt;ところで．bzImageはgccなどの通常のツールチェーンを用いてビルドされるため，
+直接PEフォーマットを出力することはできない．
+次にどのようにしてPEフォーマットを出力するのかを見ていく．
+最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/x86/boot/Makefile&lt;/code&gt;の一部を示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;sed-zoffset := -e 's/^\([0-9a-fA-F]*\) [ABCDGRSTVW] \(startup_32\|startup_64\|efi32_stub_entry\|efi64_stub_entry\|efi_pe_entry\|input_data\|_end\|z_.*\)$$/\#define ZO_\2 0x\1/p'
+
+quiet_cmd_zoffset = ZOFFSET $@
+      cmd_zoffset = $(NM) $&amp;lt; | sed -n $(sed-zoffset) &amp;gt; $@
+
+targets += zoffset.h
+$(obj)/zoffset.h: $(obj)/compressed/vmlinux FORCE
+        $(call if_changed,zoffset)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここではsedを用いて&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/x86/boot/compressed/vmlinux&lt;/code&gt;のnmの出力結果から
+エントリポイントとなるシンボルのアドレスをzoffset.hに出力していることがわかる．
+次に出力されたzoffset.hの一部を示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#define ZO__end 0x0000000000609000
+#define ZO_efi64_stub_entry 0x0000000000000390
+#define ZO_efi_pe_entry 0x0000000000000210
+#define ZO_input_data 0x00000000000003b4
+#define ZO_startup_32 0x0000000000000000
+#define ZO_startup_64 0x0000000000000200
+#define ZO_z_extract_offset 0x0000000000e74000
+#define ZO_z_extract_offset_negative 0xffffffffff18c000
+#define ZO_z_input_len 0x00000000005e4c23
+#define ZO_z_output_len 0x00000000014468b8
+#define ZO_z_run_size 0x0000000001553000
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここで特に重要なのは&lt;code class=&quot;highlighter-rouge&quot;&gt;ZO_efi_pe_entry&lt;/code&gt;である．これは後で利用される．
+次に&lt;code class=&quot;highlighter-rouge&quot;&gt;src/arch/x86/boot/tools/build.c&lt;/code&gt;(以下，&lt;code class=&quot;highlighter-rouge&quot;&gt;build.c&lt;/code&gt;)を利用する．
+これはbzImageを作成するためのツールである．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;build.c&lt;/code&gt;は以下の4つの引数をとる．&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;setup.bin&lt;/li&gt;
+  &lt;li&gt;vmlinux.bin&lt;/li&gt;
+  &lt;li&gt;zoffset.h&lt;/li&gt;
+  &lt;li&gt;出力先&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;build.c&lt;/code&gt;の処理を実際にみていく．
+ここではPEヘッダのエントリポイントの設定に注目する．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;build.c&lt;/code&gt;の一部を示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;static void update_pecoff_text(unsigned int text_start, unsigned int file_sz)
+{
+        unsigned int pe_header;
+        unsigned int text_sz = file_sz - text_start;
+
+        pe_header = get_unaligned_le32(&amp;amp;buf[0x3c]);
+
+        /*
+         * Size of code: Subtract the size of the first sector (512 bytes)
+         * which includes the header.
+         */
+        put_unaligned_le32(file_sz - 512, &amp;amp;buf[pe_header + 0x1c]);
+
+        /*
+         * Address of entry point for PE/COFF executable
+         */
+        put_unaligned_le32(text_start + efi_pe_entry, &amp;amp;buf[pe_header + 0x28]);
+
+        update_pecoff_section_header(&quot;.text&quot;, text_start, text_sz);
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;bufはsetup.binをベースにbzImageの最初の512byteとなる部分である．
+pe_headerはbufの0x3cにある32bitを取得する．先のバイナリでは0x0082となる．
+次にPEヘッダの&lt;code class=&quot;highlighter-rouge&quot;&gt;Size of code&lt;/code&gt;をbufに書き込む．&lt;/p&gt;
+
+&lt;p&gt;次にPEヘッダの&lt;code class=&quot;highlighter-rouge&quot;&gt;Address Of Entry Point&lt;/code&gt;をbufに書き込む．
+text_startはrelocを考慮したときのsetup.binのサイズであり，
+efi_pe_entryは先のzoffset.hから得た&lt;code class=&quot;highlighter-rouge&quot;&gt;ZO_efi_pe_entry&lt;/code&gt;の値，0x0210となる．
+書き込む位置は&lt;code class=&quot;highlighter-rouge&quot;&gt;[pe_header + 0x28] = 0x82 + 0x28 = 0xaa&lt;/code&gt;となる．
+最初に示したhexdumpの0xaaをみると、0x4010が書き込まれている．
+ここから，EFIがbzImageを0x4010から実行されることがわかる．&lt;/p&gt;
+
+&lt;p&gt;まとめると，EFIはEFI Applicationをロードすると，
+PEヘッダに記載されている&lt;code class=&quot;highlighter-rouge&quot;&gt;Address Of Entry Point&lt;/code&gt;で指定されているアドレスから実行する．
+EFI stubなLinux kernelのbzImageの場合，efi_pe_entryから実行されるため，
+efi_pe_entryのアドレスが&lt;code class=&quot;highlighter-rouge&quot;&gt;Address Of Entry Point&lt;/code&gt;に入っている必要がある．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;build.c&lt;/code&gt;はこのアドレスをsetup.bin，vmlinux.binから算出し，埋め込んでいることがわかった．&lt;/p&gt;
+
+&lt;p&gt;最後にbzImageの0x4010以降とefi_pe_entryとを比較してみる．&lt;/p&gt;
+
+&lt;p&gt;bzImageのhexdumpの結果を示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00004010: 4889 0d81 e15e 0048 8915 82e1 5e00 488d  H....^.H....^.H.
+00004020: 0573 e15e 0048 8905 64e1 5e00 e800 0000  .s.^.H..d.^.....
+00004030: 005d 4881 ed31 0200 0048 012d b0e1 5e00  .]H..1...H.-..^.
+00004040: 4889 c7e8 a8a1 5e00 4883 f800 743f 4889  H.....^.H...t?H.
+00004050: c648 8d05 a8fd ffff 8986 1402 0000 eb18  .H..............
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/x86/boot/compressed/head64.o&lt;/code&gt;のobjdumpの結果を示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0000000000000210 &amp;lt;efi_pe_entry&amp;gt;:
+ 210:   48 89 0d 00 00 00 00    mov    %rcx,0x0(%rip)        # 217 &amp;lt;efi_pe_entry+0x7&amp;gt;
+ 217:   48 89 15 00 00 00 00    mov    %rdx,0x0(%rip)        # 21e &amp;lt;efi_pe_entry+0xe&amp;gt;
+ 21e:   48 8d 05 00 00 00 00    lea    0x0(%rip),%rax        # 225 &amp;lt;efi_pe_entry+0x15&amp;gt;
+ 225:   48 89 05 00 00 00 00    mov    %rax,0x0(%rip)        # 22c &amp;lt;efi_pe_entry+0x1c&amp;gt;
+ 22c:   e8 00 00 00 00          callq  231 &amp;lt;efi_pe_entry+0x21&amp;gt;
+ 231:   5d                      pop    %rbp
+ 232:   48 81 ed 00 00 00 00    sub    $0x0,%rbp
+ 239:   48 01 2d 00 00 00 00    add    %rbp,0x0(%rip)        # 240 &amp;lt;efi_pe_entry+0x30&amp;gt;
+ 240:   48 89 c7                mov    %rax,%rdi
+ 243:   e8 00 00 00 00          callq  248 &amp;lt;efi_pe_entry+0x38&amp;gt;
+ 248:   48 83 f8 00             cmp    $0x0,%rax
+ 24c:   74 3f                   je     28d &amp;lt;fail&amp;gt;
+ 24e:   48 89 c6                mov    %rax,%rsi
+ 251:   48 8d 05 00 00 00 00    lea    0x0(%rip),%rax        # 258 &amp;lt;efi_pe_entry+0x48&amp;gt;
+ 258:   89 86 14 02 00 00       mov    %eax,0x214(%rsi)
+ 25e:   eb 18                   jmp    278 &amp;lt;handover_entry+0x18&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;おまけ&quot;&gt;おまけ&lt;/h2&gt;
+
+&lt;p&gt;参考までにEDK2でビルドしたHello WorldをUEFI Shell上で出力するEFI Applicationのhexdumpの結果を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00000000: 4d5a 0000 0000 0000 0000 0000 0000 0000  MZ..............
+00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000020: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000030: 0000 0000 0000 0000 0000 0000 8000 0000  ................
+00000040: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000050: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000060: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000070: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000080: 5045 0000 6486 0300 0000 0000 0000 0000  PE..d...........
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここからわかるように，EFIではDOSヘッダについてはSignatureと0x3c位置の部分しか見ないようである．
+そのため，先のbzImageではこの他の領域をLegacy Bootのために有効活用しているようである．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://upload.wikimedia.org/wikipedia/commons/7/70/Portable_Executable_32_bit_Structure_in_SVG.svg&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">EFI環境においてLinux kernelの起動方法には ブートローダを用いる方法とEFI stubの2通りがある． EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで EFIから直接kernelを起動する． ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで どのように直接起動できるようにしているかを見ていく． 実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．</summary></entry><entry><title type="html">BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる</title><link href="/2017/12/07/bitvisor-efi-loader.html" rel="alternate" type="text/html" title="BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる" /><published>2017-12-07T02:05:28+09:00</published><updated>2017-12-07T02:05:28+09:00</updated><id>/2017/12/07/bitvisor-efi-loader</id><content type="html" xml:base="/2017/12/07/bitvisor-efi-loader.html">&lt;p&gt;この記事は
+&lt;a href=&quot;https://qiita.com/advent-calendar/2017/bitvisor&quot;&gt;BitVisor Advent Calendar&lt;/a&gt;
+7日目の記事として書かれた．
+ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．&lt;/p&gt;
+
+&lt;p&gt;EFI Loaderのコードは
+&lt;a href=&quot;https://bitbucket.org/bitvisor/bitvisor/src/34fa14de2421cd3564323eec998f8e0c465e99a0/boot/uefi-loader/loadvmm.c?at=default&amp;amp;fileviewer=file-view-default&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;boot/uefi-loader/loadvmm.c&lt;/code&gt;&lt;/a&gt;
+にある．&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efi_main&lt;/code&gt;をみていく．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        status = systab-&amp;gt;BootServices-&amp;gt;
+                HandleProtocol (image, &amp;amp;LoadedImageProtocol, &amp;amp;tmp);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;LoadedImageProtocolがサポートされているかを確認．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        status = systab-&amp;gt;BootServices-&amp;gt;
+                HandleProtocol (loaded_image-&amp;gt;DeviceHandle,
+                                &amp;amp;FileSystemProtocol, &amp;amp;tmp);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;FileSystemProtocolがサポートされているかを確認．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        create_file_path (loaded_image-&amp;gt;FilePath, L&quot;bitvisor.elf&quot;, file_path,
+                          sizeof file_path / sizeof file_path[0]);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここで，&lt;code class=&quot;highlighter-rouge&quot;&gt;bitvisor.elf&lt;/code&gt;までのパスを作成する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        status = fileio-&amp;gt;OpenVolume (fileio, &amp;amp;file);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ボリュームを開く．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        status = file-&amp;gt;Open (file, &amp;amp;file2, file_path, EFI_FILE_MODE_READ, 0);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;先で作成したファイルパスのファイルを開く．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;        status = systab-&amp;gt;BootServices-&amp;gt;AllocatePages (AllocateMaxAddress,
+                                                      EfiLoaderData, 0x10,
+                                                      &amp;amp;paddr);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;4KiB*0x10=64KiBだけページをAllocateする．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	readsize = 0x10000;
+	status = file2-&amp;gt;Read (file2, &amp;amp;readsize, (void *)paddr);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;bitvisor.elf&lt;/code&gt;のうち0x10000だけpaddrに展開する．
+このあたりのマジックナンバーについては榮樂さんによる&lt;a href=&quot;https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf&quot;&gt;スライド&lt;/a&gt;
+に詳しく書いてある．
+それによれば，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;BitVisorのVMMローダ(2nd stage)ではELFバイナリの先頭64KiB
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;(20ページ目)
+とある．この部分はその先頭64KiBを読み出していると考えられる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	entry = *(uint32_t *)(paddr + 0x18);
+	entry_func = (entry_func_t *)(paddr + (entry &amp;amp; 0xFFFF));
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ELFの先頭アドレスからエントリポイントを計算し，&lt;code class=&quot;highlighter-rouge&quot;&gt;entry_func&lt;/code&gt;とする．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	struct bitvisor_boot boot_ext = {
+		UEFI_BITVISOR_BOOT_UUID,
+		paddr,
+		readsize,
+		file2
+	};
+	void *boot_exts[] = {
+		&amp;amp;boot_ext,
+		NULL
+	};
+
+	boot_error = entry_func (image, systab, boot_exts);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;必要な情報を構造体に抱えて&lt;code class=&quot;highlighter-rouge&quot;&gt;entry_func&lt;/code&gt;に飛び込む．&lt;/p&gt;
+
+&lt;p&gt;以上を簡単にまとめると，
+ファイルの読み出し-&amp;gt;エントリポイントの計算-&amp;gt;エントリポイントへのジャンプ
+のようになっている．
+ELFのパースを行わないことで，簡素な実装となっていることが見て取れる．
+また，&lt;/p&gt;
+
+&lt;h2 id=&quot;最後に&quot;&gt;最後に&lt;/h2&gt;
+
+&lt;p&gt;EFIアプリケーションの開発と言えばEDK2やgnu-efiがあるが，
+BitVisorのEFI Loaderの場合，EDKからのヘッダを利用し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;x86_64-w64-mingw32-gcc&lt;/code&gt;によりコンパイルを行う．
+このため依存関係が少なくコンパイルが容易であると言える．&lt;/p&gt;
+
+&lt;p&gt;BitVisorの&lt;code class=&quot;highlighter-rouge&quot;&gt;uefi-loader&lt;/code&gt;に加え，品川先生の&lt;a href=&quot;https://github.com/utshina/uefi-simple&quot;&gt;uefi-simple&lt;/a&gt;に刺激を受け，
+&lt;a href=&quot;https://github.com/retrage/uefi-sample&quot;&gt;uefi-sample&lt;/a&gt;
+というサンプルを作成した．
+これにより，EDK2やgnu-efiに頼ることなくEFIアプリケーションを作成することができる．&lt;/p&gt;
+
+&lt;p&gt;ここでは，BitVisor のVMMローダ(1st stage)のコードを読んだ．
+機会があれば，2nd stageのコードも読んでみたい．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+&lt;ul&gt;
+  &lt;li&gt;https://bitbucket.org/bitvisor/bitvisor&lt;/li&gt;
+  &lt;li&gt;https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf&lt;/li&gt;
+  &lt;li&gt;https://qiita.com/hdk_2/items/b73161f08fefce0d99c3&lt;/li&gt;
+  &lt;li&gt;https://github.com/utshina/uefi-simple&lt;/li&gt;
+  &lt;li&gt;https://github.com/retrage/uefi-sample&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．</summary></entry><entry><title type="html">Windows 10にEZP2010のドライバをインストール</title><link href="/2017/11/09/windows10-ezp2010-driver.html" rel="alternate" type="text/html" title="Windows 10にEZP2010のドライバをインストール" /><published>2017-11-09T02:13:21+09:00</published><updated>2017-11-09T02:13:21+09:00</updated><id>/2017/11/09/windows10-ezp2010-driver</id><content type="html" xml:base="/2017/11/09/windows10-ezp2010-driver.html">&lt;p&gt;EZP2010はAmazonなどで安価に販売されているROMライタである．
+すでに公式のWebサイトが閉鎖されていたりして
+Windows 10のドライバは公式には配布されていない．
+Windows 7でのインストール手順を記している方がいらっしゃるが[1]，
+この方法ではうまく動かなかった．
+非常に汚い方法ではあるがメモ程度にやり方をまとめておく．&lt;/p&gt;
+
+&lt;p&gt;最初にEZP2010付属のCDからファイルを吸い出しておく．
+Englishと中文の2つがあるがEnglishの方のディレクトリ構成は
+以下のようになっている&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;english
+    &lt;ul&gt;
+      &lt;li&gt;document&lt;/li&gt;
+      &lt;li&gt;setup&lt;/li&gt;
+      &lt;li&gt;usbdriver&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;これらのうち，usbdriverがドライバになっているがこのままでは
+インストールできない．
+ドライバが署名されていないためである．&lt;/p&gt;
+
+&lt;p&gt;そこで，
+cmd.exeを管理者として起動，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;bcdedit /set testsigning on
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;を実行し，マシンを再起動する[2]．
+これによりテストモードとして起動するので，
+ドライバの署名を必要としなくなるようである．&lt;/p&gt;
+
+&lt;p&gt;次に
+EZP2010をUSBでマシンに接続する．
+「コンピュータの管理」から
+「不明なデバイス」扱いになっているEZP2010を探し出す．
+「ドライバの更新」でローカルにある
+&lt;code class=&quot;highlighter-rouge&quot;&gt;usbdriver\win7_64bit&lt;/code&gt;
+を指定してインストールする．&lt;/p&gt;
+
+&lt;p&gt;最後に
+&lt;code class=&quot;highlighter-rouge&quot;&gt;setup\EZP2010 V3.0\EZP2010 V3.0\EZP2010.exe&lt;/code&gt;
+を起動して認識されていることを確認する．&lt;/p&gt;
+
+&lt;p&gt;作業内容としては以上である．
+[1]の方が指摘されているように，
+このようなやり方はセキュリティ的に非常によろしくない．
+色々と思うことはあるが，ここに書くのは蛇足な気がするので書かない，
+できるだけメインで使うようなマシンでは行いたくない作業である．&lt;/p&gt;
+
+&lt;p&gt;参考文献&lt;/p&gt;
+
+&lt;p&gt;[1] http://www.minokasago.org/HobbyElectronicsWiki/index.php?EZP2010
+[2] https://docs.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option&lt;/p&gt;</content><author><name></name></author><summary type="html">EZP2010はAmazonなどで安価に販売されているROMライタである． すでに公式のWebサイトが閉鎖されていたりして Windows 10のドライバは公式には配布されていない． Windows 7でのインストール手順を記している方がいらっしゃるが[1]， この方法ではうまく動かなかった． 非常に汚い方法ではあるがメモ程度にやり方をまとめておく．</summary></entry><entry><title type="html">BitbucketとCircle CIでLatexする</title><link href="/2017/08/29/bitbucket-circleci.html" rel="alternate" type="text/html" title="BitbucketとCircle CIでLatexする" /><published>2017-08-29T11:10:58+09:00</published><updated>2017-08-29T11:10:58+09:00</updated><id>/2017/08/29/bitbucket-circleci</id><content type="html" xml:base="/2017/08/29/bitbucket-circleci.html">&lt;p&gt;前回からだいぶ空いてしまったが，小ネタを投下する．
+以前に，
+&lt;a href=&quot;&quot;&gt;&lt;/a&gt;
+という記事を書いた．
+ここでは，CIを用いてlatexdiffによる差分Latexの生成，
+コンパイル，Downloadsへのアップロード
+を行うようなものを作ってみた．&lt;/p&gt;
+
+&lt;p&gt;Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
+Circle CIと比較して，一ヶ月あたりの無料枠が小さいため，
+ここではCircle CIを利用する．
+なお，Circle CI 2.0を対象とする．&lt;/p&gt;
+
+&lt;h2 id=&quot;tldr&quot;&gt;TL;DR&lt;/h2&gt;
+
+&lt;h2 id=&quot;既存のdockerイメージの利用&quot;&gt;既存のDockerイメージの利用&lt;/h2&gt;
+
+&lt;p&gt;Latex環境構築，特に日本語文書を扱う場合，やや手続きが煩雑となるが，
+Circle CIでは任意のDockerイメージが利用できる．
+ここでは，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;paperist/alpine-texlive-ja&lt;/code&gt;
+を使わせてもらった[1]．&lt;/p&gt;
+
+&lt;h2 id=&quot;準備&quot;&gt;準備&lt;/h2&gt;
+
+&lt;p&gt;先のDockerイメージは小さくて良いのだが，いくつかこの後必要となる
+ものがないので，それらをインストールする．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;apk add --update git patch curl
+apk add --update ca-certificates openssl &amp;amp;&amp;amp; update-ca-certificates
+tlmgr install ulem latexdiff
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;latexmkを利用するために，&lt;code class=&quot;highlighter-rouge&quot;&gt;.latexmkrc&lt;/code&gt;を置いておく．
+あまり良いやり方ではないが，
+リポジトリに元となるファイルを含ませておく．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;cp .latexmkrc ~/.latexmkrc
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;latexファイルのコンパイル&quot;&gt;Latexファイルのコンパイル&lt;/h2&gt;
+
+&lt;p&gt;普通にやる．後でartifactsをアップロードするため，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;/tmp/artifacts&lt;/code&gt;にまとめておく．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;latexmk main.tex;
+mkdir /tmp/artifacts;
+cp main.pdf /tmp/artifacts/
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;diffの作成とコンパイル&quot;&gt;diffの作成とコンパイル&lt;/h2&gt;
+
+&lt;p&gt;これも普通にやる．日本語だと[2]
+にあるような問題があるため，
+パッチを当てる必要があったりする．
+また，BibTeX周りもちゃんとやらなければならないのだが，
+ここではやらない．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;latexdiff-vc -e utf8 --git -r HEAD^ -r HEAD main.tex;
+latexmk main-diffHEAD^-HEAD.tex;
+cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;bitbucketのdownloadsへのアップロード&quot;&gt;BitbucketのDownloadsへのアップロード&lt;/h2&gt;
+
+&lt;p&gt;基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
+Circle CI側にEnvironment Variableとして与えてやる．
+以下のようにartifactsをcurlを使ってアップロードする．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main.pdf&quot;;
+ curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main-diffHEAD^-HEAD.pdf&quot;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;ざっくり説明をしてみた．
+Circle CI 2.0向けの資料は公式ドキュメントが揃っているとはいえ
+まだそんなに多くない印象．
+App Passwordだけは外に漏らさないようにしたい．&lt;/p&gt;
+
+&lt;p&gt;[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920&lt;/p&gt;
+
+&lt;p&gt;[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html&lt;/p&gt;
+
+&lt;p&gt;[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html&lt;/p&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry><entry><title type="html">ELVMのLLVM IRバックエンドをつくった</title><link href="/2017/03/25/elvm-llvm-ir.html" rel="alternate" type="text/html" title="ELVMのLLVM IRバックエンドをつくった" /><published>2017-03-25T23:03:01+09:00</published><updated>2017-03-25T23:03:01+09:00</updated><id>/2017/03/25/elvm-llvm-ir</id><content type="html" xml:base="/2017/03/25/elvm-llvm-ir.html">&lt;p&gt;LLVMはよく知られてるコンパイラ基盤であり，
+中間表現としてLLVM IRを持っている．
+様々なところでこのLLVM IRが使われているが，
+今まで触ってこなかったということもあり，
+今回LLVM IRで何かしら遊んでみようと思っていた．&lt;/p&gt;
+
+&lt;p&gt;[http://itchyny.hatenablog.com/entry/2017/02/27/100000:embed:cite]&lt;/p&gt;
+
+&lt;p&gt;最近になって，上記のようなBrainF**kを題材にLLVM IRを出力するような
+記事が上がっており，こちらの記事に刺激を受け，
+ELVMのLLVM IRバックエンドを作成した．&lt;/p&gt;
+
+&lt;p&gt;じつは，以前に，Luaバックエンドを作成していた．
+ほとんどPythonバックエンドと同等であり，Luaを書いた経験はなかったにもかかわらず，
+調べるのに使った時間を含めても2時間足らずで実装できたと記憶している．&lt;/p&gt;
+
+&lt;p&gt;なお，先日電気通信大学のMMA主催のDentoo.LTにおいて
+本バックエンドについて発表を行なった．
+本稿は発表で伝えきれなかった部分を含めた記事となっている．&lt;/p&gt;
+
+&lt;p&gt;今回作成したバックエンドのコードは以下．&lt;/p&gt;
+
+&lt;p&gt;[https://github.com/retrage/elvm.git:title]&lt;/p&gt;
+
+&lt;h2 id=&quot;cからelvm-irを経由してllvm-irへ変換してみる&quot;&gt;CからELVM IRを経由してLLVM IRへ変換してみる&lt;/h2&gt;
+
+&lt;p&gt;以下のようなCのコードを考えてみる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#include &amp;lt;stdio.h&amp;gt;
+
+int main() {
+  const char* p = &quot;Hello, world!\n&quot;;
+  for (; *p; p++)
+    putchar(*p);
+  return 0;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最初にこのCコードをELVM付属の8ccを用いて
+ELVM IRに変換する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ out/8cc -S -I. -Ilibc -Iout test/hello.c
+$ wc –l hello.s
+12554 hello.s
+$ cat hello.s | head -15
+	.text
+my_div:
+	mov D, SP
+	add D, -1
+	store BP, D
+	mov SP, D
+	mov BP, SP
+	sub SP, 52
+	.file 1 &quot;/home/vagrant/elvm/libc/_builtin.h&quot;
+	.loc 1 35 0
+	# }
+	.loc 1 11 0
+	#   unsigned int r[24];
+	.loc 1 12 0
+	#   unsigned int i;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;生成されたhello.sは12,554行あり，
+その中身はELVM IRであることがわかる．&lt;/p&gt;
+
+&lt;p&gt;次に得られたELVM IRをelcによりCコード
+に変換する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ out/elc -c hello.s &amp;gt; hello.c.eir.c
+$ wc -l hello.c.eir.c 
+11290 hello.c.eir.c
+$ cat hello.c.eir.c | head -15
+#include &amp;lt;stdio.h&amp;gt;
+#include &amp;lt;stdlib.h&amp;gt;
+unsigned int a;
+unsigned int b;
+unsigned int c;
+unsigned int d;
+unsigned int bp;
+unsigned int sp;
+unsigned int pc;
+unsigned int mem[1&amp;lt;&amp;lt;24];
+
+void func0() {
+ while (0 &amp;lt;= pc &amp;amp;&amp;amp; pc &amp;lt; 512) {
+  switch (pc) {
+  case -1:  /* dummy */
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;elcにより生成されたhello.c.eir.cは
+11,290行あり，Cコードへ変換されていることがわかる．&lt;/p&gt;
+
+&lt;p&gt;ここで得られたCコード’をclangにより
+LLVM IRに変換し,
+さらにLLVM IRのインタプリタであるlliにより実行してみる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ clang -S -O0 -emit-llvm hello.c.eir.c 
+hello.c.eir.c:13:11: warning: comparison of 0 &amp;lt;= unsigned expression is always
+      true [-Wtautological-compare]
+ while (0 &amp;lt;= pc &amp;amp;&amp;amp; pc &amp;lt; 512) {
+        ~ ^  ~~
+1 warning generated.
+$ lli hello.c.eir.ll
+Hello, world!
+$ wc -l hello.c.eir.ll
+34357 hello.c.eir.ll
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;33,865行と行数が増えてしまっているが，
+ちゃんと変換されて実行できていることがわかる．
+なお，行数が多いのはSSA形式になっているためと考えられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;llvm-irバックエンドの作成&quot;&gt;LLVM IRバックエンドの作成&lt;/h2&gt;
+
+&lt;p&gt;これまでで，&lt;/p&gt;
+
+&lt;p&gt;Cコード -(8cc)-&amp;gt; ELVM IR -(elc)-&amp;gt; Cコード’ -(clang)-&amp;gt; LLVM IR&lt;/p&gt;
+
+&lt;p&gt;と変換を行なってきた．&lt;/p&gt;
+
+&lt;p&gt;次にclangを介さずにELVM IRから直接LLVM IRに変換することを考える．
+elvm/target/c.c:c_emit_instをみるとわかるが，
+ELVM IRの各命令は1行程度のCコードに置き換えることができる．
+そのため，Cコード’をclangでLLVM IRに変換した結果を見比べていけば，
+ELVMのLLVMバックエンドが作成できる．&lt;/p&gt;
+
+&lt;p&gt;なお，ELVMのバックエンドであるelcはCで書かれており，
+セルフホスティングできる必要があるため，
+LLVM IR Builderを用いることはできなさそうである．&lt;/p&gt;
+
+&lt;p&gt;テストケースの00exit.eirを例にどのように変換すればいいかみていく．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cat test/00exit.eir 
+exit
+$ out/elc -c test/00exit.eir &amp;gt; 00exit.eir.c 
+clang -S -O0 -emit-llvm 00exit.eir.c
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ELVM IRのexitに相当する部分を見ていく．
+Cコード’のうち，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  case 1:
+   exit(0);
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;の部分となる．
+これは，LLVM IRでは&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;; &amp;lt;label&amp;gt;:13:
+  call void @exit(i32 0) #2
+  unreachable
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;に相当する．&lt;/p&gt;
+
+&lt;p&gt;このように，Cコード`から置き換えをしていくことでLLVM IRのバックエンドができた．
+以下，所感．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Unnamed Identityの扱い
+    &lt;ul&gt;
+      &lt;li&gt;Unnamed Identityとは，レジスタやラベル名などで，
+  特別な名前がない場合に連番でつけられる識別子のことである．
+  この識別子は少しでもずれてしまうとエラーとなる．&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;REGかIMMか
+    &lt;ul&gt;
+      &lt;li&gt;ELVM IRはsrcにレジスタ(REG)か即値(IMM)を指定できる．
+  同一の命令でもREGとIMMで値のロードなどの部分が大きく異なる．&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;case文の扱い
+    &lt;ul&gt;
+      &lt;li&gt;Cコード’では変数pcの値をswitch-caseすることで
+  実行する．caseはLLVM IRではlabelとなっているが，
+  事前にlabelのUnnamed Identityを知ることができないため，
+  最初にswitch文を置くことができない．
+  このため，全てのcase文をあらかじめ記録しておき，
+  その後ろにswitch文を置くことでこの問題を解決している．&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;デバッグが困難
+    &lt;ul&gt;
+      &lt;li&gt;最初に見たように，Hello, world!だけでも相当な長さになってしまう．
+  このため，Cコードから生成したELVM IRでは，問題のある箇所を発見するのは非常に困難．&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;llvmの恩恵を受ける&quot;&gt;LLVMの恩恵を受ける&lt;/h2&gt;
+
+&lt;p&gt;さて，LLVM IRに変換することで受けられる恩恵として次のようなものがある．&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;最適化&lt;/li&gt;
+  &lt;li&gt;他のターゲットへの変換&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ここでは，得られたLLVM IRをoptにより最適化を行い，
+コード量と実行速度を比較する．
+また，他のターゲットとして，WebAssemblyへの変換を行い，
+ブラウザ上で実行してみる．&lt;/p&gt;
+
+&lt;h2 id=&quot;最適化&quot;&gt;最適化&lt;/h2&gt;
+
+&lt;p&gt;最初に最適化を行ない，
+雑めに比較してみる．&lt;/p&gt;
+
+&lt;p&gt;対象とするプログラムは先ほどのHello, world!である．&lt;/p&gt;
+
+&lt;h3 id=&quot;最適化前&quot;&gt;最適化前&lt;/h3&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wc -l hello.c.eir.ll
+34357 hello.c.eir.ll
+$ time lli hello.c.eir.ll
+Hello, world!
+
+real	0m0.449s
+user	0m0.422s
+sys	0m0.026s
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;次のようにoptを用いて最適化を行う．
+多数のオプションがあるがここでは-O3を用いる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ opt -S -O3 -o hello.c.eir.ll.opt.ll hello.c.eir.ll
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;最適化後&quot;&gt;最適化後&lt;/h3&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wc -l hello.c.eir.ll.opt.ll 
+15834 hello.c.eir.ll.opt.ll
+$ time lli hello.c.eir.ll.opt.ll Hello, world!
+
+real	0m0.244s
+user	0m0.226s
+sys	0m0.017s
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最適化により，
+行数だけでみると1/2以下になり，
+速度も2倍程度になっていることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;おまけ他ターゲットへの移植&quot;&gt;おまけ　他ターゲットへの移植&lt;/h2&gt;
+
+&lt;p&gt;以下はやりかけの残骸である．
+LLVM IRから他のターゲットへの移植をしたかった．
+代表的なものとして，C/C++をJSに変換するEmscriptenが有名であるが，
+せっかくなので，先日安定版のFirefoxでサポートされたWebAssemblyを扱う．&lt;/p&gt;
+
+&lt;p&gt;あらかじめWebAssemblyターゲットを有効にしたLLVMをビルドしておく．&lt;/p&gt;
+
+&lt;p&gt;最初に最適化したうえで，LLVM IRをアセンブリコードに変換する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ opt -S -O3 8cc.c.eir.ll -o 8cc.c.eir.ll.opt.ll
+$ llc 8cc.c.eir.ll.opt.ll -march=wasm32
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;次に，アセンブリコードをwastに変換する．
+これによりアセンブリコードはS式に変換される．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ s2wasm 8cc.c.eir.ll.opt.s &amp;gt; 8cc.c.eir.ll.opt.wast
+&amp;lt;&amp;lt; a &amp;gt;&amp;gt;
+[[bad mustMatch:]]:
+==========
+.comm	a,4,2
+	.type	b,@object               # @b
+	.comm	b,4,2
+==========
+zsh: abort      s2wasm hello.c.eir.ll.opt.s &amp;gt; hello.c.eir.ll.opt.wast
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;うまく変換できなかったようである．&lt;/p&gt;
+
+&lt;p&gt;念のため，ELVMのCバックエンドをclnag -march=wasm3で2LLVM IRに変換してみた．
+この場合には同様の問題が起きなかったため，
+用いたLLVM IRがwasm向けでなかったためであると推測される．
+あとは，
+wastをsexpr-wasmにより
+バイトコードwasmに変換し，
+入出力となるJSとHTMLを書けば，WebAssemblyで書かれた8ccが動作するはずである．&lt;/p&gt;
+
+&lt;p&gt;なお，これまでで得られた8ccのファイルを以下に示す．&lt;/p&gt;
+
+&lt;p&gt;LLVM IRに変換した8cc
+[https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b]&lt;/p&gt;
+
+&lt;p&gt;上記のものをopt -O3で最適化したもの
+[https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a]&lt;/p&gt;
+
+&lt;p&gt;上記のものをllcによりWebAssemblyのアセンブリコードにしたもの
+[https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7]&lt;/p&gt;
+
+&lt;h1 id=&quot;まとめ&quot;&gt;まとめ&lt;/h1&gt;
+
+&lt;p&gt;LLVM IRを少し知りたくてELVMのLLVM IRバックエンドを作成した．
+まだ触れていない仕様や機能が数多くあるので，触れていきたい．
+また，今回はoptに投げるという雑な操作のみで最適化を行なったが，
+コンパイラにおいて最適化を扱った記事や書籍はあまり多くない．
+これらについても理解できるとおもしろそうである．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;p&gt;[http://shinh.hatenablog.com/entry/2016/10/18/095437]&lt;/p&gt;
+
+&lt;p&gt;[https://github.com/shinh/elvm]&lt;/p&gt;
+
+&lt;p&gt;[http://shinh.skr.jp/slide/elvm/000.html]&lt;/p&gt;
+
+&lt;p&gt;[http://shinh.skr.jp/slide/llel/000.html]&lt;/p&gt;
+
+&lt;p&gt;[http://llvm.org/docs/LangRef.html]&lt;/p&gt;
+
+&lt;p&gt;[http://hak7a3.hatenablog.com/entry/2016/11/13/153418]&lt;/p&gt;
+
+&lt;p&gt;[http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f]&lt;/p&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry><entry><title type="html">Zephyr上でBrainfuckを(一部)動かしてみる</title><link href="/2016/03/02/zephyr-brainfuck.html" rel="alternate" type="text/html" title="Zephyr上でBrainfuckを(一部)動かしてみる" /><published>2016-03-02T02:26:07+09:00</published><updated>2016-03-02T02:26:07+09:00</updated><id>/2016/03/02/zephyr-brainfuck</id><content type="html" xml:base="/2016/03/02/zephyr-brainfuck.html">&lt;p&gt;ZephyrはLinux Foundationが発表したのRTOSである。
+ただ触ってみただけでは面白くないので、
+ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。&lt;/p&gt;
+
+&lt;p&gt;##準備&lt;/p&gt;
+
+&lt;p&gt;ホストとしてGentoo Linux上のVMware Player 7.1.2で動作させたUbuntu 14.04 LTSを用いた。&lt;/p&gt;
+
+&lt;p&gt;Zephyr公式ドキュメントにある通りにインストールする。&lt;/p&gt;
+
+&lt;p&gt;Zephyrリポジトリは以下に公開されている。&lt;/p&gt;
+
+&lt;p&gt;https://gerrit.zephyrproject.org/r/zephyr&lt;/p&gt;
+
+&lt;p&gt;ここでは&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;bf2c827dcf1389d5d92ab1d58e0a305db0dd5026&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;を用いた。&lt;/p&gt;
+
+&lt;p&gt;ただし、&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ make menuconfig
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;を行う場合に、&lt;code class=&quot;highlighter-rouge&quot;&gt;libncurses5-dev&lt;/code&gt;が必要であることに注意したい。&lt;/p&gt;
+
+&lt;p&gt;##コードについて&lt;/p&gt;
+
+&lt;p&gt;Zephyrリポジトリにあるsample/shellをベースにBrainfuckインタプリタを実装した。
+今回はホストで適当に作成したBrainfuckインタプリタを移植する形をとった。
+コードは以下に置いてある。&lt;/p&gt;
+
+&lt;p&gt;https://github.com/retrage/zephyr_brainfuck.git&lt;/p&gt;
+
+&lt;p&gt;しかしながら、Zephyrはまだ開発初期のため、libcが完全に移植されておらず、scanfなどが実装されていない。
+そのため、今回の実装では&lt;code class=&quot;highlighter-rouge&quot;&gt;,&lt;/code&gt;命令(標準入力から1文字取得)には対応していない。
+現時点ではZephyrのlibc実装は独自のminimalしかないが、newlibを移植する予定があるようである。
+また、スタックの制限から配列の要素数は正規の30000未満の500とした。&lt;/p&gt;
+
+&lt;p&gt;##実行結果&lt;/p&gt;
+
+&lt;p&gt;以下に実行結果を示す。ここでは簡単なHello, world!プログラムをqemu_x86上で実行させてみる。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ make qemu
+...省略...
+  LINK    zephyr.lnk
+  SIDT    staticIdt.o
+  LINK    zephyr.elf
+  BIN     zephyr.bin
+To exit from QEMU enter: 'CTRL+a, x'
+[QEMU] CPU: qemu32
+qemu-system-i386: pci_add_option_rom: failed to find romfile &quot;vgabios-cirrus.bin&quot;
+&amp;gt; bf +++++++++[&amp;gt;++++++++&amp;gt;+++++++++++&amp;gt;+++++&amp;lt;&amp;lt;&amp;lt;-]&amp;gt;.&amp;gt;++.+++++++..+++.&amp;gt;-.------------.&amp;lt;++++++++.--------.+++.------.--------.&amp;gt;+.
+Hello, world!&amp;gt; QEMU: Terminated
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;確かに動作していることが確認できる。&lt;/p&gt;
+
+&lt;p&gt;##まとめ&lt;/p&gt;
+
+&lt;p&gt;今回はちょっとしたインタプリタを移植してみた。
+Zephyrは公開された時点で公式ドキュメントが充実しているので、比較的簡単に動作させることができた。
+また、インストールの過程でQEMUをインストールしており、手元にハードウェアがなくても簡単に動作確認とデバッグが
+できる点で非常に導入がしやすかった。
+Linux Foundationが関わっているためか、kernel configやディレクトリの構造がLinux似であるように感じた。&lt;/p&gt;
+
+&lt;p&gt;##参考&lt;/p&gt;
+
+&lt;p&gt;https://www.zephyrproject.org/&lt;/p&gt;
+
+&lt;p&gt;https://www.zephyrproject.org/doc/&lt;/p&gt;
+
+&lt;p&gt;https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck&lt;/p&gt;</content><author><name></name></author><summary type="html">ZephyrはLinux Foundationが発表したのRTOSである。 ただ触ってみただけでは面白くないので、 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。</summary></entry></feed>

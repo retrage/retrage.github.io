@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>ELVMのLLVM IRバックエンドをつくった | めもちょー</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="ELVMのLLVM IRバックエンドをつくった" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．" />
+<meta property="og:description" content="LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．" />
+<link rel="canonical" href="/2017/03/25/elvm-llvm-ir.html" />
+<meta property="og:url" content="/2017/03/25/elvm-llvm-ir.html" />
+<meta property="og:site_name" content="めもちょー" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2017-03-25T23:03:01+09:00" />
+<script type="application/ld+json">
+{"headline":"ELVMのLLVM IRバックエンドをつくった","dateModified":"2017-03-25T23:03:01+09:00","url":"/2017/03/25/elvm-llvm-ir.html","datePublished":"2017-03-25T23:03:01+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/03/25/elvm-llvm-ir.html"},"description":"LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．","@type":"BlogPosting","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="めもちょー" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">めもちょー</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">ELVMのLLVM IRバックエンドをつくった</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2017-03-25T23:03:01+09:00" itemprop="datePublished">Mar 25, 2017
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>LLVMはよく知られてるコンパイラ基盤であり，
+中間表現としてLLVM IRを持っている．
+様々なところでこのLLVM IRが使われているが，
+今まで触ってこなかったということもあり，
+今回LLVM IRで何かしら遊んでみようと思っていた．</p>
+
+<p>[http://itchyny.hatenablog.com/entry/2017/02/27/100000:embed:cite]</p>
+
+<p>最近になって，上記のようなBrainF**kを題材にLLVM IRを出力するような
+記事が上がっており，こちらの記事に刺激を受け，
+ELVMのLLVM IRバックエンドを作成した．</p>
+
+<p>じつは，以前に，Luaバックエンドを作成していた．
+ほとんどPythonバックエンドと同等であり，Luaを書いた経験はなかったにもかかわらず，
+調べるのに使った時間を含めても2時間足らずで実装できたと記憶している．</p>
+
+<p>なお，先日電気通信大学のMMA主催のDentoo.LTにおいて
+本バックエンドについて発表を行なった．
+本稿は発表で伝えきれなかった部分を含めた記事となっている．</p>
+
+<p>今回作成したバックエンドのコードは以下．</p>
+
+<p>[https://github.com/retrage/elvm.git:title]</p>
+
+<h2 id="cからelvm-irを経由してllvm-irへ変換してみる">CからELVM IRを経由してLLVM IRへ変換してみる</h2>
+
+<p>以下のようなCのコードを考えてみる．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>#include &lt;stdio.h&gt;
+
+int main() {
+  const char* p = "Hello, world!\n";
+  for (; *p; p++)
+    putchar(*p);
+  return 0;
+}
+</code></pre></div></div>
+
+<p>最初にこのCコードをELVM付属の8ccを用いて
+ELVM IRに変換する．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ out/8cc -S -I. -Ilibc -Iout test/hello.c
+$ wc –l hello.s
+12554 hello.s
+$ cat hello.s | head -15
+	.text
+my_div:
+	mov D, SP
+	add D, -1
+	store BP, D
+	mov SP, D
+	mov BP, SP
+	sub SP, 52
+	.file 1 "/home/vagrant/elvm/libc/_builtin.h"
+	.loc 1 35 0
+	# }
+	.loc 1 11 0
+	#   unsigned int r[24];
+	.loc 1 12 0
+	#   unsigned int i;
+</code></pre></div></div>
+
+<p>生成されたhello.sは12,554行あり，
+その中身はELVM IRであることがわかる．</p>
+
+<p>次に得られたELVM IRをelcによりCコード
+に変換する．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ out/elc -c hello.s &gt; hello.c.eir.c
+$ wc -l hello.c.eir.c 
+11290 hello.c.eir.c
+$ cat hello.c.eir.c | head -15
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+unsigned int a;
+unsigned int b;
+unsigned int c;
+unsigned int d;
+unsigned int bp;
+unsigned int sp;
+unsigned int pc;
+unsigned int mem[1&lt;&lt;24];
+
+void func0() {
+ while (0 &lt;= pc &amp;&amp; pc &lt; 512) {
+  switch (pc) {
+  case -1:  /* dummy */
+</code></pre></div></div>
+<p>elcにより生成されたhello.c.eir.cは
+11,290行あり，Cコードへ変換されていることがわかる．</p>
+
+<p>ここで得られたCコード’をclangにより
+LLVM IRに変換し,
+さらにLLVM IRのインタプリタであるlliにより実行してみる．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ clang -S -O0 -emit-llvm hello.c.eir.c 
+hello.c.eir.c:13:11: warning: comparison of 0 &lt;= unsigned expression is always
+      true [-Wtautological-compare]
+ while (0 &lt;= pc &amp;&amp; pc &lt; 512) {
+        ~ ^  ~~
+1 warning generated.
+$ lli hello.c.eir.ll
+Hello, world!
+$ wc -l hello.c.eir.ll
+34357 hello.c.eir.ll
+</code></pre></div></div>
+
+<p>33,865行と行数が増えてしまっているが，
+ちゃんと変換されて実行できていることがわかる．
+なお，行数が多いのはSSA形式になっているためと考えられる．</p>
+
+<h2 id="llvm-irバックエンドの作成">LLVM IRバックエンドの作成</h2>
+
+<p>これまでで，</p>
+
+<p>Cコード -(8cc)-&gt; ELVM IR -(elc)-&gt; Cコード’ -(clang)-&gt; LLVM IR</p>
+
+<p>と変換を行なってきた．</p>
+
+<p>次にclangを介さずにELVM IRから直接LLVM IRに変換することを考える．
+elvm/target/c.c:c_emit_instをみるとわかるが，
+ELVM IRの各命令は1行程度のCコードに置き換えることができる．
+そのため，Cコード’をclangでLLVM IRに変換した結果を見比べていけば，
+ELVMのLLVMバックエンドが作成できる．</p>
+
+<p>なお，ELVMのバックエンドであるelcはCで書かれており，
+セルフホスティングできる必要があるため，
+LLVM IR Builderを用いることはできなさそうである．</p>
+
+<p>テストケースの00exit.eirを例にどのように変換すればいいかみていく．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cat test/00exit.eir 
+exit
+$ out/elc -c test/00exit.eir &gt; 00exit.eir.c 
+clang -S -O0 -emit-llvm 00exit.eir.c
+</code></pre></div></div>
+
+<p>ELVM IRのexitに相当する部分を見ていく．
+Cコード’のうち，</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>  case 1:
+   exit(0);
+</code></pre></div></div>
+<p>の部分となる．
+これは，LLVM IRでは</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>; &lt;label&gt;:13:
+  call void @exit(i32 0) #2
+  unreachable
+</code></pre></div></div>
+<p>に相当する．</p>
+
+<p>このように，Cコード`から置き換えをしていくことでLLVM IRのバックエンドができた．
+以下，所感．</p>
+
+<ul>
+  <li>Unnamed Identityの扱い
+    <ul>
+      <li>Unnamed Identityとは，レジスタやラベル名などで，
+  特別な名前がない場合に連番でつけられる識別子のことである．
+  この識別子は少しでもずれてしまうとエラーとなる．</li>
+    </ul>
+  </li>
+  <li>REGかIMMか
+    <ul>
+      <li>ELVM IRはsrcにレジスタ(REG)か即値(IMM)を指定できる．
+  同一の命令でもREGとIMMで値のロードなどの部分が大きく異なる．</li>
+    </ul>
+  </li>
+  <li>case文の扱い
+    <ul>
+      <li>Cコード’では変数pcの値をswitch-caseすることで
+  実行する．caseはLLVM IRではlabelとなっているが，
+  事前にlabelのUnnamed Identityを知ることができないため，
+  最初にswitch文を置くことができない．
+  このため，全てのcase文をあらかじめ記録しておき，
+  その後ろにswitch文を置くことでこの問題を解決している．</li>
+    </ul>
+  </li>
+  <li>デバッグが困難
+    <ul>
+      <li>最初に見たように，Hello, world!だけでも相当な長さになってしまう．
+  このため，Cコードから生成したELVM IRでは，問題のある箇所を発見するのは非常に困難．</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="llvmの恩恵を受ける">LLVMの恩恵を受ける</h2>
+
+<p>さて，LLVM IRに変換することで受けられる恩恵として次のようなものがある．</p>
+<ul>
+  <li>最適化</li>
+  <li>他のターゲットへの変換</li>
+</ul>
+
+<p>ここでは，得られたLLVM IRをoptにより最適化を行い，
+コード量と実行速度を比較する．
+また，他のターゲットとして，WebAssemblyへの変換を行い，
+ブラウザ上で実行してみる．</p>
+
+<h2 id="最適化">最適化</h2>
+
+<p>最初に最適化を行ない，
+雑めに比較してみる．</p>
+
+<p>対象とするプログラムは先ほどのHello, world!である．</p>
+
+<h3 id="最適化前">最適化前</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ wc -l hello.c.eir.ll
+34357 hello.c.eir.ll
+$ time lli hello.c.eir.ll
+Hello, world!
+
+real	0m0.449s
+user	0m0.422s
+sys	0m0.026s
+</code></pre></div></div>
+
+<p>次のようにoptを用いて最適化を行う．
+多数のオプションがあるがここでは-O3を用いる．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ opt -S -O3 -o hello.c.eir.ll.opt.ll hello.c.eir.ll
+</code></pre></div></div>
+
+<h3 id="最適化後">最適化後</h3>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ wc -l hello.c.eir.ll.opt.ll 
+15834 hello.c.eir.ll.opt.ll
+$ time lli hello.c.eir.ll.opt.ll Hello, world!
+
+real	0m0.244s
+user	0m0.226s
+sys	0m0.017s
+</code></pre></div></div>
+
+<p>最適化により，
+行数だけでみると1/2以下になり，
+速度も2倍程度になっていることがわかる．</p>
+
+<h2 id="おまけ他ターゲットへの移植">おまけ　他ターゲットへの移植</h2>
+
+<p>以下はやりかけの残骸である．
+LLVM IRから他のターゲットへの移植をしたかった．
+代表的なものとして，C/C++をJSに変換するEmscriptenが有名であるが，
+せっかくなので，先日安定版のFirefoxでサポートされたWebAssemblyを扱う．</p>
+
+<p>あらかじめWebAssemblyターゲットを有効にしたLLVMをビルドしておく．</p>
+
+<p>最初に最適化したうえで，LLVM IRをアセンブリコードに変換する．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ opt -S -O3 8cc.c.eir.ll -o 8cc.c.eir.ll.opt.ll
+$ llc 8cc.c.eir.ll.opt.ll -march=wasm32
+</code></pre></div></div>
+
+<p>次に，アセンブリコードをwastに変換する．
+これによりアセンブリコードはS式に変換される．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ s2wasm 8cc.c.eir.ll.opt.s &gt; 8cc.c.eir.ll.opt.wast
+&lt;&lt; a &gt;&gt;
+[[bad mustMatch:]]:
+==========
+.comm	a,4,2
+	.type	b,@object               # @b
+	.comm	b,4,2
+==========
+zsh: abort      s2wasm hello.c.eir.ll.opt.s &gt; hello.c.eir.ll.opt.wast
+</code></pre></div></div>
+
+<p>うまく変換できなかったようである．</p>
+
+<p>念のため，ELVMのCバックエンドをclnag -march=wasm3で2LLVM IRに変換してみた．
+この場合には同様の問題が起きなかったため，
+用いたLLVM IRがwasm向けでなかったためであると推測される．
+あとは，
+wastをsexpr-wasmにより
+バイトコードwasmに変換し，
+入出力となるJSとHTMLを書けば，WebAssemblyで書かれた8ccが動作するはずである．</p>
+
+<p>なお，これまでで得られた8ccのファイルを以下に示す．</p>
+
+<p>LLVM IRに変換した8cc
+[https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b]</p>
+
+<p>上記のものをopt -O3で最適化したもの
+[https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a]</p>
+
+<p>上記のものをllcによりWebAssemblyのアセンブリコードにしたもの
+[https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7]</p>
+
+<h1 id="まとめ">まとめ</h1>
+
+<p>LLVM IRを少し知りたくてELVMのLLVM IRバックエンドを作成した．
+まだ触れていない仕様や機能が数多くあるので，触れていきたい．
+また，今回はoptに投げるという雑な操作のみで最適化を行なったが，
+コンパイラにおいて最適化を扱った記事や書籍はあまり多くない．
+これらについても理解できるとおもしろそうである．</p>
+
+<h2 id="参考文献">参考文献</h2>
+
+<p>[http://shinh.hatenablog.com/entry/2016/10/18/095437]</p>
+
+<p>[https://github.com/shinh/elvm]</p>
+
+<p>[http://shinh.skr.jp/slide/elvm/000.html]</p>
+
+<p>[http://shinh.skr.jp/slide/llel/000.html]</p>
+
+<p>[http://llvm.org/docs/LangRef.html]</p>
+
+<p>[http://hak7a3.hatenablog.com/entry/2016/11/13/153418]</p>
+
+<p>[http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f]</p>
+
+  </div><a class="u-url" href="/2017/03/25/elvm-llvm-ir.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">めもちょー</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">めもちょー</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
