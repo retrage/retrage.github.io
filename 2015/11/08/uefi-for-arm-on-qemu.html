@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>QEMUでARM向けUEFIを動かしてみる | めもちょー</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="QEMUでARM向けUEFIを動かしてみる" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="QEMUのBeagleBoardエミュレータでEDK2のBeagleBoardPkgを動かしてみます。" />
+<meta property="og:description" content="QEMUのBeagleBoardエミュレータでEDK2のBeagleBoardPkgを動かしてみます。" />
+<link rel="canonical" href="http://localhost:4000/2015/11/08/uefi-for-arm-on-qemu.html" />
+<meta property="og:url" content="http://localhost:4000/2015/11/08/uefi-for-arm-on-qemu.html" />
+<meta property="og:site_name" content="めもちょー" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2015-11-08T02:35:46+09:00" />
+<script type="application/ld+json">
+{"headline":"QEMUでARM向けUEFIを動かしてみる","dateModified":"2015-11-08T02:35:46+09:00","url":"http://localhost:4000/2015/11/08/uefi-for-arm-on-qemu.html","datePublished":"2015-11-08T02:35:46+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2015/11/08/uefi-for-arm-on-qemu.html"},"description":"QEMUのBeagleBoardエミュレータでEDK2のBeagleBoardPkgを動かしてみます。","@type":"BlogPosting","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="めもちょー" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">めもちょー</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">QEMUでARM向けUEFIを動かしてみる</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2015-11-08T02:35:46+09:00" itemprop="datePublished">Nov 8, 2015
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>QEMUのBeagleBoardエミュレータでEDK2のBeagleBoardPkgを動かしてみます。</p>
+
+<p>BeagleBoardPkgはLinuxを起動するためのもののようですが、
+とりあえず前回のビルドの成果物が動くことを確認したいだけなので、Linuxのブートイメージは作りません。</p>
+
+<p>前回のビルドができた状態から始めます。</p>
+
+<p><a href="http://retrage01.hateblo.jp/entry/2015/11/08/023457">EDK2のクロスコンパイル - めもちょー</a></p>
+
+<h2 id="qemuのビルドとインストール">QEMUのビルドとインストール</h2>
+
+<p>BeagleBoardがエミュレートできるQEMUをビルドします。
+Ubuntuではapt-getでQEMUをインストールすることができますが、
+これで入るQEMUにはBeagleBoardをエミュレートするマシンに指定できないようです。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ wget https://launchpad.net/qemu-linaro/trunk/2014.01/+download/qemu-linaro-1.7.0-2014.01.tar.gz
+$ tar -xvf qemu-linaro-1.7.0-2014.01.tar.gz
+$ cd qemu-linaro-1.7.0-2014.01/
+</code></pre></div></div>
+
+<p>QEMUのビルドに必要なものをインストール</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ sudo apt-get install libglib2.0-dev libfdt-dev libpixman-1-dev zlib1g-dev
+</code></pre></div></div>
+
+<p>あとは適当にビルドとインストール</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ mkdir build
+$ cd build
+$ ../configure --prefix=/home/retrage/opt
+$ make
+$ make install
+</code></pre></div></div>
+
+<p>完了したらちゃんとBeagleBoardがサポートされているかを確認。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ qemu-system-arm -M help
+Supported machines are:
+none                 empty machine
+beagle               Beagle board (OMAP3530)
+beaglexm             Beagle board XM (OMAP3630)
+collie               Collie PDA (SA-1110)
+nuri                 Samsung NURI board (Exynos4210)
+...
+</code></pre></div></div>
+
+<h2 id="beagleboard_efifdを動かしてみる">BEAGLEBOARD_EFI.fdを動かしてみる</h2>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ~/opt/bin/qemu-system-arm -M beagle -serial stdio -mtdblock ~/src/edk2/Build/BeagleBoard/DEBUG_GCC48/FV/BEAGLEBOARD_EFI.fd
+</code></pre></div></div>
+
+<p>のように実行すると、</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[1] Linux from SD
+	- VenHw(B615F1F5-5088-43CD-809C-A16E52487D00)/HD(1,MBR,0x00000000,0x3F,0x19FC0)/Image
+	- Arguments: console=tty0 console=ttyS2,115200n8 root=UUID=a4af765b-c2b5-48f4-9564-7a4e9104c4f6 rootwait ro earlyprintk
+[2] Shell
+[3] Boot Manager
+Start: 
+</code></pre></div></div>
+
+<p>とか出てきます。</p>
+
+<p>2を指定すれば、</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>UEFI Interactive Shell v2.1
+EDK II
+UEFI v2.50 (Beagle Board EFI Nov  1 2015 19:04:57, 0x00000000)
+Mapping table
+     BLK1: Alias(s):
+          VenHw(4D00EF14-C4E0-426B-81B7-30A00A14AAD6)
+     BLK0: Alias(s):
+          VenHw(100C2CFA-B586-4198-9B4C-1683D195B1DA)
+Press ESC in 1 seconds to skip startup.nsh or any other key to continue.
+Shell&gt; 
+</code></pre></div></div>
+
+<p>のようにUEFI Shellが起動できることが確認できます。</p>
+
+<p>ちなみに、tianocoreのWikiにあるようにLinuxのイメージを作ってみたりもしたのですが、うまく動きませんでした。
+調べてみると使っているQEMUが1.7.0でかなり古く、QEMU側のバグかもしれないとのことです。</p>
+
+<p>参考:</p>
+
+<ul>
+  <li>
+    <p>http://tianocore.sourceforge.net/wiki/BeagleBoardPkg#How_to_build_UEFI_for_the_BeagleBoard</p>
+  </li>
+  <li>
+    <p>https://launchpad.net/qemu-linaro</p>
+  </li>
+  <li>
+    <p>http://wiki.qemu.org/Hosts/Linux</p>
+  </li>
+  <li>
+    <p>http://stackoverflow.com/questions/29895663/qemu-beagle-sd-card-error:title</p>
+  </li>
+</ul>
+
+
+  </div><a class="u-url" href="/2015/11/08/uefi-for-arm-on-qemu.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">めもちょー</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">めもちょー</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
