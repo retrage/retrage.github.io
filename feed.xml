@@ -1,4 +1,89 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-06-15T00:57:09+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">8cc in Lazy K</title><link href="http://localhost:4000/2018/04/01/8cc-lazyk.html" rel="alternate" type="text/html" title="8cc in Lazy K" /><published>2018-04-01T21:17:53+09:00</published><updated>2018-04-01T21:17:53+09:00</updated><id>http://localhost:4000/2018/04/01/8cc-lazyk</id><content type="html" xml:base="http://localhost:4000/2018/04/01/8cc-lazyk.html">&lt;p&gt;本日は4月1日で，エイプリルフールの日である．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-06-18T22:48:40+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">RustでBrainfuck処理系を高速化して遊んでみる</title><link href="http://localhost:4000/2018/06/18/brainfuck-performance.html" rel="alternate" type="text/html" title="RustでBrainfuck処理系を高速化して遊んでみる" /><published>2018-06-18T22:37:02+09:00</published><updated>2018-06-18T22:37:02+09:00</updated><id>http://localhost:4000/2018/06/18/brainfuck-performance</id><content type="html" xml:base="http://localhost:4000/2018/06/18/brainfuck-performance.html">&lt;p&gt;Brainfuckとは&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;gt;&amp;lt;+-.,[]&lt;/code&gt;の8つの命令からなるプログラミング言語である．
+実装が簡単であるために，すでに多くの言語によって実装がなされている．
+ここでは，
+&lt;a href=&quot;https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-1-an-interpreter.html&quot;&gt;Adventures in JIT compilation: Part 1 - an interpreter&lt;/a&gt;
+を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．&lt;/p&gt;
+
+&lt;h2 id=&quot;brainfuckの実装&quot;&gt;Brainfuckの実装&lt;/h2&gt;
+
+&lt;p&gt;実装したBrainfuckは&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;simpleinterp&lt;/li&gt;
+  &lt;li&gt;optinterp&lt;/li&gt;
+  &lt;li&gt;optinterp2&lt;/li&gt;
+  &lt;li&gt;optinterp3&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;の4通りがある．&lt;/p&gt;
+
+&lt;p&gt;simpleinterpは素朴な実装であり，高速化はなされていない．
+optinterpは&lt;code class=&quot;highlighter-rouge&quot;&gt;[&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;]&lt;/code&gt;の対応表を実行時に作成することにより最適化を図っている．
+optinterp2は8つの命令に加えて高水準な命令を定義し，
+局所的に実行される命令をそれらの命令に置き換えることで最適化を行う．
+optinterp3はさらに実行されるループに使われるパターンを高水準な命令に置き換え，最適化を行う．&lt;/p&gt;
+
+&lt;p&gt;実装の概要については
+&lt;a href=&quot;https://speakerdeck.com/retrage/brainf-star-ckfalsegao-su-hua-1&quot;&gt;BrainFuckの高速化&lt;/a&gt;
+において解説している．&lt;/p&gt;
+
+&lt;h2 id=&quot;ベンチマークと計測方法&quot;&gt;ベンチマークと計測方法&lt;/h2&gt;
+
+&lt;p&gt;先に挙げたブログ内では
+&lt;code class=&quot;highlighter-rouge&quot;&gt;mandelbrot&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;factor&lt;/code&gt;の2つのスクリプトをベンチマークに用いている．
+ここでもこれらのスクリプトを用いることとする．&lt;/p&gt;
+
+&lt;p&gt;実行速度の計測には&lt;code class=&quot;highlighter-rouge&quot;&gt;time&lt;/code&gt;を用いる．
+計測時には&lt;code class=&quot;highlighter-rouge&quot;&gt;--release&lt;/code&gt;オプションを指定し，最適化がなされるようにした．&lt;/p&gt;
+
+&lt;p&gt;実行環境は&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MacBook Air (11-inch, Early 2014)
+CPU: 1.7 GHz Intel Core i7
+RAM: 8GB 1600 MHz DDR3
+OS: macOS High Sierra 10.13.5
+cargo: 1.26.0
+rustc: 1.26.2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;である．&lt;/p&gt;
+
+&lt;h2 id=&quot;mandelbrot&quot;&gt;mandelbrot&lt;/h2&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;mandelbrot&lt;/code&gt;の場合の比較．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;simpleinterp: cargo run --release mandelbrot.bf  47.78s user 0.14s system 99% cpu 48.037 total
+optinterp:    cargo run --release mandelbrot.bf  25.90s user 0.10s system 99% cpu 26.080 total
+optinterp2:   cargo run --release mandelbrot.bf  8.30s user 0.08s system 99% cpu 8.443 total
+optinterp3:   cargo run --release mandelbrot.bf  6.46s user 0.09s system 99% cpu 6.617 total
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/bf-perf-mandelbrot.png&quot; alt=&quot;Mandelbrot Performance&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;factor&quot;&gt;factor&lt;/h2&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;factor&lt;/code&gt;の場合の比較&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;simpleinterp: cargo run --release factor.bf &amp;lt; prime  17.16s user 0.10s system 99% cpu 17.321 total
+optinterp:    cargo run --release factor.bf &amp;lt; prime  9.64s user 0.09s system 99% cpu 9.790 total
+optinterp2:   cargo run --release factor.bf &amp;lt; prime  3.45s user 0.09s system 98% cpu 3.611 total
+optinterp3:   cargo run --release factor.bf &amp;lt; prime  2.93s user 0.07s system 98% cpu 3.039 total
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/bf-perf-factor.png&quot; alt=&quot;Factor Performace&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;いずれのスクリプトの場合でも
+simpleinterp &amp;gt; optinterp &amp;gt; optinterp2 &amp;gt; optinterp3
+の順の実行時間であった．これは元記事とも一致する．
+さらに元記事のようにJITなどを用いて最適化することも考えられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-1-an-interpreter.html&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">Brainfuckとは&amp;gt;&amp;lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．</summary></entry><entry><title type="html">8cc in Lazy K</title><link href="http://localhost:4000/2018/04/01/8cc-lazyk.html" rel="alternate" type="text/html" title="8cc in Lazy K" /><published>2018-04-01T21:17:53+09:00</published><updated>2018-04-01T21:17:53+09:00</updated><id>http://localhost:4000/2018/04/01/8cc-lazyk</id><content type="html" xml:base="http://localhost:4000/2018/04/01/8cc-lazyk.html">&lt;p&gt;本日は4月1日で，エイプリルフールの日である．
 ただ，書いている現在は午後9時で，ちょっと嘘をつくには遅すぎる時間である．そこで，今回は何にも役に立たないものを作ってみようと思った．
 そこで，表題の通り，Lazy Kで書かれた8ccを生成して遊んでみた．&lt;/p&gt;
 
@@ -1088,83 +1173,4 @@ wastをsexpr-wasmにより
   &lt;li&gt;
     &lt;p&gt;http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f&lt;/p&gt;
   &lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry><entry><title type="html">Zephyr上でBrainfuckを(一部)動かしてみる</title><link href="http://localhost:4000/2016/03/02/zephyr-brainfuck.html" rel="alternate" type="text/html" title="Zephyr上でBrainfuckを(一部)動かしてみる" /><published>2016-03-02T02:26:07+09:00</published><updated>2016-03-02T02:26:07+09:00</updated><id>http://localhost:4000/2016/03/02/zephyr-brainfuck</id><content type="html" xml:base="http://localhost:4000/2016/03/02/zephyr-brainfuck.html">&lt;p&gt;ZephyrはLinux Foundationが発表したのRTOSである。
-ただ触ってみただけでは面白くないので、
-ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。&lt;/p&gt;
-
-&lt;h2 id=&quot;準備&quot;&gt;準備&lt;/h2&gt;
-
-&lt;p&gt;ホストとしてGentoo Linux上のVMware Player 7.1.2で動作させたUbuntu 14.04 LTSを用いた。&lt;/p&gt;
-
-&lt;p&gt;Zephyr公式ドキュメントにある通りにインストールする。&lt;/p&gt;
-
-&lt;p&gt;Zephyrリポジトリは以下に公開されている。&lt;/p&gt;
-
-&lt;p&gt;https://gerrit.zephyrproject.org/r/zephyr&lt;/p&gt;
-
-&lt;p&gt;ここでは&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;bf2c827dcf1389d5d92ab1d58e0a305db0dd5026&lt;/code&gt;&lt;/p&gt;
-
-&lt;p&gt;を用いた。&lt;/p&gt;
-
-&lt;p&gt;ただし、&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ make menuconfig
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;を行う場合に、&lt;code class=&quot;highlighter-rouge&quot;&gt;libncurses5-dev&lt;/code&gt;が必要であることに注意したい。&lt;/p&gt;
-
-&lt;h2 id=&quot;コードについて&quot;&gt;コードについて&lt;/h2&gt;
-
-&lt;p&gt;Zephyrリポジトリにあるsample/shellをベースにBrainfuckインタプリタを実装した。
-今回はホストで適当に作成したBrainfuckインタプリタを移植する形をとった。
-コードは以下に置いてある。&lt;/p&gt;
-
-&lt;p&gt;https://github.com/retrage/zephyr_brainfuck.git&lt;/p&gt;
-
-&lt;p&gt;しかしながら、Zephyrはまだ開発初期のため、libcが完全に移植されておらず、scanfなどが実装されていない。
-そのため、今回の実装では&lt;code class=&quot;highlighter-rouge&quot;&gt;,&lt;/code&gt;命令(標準入力から1文字取得)には対応していない。
-現時点ではZephyrのlibc実装は独自のminimalしかないが、newlibを移植する予定があるようである。
-また、スタックの制限から配列の要素数は正規の30000未満の500とした。&lt;/p&gt;
-
-&lt;h2 id=&quot;実行結果&quot;&gt;実行結果&lt;/h2&gt;
-
-&lt;p&gt;以下に実行結果を示す。ここでは簡単なHello, world!プログラムをqemu_x86上で実行させてみる。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ make qemu
-...省略...
-  LINK    zephyr.lnk
-  SIDT    staticIdt.o
-  LINK    zephyr.elf
-  BIN     zephyr.bin
-To exit from QEMU enter: 'CTRL+a, x'
-[QEMU] CPU: qemu32
-qemu-system-i386: pci_add_option_rom: failed to find romfile &quot;vgabios-cirrus.bin&quot;
-&amp;gt; bf +++++++++[&amp;gt;++++++++&amp;gt;+++++++++++&amp;gt;+++++&amp;lt;&amp;lt;&amp;lt;-]&amp;gt;.&amp;gt;++.+++++++..+++.&amp;gt;-.------------.&amp;lt;++++++++.--------.+++.------.--------.&amp;gt;+.
-Hello, world!&amp;gt; QEMU: Terminated
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;確かに動作していることが確認できる。&lt;/p&gt;
-
-&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
-
-&lt;p&gt;今回はちょっとしたインタプリタを移植してみた。
-Zephyrは公開された時点で公式ドキュメントが充実しているので、比較的簡単に動作させることができた。
-また、インストールの過程でQEMUをインストールしており、手元にハードウェアがなくても簡単に動作確認とデバッグが
-できる点で非常に導入がしやすかった。
-Linux Foundationが関わっているためか、kernel configやディレクトリの構造がLinux似であるように感じた。&lt;/p&gt;
-
-&lt;h2 id=&quot;参考&quot;&gt;参考&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;https://www.zephyrproject.org/&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;https://www.zephyrproject.org/doc/&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;https://ja.wikipedia.org/wiki/Hello_world%E3%83%97%E3%83%AD%E3%82%B0%E3%83%A9%E3%83%A0%E3%81%AE%E4%B8%80%E8%A6%A7#Brainfuck&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">ZephyrはLinux Foundationが発表したのRTOSである。 ただ触ってみただけでは面白くないので、 ここではZephyr上で動作するBrainfuckインタプリタを(一部)実装して動作させてみる。</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry></feed>
