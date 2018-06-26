@@ -1,4 +1,69 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-06-18T23:04:06+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">RustでBrainfuck処理系を高速化して遊んでみる</title><link href="http://localhost:4000/2018/06/18/brainfuck-performance.html" rel="alternate" type="text/html" title="RustでBrainfuck処理系を高速化して遊んでみる" /><published>2018-06-18T22:37:02+09:00</published><updated>2018-06-18T22:37:02+09:00</updated><id>http://localhost:4000/2018/06/18/brainfuck-performance</id><content type="html" xml:base="http://localhost:4000/2018/06/18/brainfuck-performance.html">&lt;p&gt;Brainfuckとは&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;gt;&amp;lt;+-.,[]&lt;/code&gt;の8つの命令からなるプログラミング言語である．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-06-26T23:22:43+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">HiFive1でZephyr</title><link href="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html" rel="alternate" type="text/html" title="HiFive1でZephyr" /><published>2018-06-26T23:19:50+09:00</published><updated>2018-06-26T23:19:50+09:00</updated><id>http://localhost:4000/2018/06/26/zephyr-on-hifive1</id><content type="html" xml:base="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html">&lt;p&gt;HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである．
+一方，Zephyrは，Linux Foundationにより開発が進められている組み込み向けOSである．
+upstreamのZephyrはHiFive1に対応している．
+ここでは，ZephyrをHiFive1向けにビルドしてみる．&lt;/p&gt;
+
+&lt;p&gt;ホスト環境はx86_64で&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Distributor ID:	Ubuntu
+Description:	Ubuntu 16.04.4 LTS
+Release:	16.04
+Codename:	xenial
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;である．&lt;/p&gt;
+
+&lt;h2 id=&quot;risc-v向けtoolchainのビルド&quot;&gt;RISC-V向けtoolchainのビルド&lt;/h2&gt;
+
+&lt;p&gt;最初にRISC-V向けのtoolchainをビルドする．&lt;/p&gt;
+
+&lt;p&gt;基本的に以下のREADME通り．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/riscv/riscv-gnu-toolchain&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
+$ sudo apt install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでは&lt;code class=&quot;highlighter-rouge&quot;&gt;$HOME/rv32&lt;/code&gt;以下にインストールすることとする．
+ターゲットのHiFive1は&lt;code class=&quot;highlighter-rouge&quot;&gt;32-bit RV32IMAC&lt;/code&gt;である．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./configure --prefix=$HOME/rv32 --with-arch=rv32imac --with-abi=ilp32d
+$ make linux
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;zephyrの取得と環境構築&quot;&gt;Zephyrの取得と環境構築&lt;/h2&gt;
+
+&lt;p&gt;以下の通り，必要となるパッケージをインストールする．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;http://docs.zephyrproject.org/getting_started/installation_linux.html&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ git clone https://github.com/zephyrproject-rtos/zephyr.git
+$ sudo apt install git cmake ninja-build gperf ccache doxygen dfu-util device-tree-compiler python3-ply python3-pip python3-setuptools python3-wheel xz-utils file make gcc-multilib autoconf automake libtool
+$ cd zephyr
+$ pip3 install --user -r scripts/requirements.txt
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;applicationのビルド&quot;&gt;Applicationのビルド&lt;/h2&gt;
+
+&lt;p&gt;以下の通り，環境変数を与える．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cd hello/build
+$ export ZEPHYR_BASE=~/src/zephyr
+$ export BOARD=&quot;hifive1&quot;
+$ export ZEPHYR_TOOLCHAIN_VARIANT=riscv32
+$ export GCCRISCV32_TOOLCHAIN_PATH=~/rv32
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cmake &quot;Unix Makefies&quot; ..
+$ make
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;これで，ビルドされ&lt;code class=&quot;highlighter-rouge&quot;&gt;build/zephyr/zephyr.elf&lt;/code&gt;が生成される．&lt;/p&gt;</content><author><name></name></author><summary type="html">HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである． 一方，Zephyrは，Linux Foundationにより開発が進められている組み込み向けOSである． upstreamのZephyrはHiFive1に対応している． ここでは，ZephyrをHiFive1向けにビルドしてみる．</summary></entry><entry><title type="html">RustでBrainfuck処理系を高速化して遊んでみる</title><link href="http://localhost:4000/2018/06/18/brainfuck-performance.html" rel="alternate" type="text/html" title="RustでBrainfuck処理系を高速化して遊んでみる" /><published>2018-06-18T22:37:02+09:00</published><updated>2018-06-18T22:37:02+09:00</updated><id>http://localhost:4000/2018/06/18/brainfuck-performance</id><content type="html" xml:base="http://localhost:4000/2018/06/18/brainfuck-performance.html">&lt;p&gt;Brainfuckとは&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;gt;&amp;lt;+-.,[]&lt;/code&gt;の8つの命令からなるプログラミング言語である．
 実装が簡単であるために，すでに多くの言語によって実装がなされている．
 ここでは，
 &lt;a href=&quot;https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-1-an-interpreter.html&quot;&gt;Adventures in JIT compilation: Part 1 - an interpreter&lt;/a&gt;
@@ -853,325 +918,4 @@ App Passwordだけは外に漏らさないようにしたい．&lt;/p&gt;
   &lt;li&gt;
     &lt;p&gt;[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html&lt;/p&gt;
   &lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry><entry><title type="html">ELVMのLLVM IRバックエンドをつくった</title><link href="http://localhost:4000/2017/03/25/elvm-llvm-ir.html" rel="alternate" type="text/html" title="ELVMのLLVM IRバックエンドをつくった" /><published>2017-03-25T23:03:01+09:00</published><updated>2017-03-25T23:03:01+09:00</updated><id>http://localhost:4000/2017/03/25/elvm-llvm-ir</id><content type="html" xml:base="http://localhost:4000/2017/03/25/elvm-llvm-ir.html">&lt;p&gt;LLVMはよく知られてるコンパイラ基盤であり，
-中間表現としてLLVM IRを持っている．
-様々なところでこのLLVM IRが使われているが，
-今まで触ってこなかったということもあり，
-今回LLVM IRで何かしら遊んでみようと思っていた．&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;http://itchyny.hatenablog.com/entry/2017/02/27/100000&quot;&gt;LLVMを始めよう！ 〜 LLVM IRの基礎はclangが教えてくれた・Brainf**kコンパイラを作ってみよう 〜&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;最近になって，上記のようなBrainF**kを題材にLLVM IRを出力するような
-記事が上がっており，こちらの記事に刺激を受け，
-ELVMのLLVM IRバックエンドを作成した．&lt;/p&gt;
-
-&lt;p&gt;じつは，以前に，Luaバックエンドを作成していた．
-ほとんどPythonバックエンドと同等であり，Luaを書いた経験はなかったにもかかわらず，
-調べるのに使った時間を含めても2時間足らずで実装できたと記憶している．&lt;/p&gt;
-
-&lt;p&gt;なお，先日電気通信大学のMMA主催のDentoo.LTにおいて
-本バックエンドについて発表を行なった．
-本稿は発表で伝えきれなかった部分を含めた記事となっている．&lt;/p&gt;
-
-&lt;p&gt;今回作成したバックエンドのコードは以下．&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://github.com/retrage/elvm/tree/retrage/ll&quot;&gt;retrage/elvm at retrage/ll&lt;/a&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;cからelvm-irを経由してllvm-irへ変換してみる&quot;&gt;CからELVM IRを経由してLLVM IRへ変換してみる&lt;/h2&gt;
-
-&lt;p&gt;以下のようなCのコードを考えてみる．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#include &amp;lt;stdio.h&amp;gt;
-
-int main() {
-  const char* p = &quot;Hello, world!\n&quot;;
-  for (; *p; p++)
-    putchar(*p);
-  return 0;
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最初にこのCコードをELVM付属の8ccを用いて
-ELVM IRに変換する．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ out/8cc -S -I. -Ilibc -Iout test/hello.c
-$ wc –l hello.s
-12554 hello.s
-$ cat hello.s | head -15
-	.text
-my_div:
-	mov D, SP
-	add D, -1
-	store BP, D
-	mov SP, D
-	mov BP, SP
-	sub SP, 52
-	.file 1 &quot;/home/vagrant/elvm/libc/_builtin.h&quot;
-	.loc 1 35 0
-	# }
-	.loc 1 11 0
-	#   unsigned int r[24];
-	.loc 1 12 0
-	#   unsigned int i;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;生成されたhello.sは12,554行あり，
-その中身はELVM IRであることがわかる．&lt;/p&gt;
-
-&lt;p&gt;次に得られたELVM IRをelcによりCコード
-に変換する．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ out/elc -c hello.s &amp;gt; hello.c.eir.c
-$ wc -l hello.c.eir.c 
-11290 hello.c.eir.c
-$ cat hello.c.eir.c | head -15
-#include &amp;lt;stdio.h&amp;gt;
-#include &amp;lt;stdlib.h&amp;gt;
-unsigned int a;
-unsigned int b;
-unsigned int c;
-unsigned int d;
-unsigned int bp;
-unsigned int sp;
-unsigned int pc;
-unsigned int mem[1&amp;lt;&amp;lt;24];
-
-void func0() {
- while (0 &amp;lt;= pc &amp;amp;&amp;amp; pc &amp;lt; 512) {
-  switch (pc) {
-  case -1:  /* dummy */
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;elcにより生成されたhello.c.eir.cは
-11,290行あり，Cコードへ変換されていることがわかる．&lt;/p&gt;
-
-&lt;p&gt;ここで得られたCコードをclangにより
-LLVM IRに変換し,
-さらにLLVM IRのインタプリタであるlliにより実行してみる．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ clang -S -O0 -emit-llvm hello.c.eir.c 
-hello.c.eir.c:13:11: warning: comparison of 0 &amp;lt;= unsigned expression is always
-      true [-Wtautological-compare]
- while (0 &amp;lt;= pc &amp;amp;&amp;amp; pc &amp;lt; 512) {
-        ~ ^  ~~
-1 warning generated.
-$ lli hello.c.eir.ll
-Hello, world!
-$ wc -l hello.c.eir.ll
-34357 hello.c.eir.ll
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;33,865行と行数が増えてしまっているが，
-ちゃんと変換されて実行できていることがわかる．
-なお，行数が多いのはSSA形式になっているためと考えられる．&lt;/p&gt;
-
-&lt;h2 id=&quot;llvm-irバックエンドの作成&quot;&gt;LLVM IRバックエンドの作成&lt;/h2&gt;
-
-&lt;p&gt;これまでで，&lt;/p&gt;
-
-&lt;p&gt;Cコード -(8cc)-&amp;gt; ELVM IR -(elc)-&amp;gt; Cコード’ -(clang)-&amp;gt; LLVM IR&lt;/p&gt;
-
-&lt;p&gt;と変換を行なってきた．&lt;/p&gt;
-
-&lt;p&gt;次にclangを介さずにELVM IRから直接LLVM IRに変換することを考える．
-elvm/target/c.c:c_emit_instをみるとわかるが，
-ELVM IRの各命令は1行程度のCコードに置き換えることができる．
-そのため，Cコード’をclangでLLVM IRに変換した結果を見比べていけば，
-ELVMのLLVMバックエンドが作成できる．&lt;/p&gt;
-
-&lt;p&gt;なお，ELVMのバックエンドであるelcはCで書かれており，
-セルフホスティングできる必要があるため，
-LLVM IR Builderを用いることはできなさそうである．&lt;/p&gt;
-
-&lt;p&gt;テストケースの00exit.eirを例にどのように変換すればいいかみていく．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cat test/00exit.eir 
-exit
-$ out/elc -c test/00exit.eir &amp;gt; 00exit.eir.c 
-clang -S -O0 -emit-llvm 00exit.eir.c
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ELVM IRのexitに相当する部分を見ていく．
-Cコード’のうち，&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  case 1:
-   exit(0);
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;の部分となる．
-これは，LLVM IRでは&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;; &amp;lt;label&amp;gt;:13:
-  call void @exit(i32 0) #2
-  unreachable
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;に相当する．&lt;/p&gt;
-
-&lt;p&gt;このように，Cコード`から置き換えをしていくことでLLVM IRのバックエンドができた．
-以下，所感．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Unnamed Identityの扱い
-    &lt;ul&gt;
-      &lt;li&gt;Unnamed Identityとは，レジスタやラベル名などで，
-  特別な名前がない場合に連番でつけられる識別子のことである．
-  この識別子は少しでもずれてしまうとエラーとなる．&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;REGかIMMか
-    &lt;ul&gt;
-      &lt;li&gt;ELVM IRはsrcにレジスタ(REG)か即値(IMM)を指定できる．
-  同一の命令でもREGとIMMで値のロードなどの部分が大きく異なる．&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;case文の扱い
-    &lt;ul&gt;
-      &lt;li&gt;Cコードでは変数pcの値をswitch-caseすることで
-  実行する．caseはLLVM IRではlabelとなっているが，
-  事前にlabelのUnnamed Identityを知ることができないため，
-  最初にswitch文を置くことができない．
-  このため，全てのcase文をあらかじめ記録しておき，
-  その後ろにswitch文を置くことでこの問題を解決している．&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;デバッグが困難
-    &lt;ul&gt;
-      &lt;li&gt;最初に見たように，Hello, world!だけでも相当な長さになってしまう．
-  このため，Cコードから生成したELVM IRでは，問題のある箇所を発見するのは非常に困難．&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;llvmの恩恵を受ける&quot;&gt;LLVMの恩恵を受ける&lt;/h2&gt;
-
-&lt;p&gt;さて，LLVM IRに変換することで受けられる恩恵として次のようなものがある．&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;最適化&lt;/li&gt;
-  &lt;li&gt;他のターゲットへの変換&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;ここでは，得られたLLVM IRをoptにより最適化を行い，
-コード量と実行速度を比較する．
-また，他のターゲットとして，WebAssemblyへの変換を行い，
-ブラウザ上で実行してみる．&lt;/p&gt;
-
-&lt;h2 id=&quot;最適化&quot;&gt;最適化&lt;/h2&gt;
-
-&lt;p&gt;最初に最適化を行ない，
-雑めに比較してみる．&lt;/p&gt;
-
-&lt;p&gt;対象とするプログラムは先ほどのHello, world!である．&lt;/p&gt;
-
-&lt;h3 id=&quot;最適化前&quot;&gt;最適化前&lt;/h3&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wc -l hello.c.eir.ll
-34357 hello.c.eir.ll
-$ time lli hello.c.eir.ll
-Hello, world!
-
-real	0m0.449s
-user	0m0.422s
-sys	0m0.026s
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;次のようにoptを用いて最適化を行う．
-多数のオプションがあるがここでは-O3を用いる．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ opt -S -O3 -o hello.c.eir.ll.opt.ll hello.c.eir.ll
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;最適化後&quot;&gt;最適化後&lt;/h3&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wc -l hello.c.eir.ll.opt.ll 
-15834 hello.c.eir.ll.opt.ll
-$ time lli hello.c.eir.ll.opt.ll Hello, world!
-
-real	0m0.244s
-user	0m0.226s
-sys	0m0.017s
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最適化により，
-行数だけでみると1/2以下になり，
-速度も2倍程度になっていることがわかる．&lt;/p&gt;
-
-&lt;h2 id=&quot;おまけ他ターゲットへの移植&quot;&gt;おまけ　他ターゲットへの移植&lt;/h2&gt;
-
-&lt;p&gt;以下はやりかけの残骸である．
-LLVM IRから他のターゲットへの移植をしたかった．
-代表的なものとして，C/C++をJSに変換するEmscriptenが有名であるが，
-せっかくなので，先日安定版のFirefoxでサポートされたWebAssemblyを扱う．&lt;/p&gt;
-
-&lt;p&gt;あらかじめWebAssemblyターゲットを有効にしたLLVMをビルドしておく．&lt;/p&gt;
-
-&lt;p&gt;最初に最適化したうえで，LLVM IRをアセンブリコードに変換する．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ opt -S -O3 8cc.c.eir.ll -o 8cc.c.eir.ll.opt.ll
-$ llc 8cc.c.eir.ll.opt.ll -march=wasm32
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;次に，アセンブリコードをwastに変換する．
-これによりアセンブリコードはS式に変換される．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ s2wasm 8cc.c.eir.ll.opt.s &amp;gt; 8cc.c.eir.ll.opt.wast
-&amp;lt;&amp;lt; a &amp;gt;&amp;gt;
-[[bad mustMatch:]]:
-==========
-.comm	a,4,2
-	.type	b,@object               # @b
-	.comm	b,4,2
-==========
-zsh: abort      s2wasm hello.c.eir.ll.opt.s &amp;gt; hello.c.eir.ll.opt.wast
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;うまく変換できなかったようである．&lt;/p&gt;
-
-&lt;p&gt;念のため，ELVMのCバックエンドをclnag -march=wasm3で2LLVM IRに変換してみた．
-この場合には同様の問題が起きなかったため，
-用いたLLVM IRがwasm向けでなかったためであると推測される．
-あとは，
-wastをsexpr-wasmにより
-バイトコードwasmに変換し，
-入出力となるJSとHTMLを書けば，WebAssemblyで書かれた8ccが動作するはずである．&lt;/p&gt;
-
-&lt;p&gt;なお，これまでで得られた8ccのファイルを以下に示す．&lt;/p&gt;
-
-&lt;p&gt;LLVM IRに変換した8cc&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/5ddbbc52b0aea351917462d613acd66b&quot;&gt;retrage/8cc.c.eir.ll&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;上記のものをopt -O3で最適化したもの&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/e7f740714f0d31776d83c23fd5355a7a&quot;&gt;retrage/8cc.c.eir.ll.opt.ll&lt;/a&gt;&lt;/p&gt;
-
-&lt;p&gt;上記のものをllcによりWebAssemblyのアセンブリコードにしたもの&lt;/p&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/83891ba9f9fec76a578893b4cc7abae7&quot;&gt;retrage/8cc.c.eir.ll.opt.s&lt;/a&gt;&lt;/p&gt;
-
-&lt;h1 id=&quot;まとめ&quot;&gt;まとめ&lt;/h1&gt;
-
-&lt;p&gt;LLVM IRを少し知りたくてELVMのLLVM IRバックエンドを作成した．
-まだ触れていない仕様や機能が数多くあるので，触れていきたい．
-また，今回はoptに投げるという雑な操作のみで最適化を行なったが，
-コンパイラにおいて最適化を扱った記事や書籍はあまり多くない．
-これらについても理解できるとおもしろそうである．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://shinh.hatenablog.com/entry/2016/10/18/095437&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;https://github.com/shinh/elvm&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://shinh.skr.jp/slide/elvm/000.html&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://shinh.skr.jp/slide/llel/000.html&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://llvm.org/docs/LangRef.html&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://hak7a3.hatenablog.com/entry/2016/11/13/153418&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;http://qiita.com/Hiroki_M/items/89975a9e8205ced3603f&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry></feed>
