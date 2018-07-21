@@ -1,4 +1,517 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-06-26T23:22:43+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">HiFive1でZephyr</title><link href="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html" rel="alternate" type="text/html" title="HiFive1でZephyr" /><published>2018-06-26T23:19:50+09:00</published><updated>2018-06-26T23:19:50+09:00</updated><id>http://localhost:4000/2018/06/26/zephyr-on-hifive1</id><content type="html" xml:base="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html">&lt;p&gt;HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-07-21T18:17:36+09:00</updated><id>http://localhost:4000/</id><title type="html">めもちょー</title><subtitle>Mirror of http://retrage01.hateblo.jp/ Blog post in Japanese by @retrage01</subtitle><entry><title type="html">LKL.js: Linux kernelを直接JavaScript上で動かす</title><link href="http://localhost:4000/2018/07/21/lkl-js.html" rel="alternate" type="text/html" title="LKL.js: Linux kernelを直接JavaScript上で動かす" /><published>2018-07-21T15:30:00+09:00</published><updated>2018-07-21T15:30:00+09:00</updated><id>http://localhost:4000/2018/07/21/lkl-js</id><content type="html" xml:base="http://localhost:4000/2018/07/21/lkl-js.html">&lt;p&gt;Linux kernelを直接JavaScript上で動かした．
+つまり，JSLinuxのようにEmulatorをJavaScriptで作成し，
+その上でLinuxを動かすのではなく，
+JavaScriptで書かれたLinuxを生成し，それを動かす，ということである．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/lkl-js-architecture.png&quot; alt=&quot;lkl.js Architecture&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;リポジトリは以下の通り．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/em-v2&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;なお
+&lt;a href=&quot;https://retrage.github.io/lkl-js/&quot;&gt;lkl.js Demo&lt;/a&gt;
+にデモを用意した．
+SharedArrayBufferを有効にして試してみてほしい．&lt;/p&gt;
+
+&lt;h2 id=&quot;linux-kernel-library-lkl&quot;&gt;Linux Kernel Library (LKL)&lt;/h2&gt;
+
+&lt;p&gt;ここでは，Linux kernelをLibrary OSの形態の1つであるAnykernelにする
+Linux Kernel Library (LKL)を利用する．
+LKLはLinux kernelのforkとして存在し，&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl&lt;/code&gt;にのみLKL specificな
+コードをおき，その他は全く変更を加えずに動作するように設計されている．
+これによりmainlineへの追従性を高めている．(現在はv4.16)
+LKLはAnykernelであるので，
+LinuxやFreeBSD, Windowsなど様々なOSのユーザ空間で動作する．&lt;/p&gt;
+
+&lt;h2 id=&quot;emscripten&quot;&gt;Emscripten&lt;/h2&gt;
+
+&lt;p&gt;EmscriptenはLLVMを利用したC/C++からJavaScript/WebAssemblyへのトランスパイラである．
+Emscriptenはlibcやpthreadなどへも対応しており，Unix-likeな環境を用意している．&lt;/p&gt;
+
+&lt;h2 id=&quot;lklをemscriptenでjavascriptに移植できるか&quot;&gt;LKLをEmscriptenでJavaScriptに移植できるか？&lt;/h2&gt;
+
+&lt;p&gt;LKLは様々なOSで動作し，EmscriptenはUnix-likeな環境を用意する．
+では，LKLはEmscriptenでJavaScriptに移植することはできるだろうか．&lt;/p&gt;
+
+&lt;h2 id=&quot;移植する前に&quot;&gt;移植する前に&lt;/h2&gt;
+
+&lt;h3 id=&quot;clangでのlinux-kernelのビルドの現状&quot;&gt;clangでのLinux kernelのビルドの現状&lt;/h3&gt;
+
+&lt;p&gt;そもそもLinux kernelとは，gcc拡張に依存しており，
+clangなどではそもそも扱えないのでは，という疑問がある．
+かつてLLVM Linuxというプロジェクトが立ち上がるぐらいには
+Linux kernelをclangでコンパイルするのは困難であった．
+しかし，2017年頃より，Androidの開発者らにより，
+Linux kernelがclangでもコンパイル可能となった．&lt;/p&gt;
+
+&lt;h3 id=&quot;linux-kernelのビルドの流れ&quot;&gt;Linux kernelのビルドの流れ&lt;/h3&gt;
+
+&lt;p&gt;Linux kernelのビルドの流れをみていく．
+最初に，makeが行われると，kconfigの設定からビルドされるソースコード(&lt;em&gt;.c/&lt;/em&gt;.S)が決定され，
+コンパイルが行われる．コンパイルにより生成されたオブジェクトファイル(*.o)は
+一度機能ごとにarにより&lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt;などの名前でアーカイブ化される．
+最後に，まとめて得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt;をリンクすることにより&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;を得る．
+以上がLinux kernelにおける簡単なビルドの流れとなっている．&lt;/p&gt;
+
+&lt;h2 id=&quot;lklをemscriptenで移植&quot;&gt;LKLをEmscriptenで移植&lt;/h2&gt;
+
+&lt;p&gt;では，実際にどのようにLKLをEmscriptenで移植していくのかをみていく．&lt;/p&gt;
+
+&lt;p&gt;Emscriptenに限らず，LLVMを利用する場合，次のような流れでターゲットにコンパイルする．&lt;/p&gt;
+
+&lt;p&gt;Source -&amp;gt; LLVM IR -&amp;gt; Target&lt;/p&gt;
+
+&lt;p&gt;このように一度LLVM IR (&lt;em&gt;.bc/&lt;/em&gt;.ll)に変換してからターゲットに変換される．
+なお，Emscriptenでは通常のリンクに当たる部分がLLVM IRからJavaScriptへの変換となっている．
+このため，最初に全て(Emscriptenの用意するlibcなども含めて)をLLVM IRに変換する必要がある．&lt;/p&gt;
+
+&lt;h3 id=&quot;vmliuxbcの生成&quot;&gt;vmliux.bcの生成&lt;/h3&gt;
+
+&lt;p&gt;emcc (Emscripten clangのwrapper)でのビルドは次のようになっている&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; tools/lkl &lt;span class=&quot;nv&quot;&gt;CC&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;AR&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PWD&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/ar.py&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;V&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここで重要なのが&lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;の2つである．それぞれみていく．
+(なお，&lt;code class=&quot;highlighter-rouge&quot;&gt;CC=&quot;$CC $CFLAGS&quot;&lt;/code&gt;となっているのは無理やりCFLAGSを渡すためである)&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt;は次のようになっている．&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s WASM=0&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s ASYNCIFY=1&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s EMULATE_FUNCTION_POINTER_CASTS=1&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s USE_PTHREADS=1&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s PTHREAD_POOL_SIZE=4&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s TOTAL_MEMORY=1342177280&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでは，Emscriptenに渡すオプションを指定している．
+詳細についてはEmscriptenのマニュアルを参考にしてほしい．&lt;/p&gt;
+
+&lt;p&gt;さらに以下のような定義を指定している．&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DMAX_NR_ZONES=2&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DNR_PAGEFLAGS=20&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DSPINLOCK_SIZE=0&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_GETLK64=12&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLK64=13&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLKW64=14&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;これらは本来Linux kernelビルド時に空のファイルをコンパイルするなど
+して得られる値であり，今回の場合，これらは直接得ることができない．
+そのため，あらかじめx86_64でビルドしたときに得られた値をここで指定している．&lt;/p&gt;
+
+&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;をみていく．以下のような簡単なものとなっている．&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;objs&quot;&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exists&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;w&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.o&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;built-in&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;aw&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;先に説明したように，本来Linux kernelでは
+コンパイルによって得られたオブジェクトファイルを
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ar&lt;/code&gt;によりまとめ，最後にリンクを行うことで&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;を得る．&lt;/p&gt;
+
+&lt;p&gt;Emscriptenで扱うには&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;をLLVM bitcodeとして得る必要がある．
+LLVMには&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;という複数のLLVM bitcodeファイルをリンクして
+1つのLLVM bitcodeを得るリンカが存在する．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;を得るには&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;を利用する必要があるが，
+ここで1つ問題がある．&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;は通常のリンカのように，
+アーカイブファイルを引数としてとることができない．
+そのため，本来アーカイブにされるオブジェクトファイルを記録しておく必要がある．
+ここでは，&lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;にそれらをまとめてファイルパスとして記録しておく．&lt;/p&gt;
+
+&lt;p&gt;次に実際に&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;が生成される部分をみていく．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;に次のような変更が加えられている．&lt;/p&gt;
+
+&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;info CLEAN obj 
+python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/clean-obj.py&quot;&lt;/span&gt;
+
+info GEN link-vmlinux.sh
+python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux-gen.py&quot;&lt;/span&gt;
+
+info LINK vmlinux
+bash &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux.sh&quot;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;clean-obj.py&lt;/code&gt;では先に得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;より重複するファイルパスを削除する．
+次に&lt;code class=&quot;highlighter-rouge&quot;&gt;link-vmlinux-gen.py&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;より&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;を行う
+&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux-link.sh&lt;/code&gt;(&lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;とは異なる)を生成する．
+最後に&lt;code class=&quot;highlighter-rouge&quot;&gt;link-vmlinux.sh&lt;/code&gt;を実行し，&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;を得る．&lt;/p&gt;
+
+&lt;p&gt;以上が&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;を得るまでの流れとなっている．&lt;/p&gt;
+
+&lt;h3 id=&quot;bootjsの生成&quot;&gt;boot.jsの生成&lt;/h3&gt;
+
+&lt;p&gt;次に実際にJavaScriptが生成されるまでをみていく．
+先に説明したとおり，LKLはLibray OSの1つであるので，&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;それ単体では動作せず，
+アプリケーションとなる部分があってはじめて動作する．ここでは，LKLのHello, worldに相当する
+&lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/tests/boot&lt;/code&gt;をターゲットとする．&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$LINK&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+    &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/liblkl-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/lkl.o
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;まず，先に生成した&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt; (&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/lkl.o&lt;/code&gt;)と
+ホスト依存部分&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/liblkl-in.o&lt;/code&gt;，
+アプリケーション部分&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot-in.o&lt;/code&gt;をリンクして&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot.bc&lt;/code&gt;を得る．&lt;/p&gt;
+
+&lt;p&gt;次に以下のようなことを行う．&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc
+&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc
+&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/libc.bc js/libc.bc
+&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc
+&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/dlmalloc.ll js/dlmalloc.bc
+&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/libc.ll js/libc.bc
+&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/pthreads.ll js/pthreads.bc
+&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt; rename_symbols.py &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;boot.bc&lt;/code&gt;を&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-dis&lt;/code&gt;を用いてLLVM bitcodeからLLVM IRへ変換する．
+次にEmscriptenの&lt;code class=&quot;highlighter-rouge&quot;&gt;dlmalloc.bc&lt;/code&gt;や&lt;code class=&quot;highlighter-rouge&quot;&gt;libc.bc&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;pthreads.bc&lt;/code&gt;などのファイルを
+LLVM IRへと変換する．
+最後に&lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt;を&lt;code class=&quot;highlighter-rouge&quot;&gt;boot.ll&lt;/code&gt;に対して実行する．
+このようなことを行うのには理由がある．
+それは，Linux kernelで利用されている関数名とlibcなどで利用されている関数名が
+衝突してしまうからである．
+通常のLKLでは，ELFの仕様を利用しうまくLinux kernelの関数を隠匿化することにより
+この衝突を回避している．一方で，Emscriptenでは名前空間などが存在しないために，
+このような衝突が発生してしまう．
+そこで，あらかじめリンクされる予定のLLVM bitcodeをLLVM IRに変換し，
+衝突するであろう関数名を&lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt;で書き換えることにより衝突を回避している．&lt;/p&gt;
+
+&lt;p&gt;また，&lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt;では，
+Linux kernelに含まれる，inline asmをEmscriptenの&lt;code class=&quot;highlighter-rouge&quot;&gt;emscripten_asm_const_int&lt;/code&gt;
+に変換するなどの操作も行なっている．&lt;/p&gt;
+
+&lt;p&gt;以上によって得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;boot-mod.ll&lt;/code&gt;より&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;EMCC_DEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1 &lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/boot.html &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll &lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;によりHTMLとJSを得る．&lt;/p&gt;
+
+&lt;h2 id=&quot;動かすための修正&quot;&gt;動かすための修正&lt;/h2&gt;
+
+&lt;p&gt;以上により得られた「完全に」JavaScriptで書かれたLinux kernelとそれを利用した
+アプリケーションboot.jsであるが，このままでは動作しない．
+これは，通常のマシンとJavaScriptとではそもそものアーキテクチャが
+大きく異なっていることに由来する．それでもいくつかの修正を加える．&lt;/p&gt;
+
+&lt;h3 id=&quot;inline-assemblyの置換&quot;&gt;inline assemblyの置換&lt;/h3&gt;
+
+&lt;p&gt;Linux kernelでは基本的に&lt;code class=&quot;highlighter-rouge&quot;&gt;arch&lt;/code&gt;以下にアーキテクチャ依存のコードをおき，
+それ以外ではアーキテクチャ非依存のコードとなるように配置されている．
+しかし，一部のコードでは，コンパイラによる最適化により意味のあるコードが
+コンパイル時に失われないように空のinline assemblyが挿入されている場合がある．
+以下はその一例，&lt;code class=&quot;highlighter-rouge&quot;&gt;kernel/time/time.c&lt;/code&gt;の&lt;code class=&quot;highlighter-rouge&quot;&gt;set_normalized_timespec64&lt;/code&gt;である．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;set_normalized_timespec64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;timespec64&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;time64_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;cm&quot;&gt;/*
+		 * The following asm() prevents the compiler from
+		 * optimising this loop into a modulo operation. See
+		 * also __iter_div_u64_rem() in include/linux/time.h
+		 */&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+		&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_sec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;このようなinline assemblyはLLVM bitcodeからJavaScriptへの変換に失敗する要因となる．
+このため，&lt;code class=&quot;highlighter-rouge&quot;&gt;asm(&quot;&quot; : &quot;+rm&quot;(nsec));&lt;/code&gt;をEmscriptenで定義されている
+CからJSのコードを呼ぶinline assembly&lt;code class=&quot;highlighter-rouge&quot;&gt;emscripten_asm_const_int&lt;/code&gt;に置き換えることで対応する．&lt;/p&gt;
+
+&lt;h3 id=&quot;early_paramの修正&quot;&gt;early_paramの修正&lt;/h3&gt;
+
+&lt;p&gt;Linux kernelでは，&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;というものが存在する．
+これは，&lt;code class=&quot;highlighter-rouge&quot;&gt;include/linux/init.h&lt;/code&gt;に以下のように定義される．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define __setup_param(str, unique_id, fn, early)			\
+	static const char __setup_str_##unique_id[] __initconst		\
+		__aligned(1) = str; 					\
+	static struct obs_kernel_param __setup_##unique_id		\
+		__used __section(.init.setup)				\
+		__attribute__((aligned((sizeof(long)))))		\
+		= { __setup_str_##unique_id, fn, early }
+&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
+&lt;span class=&quot;cp&quot;&gt;#define early_param(str, fn)						\
+	__setup_param(str, fn, fn, 1)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;つまり，&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;はマクロであり，&lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;fn&lt;/code&gt;を引数にとり，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;セクションに置かれる&lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt;構造体であることがわかる．&lt;/p&gt;
+
+&lt;p&gt;通常のLKLのビルドで生成される&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl/kernel/vmlinux.lds&lt;/code&gt;を参照すると
+以下のようであることから，&lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_start&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_end&lt;/code&gt;で
+挟まれたように配置されることがわかる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;__setup_start = .; KEEP(*(.init.setup)) __setup_end = .;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;これらのシンボルは&lt;code class=&quot;highlighter-rouge&quot;&gt;init/main.c&lt;/code&gt;において次のように使われる．
+ここでは，Linux kernelのboot parameter(&lt;code class=&quot;highlighter-rouge&quot;&gt;param&lt;/code&gt;)の1つについて，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;にある&lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt;の&lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt;と比較を行い，
+一致した場合に設定してある&lt;code class=&quot;highlighter-rouge&quot;&gt;(*setup_func)(char*)&lt;/code&gt;を
+&lt;code class=&quot;highlighter-rouge&quot;&gt;val&lt;/code&gt;を引数として実行している．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cm&quot;&gt;/* Check for early params. */&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+	&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parameq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
+		    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+		     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+		&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+			&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+				&lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+		&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;まとめると，&lt;code class=&quot;highlighter-rouge&quot;&gt;do_early_param&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;によって登録されている
+&lt;code class=&quot;highlighter-rouge&quot;&gt;setup_func&lt;/code&gt;をboot parameterにより実行する，という形になっている．&lt;/p&gt;
+
+&lt;p&gt;ただ，これはELFのシンボルを利用しているために，JavaScriptでは正しく実行されない．
+このため，ここで呼ばれるであろう関数について，以下のようにハードコードする．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;cm&quot;&gt;/* XXX: There is a lot of early_param, but hardcode in init/main.c */&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_INIT_ARGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;debug&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;quiet&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;loglevel&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
+                    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
+                     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                        &lt;span class=&quot;k&quot;&gt;switch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* debug */&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;debug_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* quiet */&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quiet_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* loglevel */&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;loglevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+                                &lt;span class=&quot;nl&quot;&gt;default:&lt;/span&gt;
+                                &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Unknown early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+                        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
+	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;initcallの修正&quot;&gt;initcallの修正&lt;/h3&gt;
+
+&lt;p&gt;先の&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;同様，初期化で呼ばれる&lt;code class=&quot;highlighter-rouge&quot;&gt;initcall&lt;/code&gt;も
+ELFのシンボルを用いて呼ばれる関数を管理している．
+JavaScript単体では，どの関数が呼ばれるべきかはわからない．
+そのため，通常のLKLのビルドで生成される&lt;code class=&quot;highlighter-rouge&quot;&gt;System.map&lt;/code&gt;
+を用いて関数をあらかじめ取得し，そこから関数呼び出しを行う．&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;r&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+                    &lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;ValueError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                    &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/* initcall{} */&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;EM_ASM({&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blacklist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    /* _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;(); */&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+            &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;();&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;});&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;これによって得られるコードを&lt;code class=&quot;highlighter-rouge&quot;&gt;do_initcalls&lt;/code&gt;にハードコードする．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EM_ASM&lt;/code&gt;はCにJSのコード直接記述するinline assemblyである．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;cm&quot;&gt;/* XXX: initcalls are broken, so hardcode here */&lt;/span&gt;
+        &lt;span class=&quot;cm&quot;&gt;/* initcall0 */&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;_net_ns_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+        &lt;span class=&quot;cm&quot;&gt;/* initcall1 */&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;_lkl_console_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;_wq_sysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;_ksysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;デモと結果&quot;&gt;デモと結果&lt;/h2&gt;
+
+&lt;p&gt;冒頭で紹介したように，lkl.jsではpthreadを利用しているため，
+SharedArrayBufferを有効にする必要がある．
+現在のブラウザではSharedArrayBufferが実装されているものの，
+Spectreのmitiagtionのため，デフォルトでは無効になっている．
+そのためこれを有効にした上で実行してみてほしい．&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;start_kernel&lt;/code&gt;の実行結果を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  [    0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018
+  [    0.000000] bootmem address range: 0x675000 - 0x1674000
+  [    0.000000] On node 0 totalpages: 4095
+  [    0.000000]   Normal zone: 36 pages used for memmap
+  [    0.000000]   Normal zone: 0 pages reserved
+  [    0.000000]   Normal zone: 4095 pages, LIFO batch:0
+  [    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+  [    0.000000] pcpu-alloc: [0] 0 
+  [    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 4059
+  [    0.000000] Kernel command line: mem=16M loglevel=8
+  [    0.000000] Parameter  is obsolete, ignored
+  [    0.000000] Parameter  is obsolete, ignored
+  [    0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes)
+  [    0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.000000] Memory available: 16144k/16380k RAM
+  [    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+  [    0.000000] NR_IRQS: 1024
+  [    0.000000] lkl: irqs initialized
+  [    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+  [    0.000100] lkl: time and timers initialized (irq1)
+  [    0.001100] pid_max: default: 4096 minimum: 301
+  [    0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.327100] console [lkl_console0] enabled
+  [    0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+  [    0.329700] xor: automatically using best checksumming function   8regs     
+  [    0.341199] NET: Registered protocol family 16
+  [    0.388999] clocksource: Switched to clocksource lkl
+  [    0.414100] NET: Registered protocol family 2
+  [    0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes)
+  [    0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.439600] TCP: Hash tables configured (established 1024 bind 1024)
+  [    0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes)
+  [    0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes)
+  [    0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0
+  [    0.863100] SGI XFS with ACLs, security attributes, no debug enabled
+  [    0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2
+  [    0.924599] io scheduler noop registered
+  [    0.924900] io scheduler deadline registered
+  [    0.933099] io scheduler cfq registered (default)
+  [    0.933500] io scheduler kyber registered
+  [    1.633500] NET: Registered protocol family 10
+  [    1.658400] Segment Routing with IPv6
+  [    1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+  [    1.674200] ------------[ cut here ]------------
+  [    1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188   (null)
+  [    1.675899] Call Trace:
+  [    1.676200] 
+  [    1.676999] ---[ end trace 941dc55fe0966cff ]---
+  [    1.684299] Warning: unable to open an initial console.
+  [    1.685200] This architecture does not have kernel memory protection.
+  pthread_join((pthread_t)tid, NULL): No such process
+  lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;現在の問題点&quot;&gt;現在の問題点&lt;/h2&gt;
+
+&lt;p&gt;以上より，JavaScript上で直接Linux kerenlが起動したことが確認できた．
+しかし，現状ではdmesgが出力されるだけで全く実用には適さない．
+これには次のような問題点が存在するためである．&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;kthreadの生成に失敗する&lt;/li&gt;
+  &lt;li&gt;rootfsのマウントに失敗する&lt;/li&gt;
+  &lt;li&gt;init&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;また，Emscriptenでのpthreadのサポートがあまりよくない．
+Little Kernel(LK)からsemaphore, mutex, threadの機能を抜き出し，
+これらをgreen threadとして扱うLKLを作成した．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/fiber&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;これを用いたLKL.jsを作成することを予定している．&lt;/p&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;JavaScriptで書かれたLinux kernelをLKLからEmscriptenにより生成し，
+これが起動し，dmesgが出力されることを確認した．
+通常のマシンとJavaScriptではアーキテクチャが大きく異なるが，
+いくつかの修正とworkaroundを加えることにより，
+多少なりとも動作することがわかった．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/lkl/linux&lt;/li&gt;
+  &lt;li&gt;https://github.com/kripken/emscripten&lt;/li&gt;
+  &lt;li&gt;https://llvm.org/&lt;/li&gt;
+  &lt;li&gt;https://clang.llvm.org/&lt;/li&gt;
+  &lt;li&gt;https://wiki.linuxfoundation.org/llvmlinux&lt;/li&gt;
+  &lt;li&gt;https://lwn.net/Articles/734071/&lt;/li&gt;
+  &lt;li&gt;http://llvm.org/docs/CommandGuide/llvm-link.html&lt;/li&gt;
+  &lt;li&gt;https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html&lt;/li&gt;
+  &lt;li&gt;https://github.com/littlekernel/lk&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">Linux kernelを直接JavaScript上で動かした． つまり，JSLinuxのようにEmulatorをJavaScriptで作成し， その上でLinuxを動かすのではなく， JavaScriptで書かれたLinuxを生成し，それを動かす，ということである．</summary></entry><entry><title type="html">HiFive1でZephyr</title><link href="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html" rel="alternate" type="text/html" title="HiFive1でZephyr" /><published>2018-06-26T23:19:50+09:00</published><updated>2018-06-26T23:19:50+09:00</updated><id>http://localhost:4000/2018/06/26/zephyr-on-hifive1</id><content type="html" xml:base="http://localhost:4000/2018/06/26/zephyr-on-hifive1.html">&lt;p&gt;HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである．
 一方，Zephyrは，Linux Foundationにより開発が進められている組み込み向けOSである．
 upstreamのZephyrはHiFive1に対応している．
 ここでは，ZephyrをHiFive1向けにビルドしてみる．&lt;/p&gt;
@@ -831,91 +1344,4 @@ EZP2010をUSBでマシンに接続する．
 &lt;ul&gt;
   &lt;li&gt;[1] http://www.minokasago.org/HobbyElectronicsWiki/index.php?EZP2010&lt;/li&gt;
   &lt;li&gt;[2] https://docs.microsoft.com/en-us/windows-hardware/drivers/install/the-testsigning-boot-configuration-option&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">EZP2010はAmazonなどで安価に販売されているROMライタである． すでに公式のWebサイトが閉鎖されていたりして Windows 10のドライバは公式には配布されていない． Windows 7でのインストール手順を記している方がいらっしゃるが[1]， この方法ではうまく動かなかった． 非常に汚い方法ではあるがメモ程度にやり方をまとめておく．</summary></entry><entry><title type="html">BitbucketとCircle CIでLatexする</title><link href="http://localhost:4000/2017/08/29/bitbucket-circleci.html" rel="alternate" type="text/html" title="BitbucketとCircle CIでLatexする" /><published>2017-08-29T11:10:58+09:00</published><updated>2017-08-29T11:10:58+09:00</updated><id>http://localhost:4000/2017/08/29/bitbucket-circleci</id><content type="html" xml:base="http://localhost:4000/2017/08/29/bitbucket-circleci.html">&lt;p&gt;前回からだいぶ空いてしまったが，小ネタを投下する．
-以前に，
-&lt;a href=&quot;http://retrage01.hateblo.jp/entry/2014/10/04/191435&quot;&gt;Jenkins+Bitbucket(Git)でLaTeX&lt;/a&gt;
-という記事を書いた．
-ここでは，CIを用いてlatexdiffによる差分Latexの生成，
-コンパイル，Downloadsへのアップロード
-を行うようなものを作ってみた．&lt;/p&gt;
-
-&lt;p&gt;Bitbucketは現在，PiplinesというCIのサービスを提供しているが，
-Circle CIと比較して，一ヶ月あたりの無料枠が小さいため，
-ここではCircle CIを利用する．
-なお，Circle CI 2.0を対象とする．&lt;/p&gt;
-
-&lt;h2 id=&quot;tldr&quot;&gt;TL;DR&lt;/h2&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://gist.github.com/retrage/dc0980ec4c79b33cd522c4f4f4b82900#file-config-yml&quot;&gt;config.yml for Latex on Circle CI 2.0&lt;/a&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;既存のdockerイメージの利用&quot;&gt;既存のDockerイメージの利用&lt;/h2&gt;
-
-&lt;p&gt;Latex環境構築，特に日本語文書を扱う場合，やや手続きが煩雑となるが，
-Circle CIでは任意のDockerイメージが利用できる．
-ここでは，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;paperist/alpine-texlive-ja&lt;/code&gt;
-を使わせてもらった[1]．&lt;/p&gt;
-
-&lt;h2 id=&quot;準備&quot;&gt;準備&lt;/h2&gt;
-
-&lt;p&gt;先のDockerイメージは小さくて良いのだが，いくつかこの後必要となる
-ものがないので，それらをインストールする．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;apk add --update git patch curl
-apk add --update ca-certificates openssl &amp;amp;&amp;amp; update-ca-certificates
-tlmgr install ulem latexdiff
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;latexmkを利用するために，&lt;code class=&quot;highlighter-rouge&quot;&gt;.latexmkrc&lt;/code&gt;を置いておく．
-あまり良いやり方ではないが，
-リポジトリに元となるファイルを含ませておく．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;cp .latexmkrc ~/.latexmkrc
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;latexファイルのコンパイル&quot;&gt;Latexファイルのコンパイル&lt;/h2&gt;
-
-&lt;p&gt;普通にやる．後でartifactsをアップロードするため，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;/tmp/artifacts&lt;/code&gt;にまとめておく．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;latexmk main.tex;
-mkdir /tmp/artifacts;
-cp main.pdf /tmp/artifacts/
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;diffの作成とコンパイル&quot;&gt;diffの作成とコンパイル&lt;/h2&gt;
-
-&lt;p&gt;これも普通にやる．日本語だと[2]
-にあるような問題があるため，
-パッチを当てる必要があったりする．
-また，BibTeX周りもちゃんとやらなければならないのだが，
-ここではやらない．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;latexdiff-vc -e utf8 --git -r HEAD^ -r HEAD main.tex;
-latexmk main-diffHEAD^-HEAD.tex;
-cp main-diffHEAD^-HEAD.pdf /tmp/artifacts/
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;bitbucketのdownloadsへのアップロード&quot;&gt;BitbucketのDownloadsへのアップロード&lt;/h2&gt;
-
-&lt;p&gt;基本的には[3]の通り行う．Bitbucketで作成したApp Passwordを
-Circle CI側にEnvironment Variableとして与えてやる．
-以下のようにartifactsをcurlを使ってアップロードする．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main.pdf&quot;;
- curl -X POST &quot;https://${BB_AUTH_STRING}@api.bitbucket.org/2.0/repositories/${CIRCLE_PR    OJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/downloads&quot; --form files=@&quot;/tmp/artifacts/main-diffHEAD^-HEAD.pdf&quot;;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
-
-&lt;p&gt;ざっくり説明をしてみた．
-Circle CI 2.0向けの資料は公式ドキュメントが揃っているとはいえ
-まだそんなに多くない印象．
-App Passwordだけは外に漏らさないようにしたい．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;[1] http://3846masa.hatenablog.jp/entry/2017/02/08/215920&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;[2] http://quickhack.net/nom/blog/2013-06-16-latexdiff-for-japanese-documents.html&lt;/p&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;[3] https://confluence.atlassian.com/bitbucket/deploy-build-artifacts-to-bitbucket-downloads-872124574.html&lt;/p&gt;
-  &lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">EZP2010はAmazonなどで安価に販売されているROMライタである． すでに公式のWebサイトが閉鎖されていたりして Windows 10のドライバは公式には配布されていない． Windows 7でのインストール手順を記している方がいらっしゃるが[1]， この方法ではうまく動かなかった． 非常に汚い方法ではあるがメモ程度にやり方をまとめておく．</summary></entry></feed>
