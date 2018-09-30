@@ -9,15 +9,15 @@
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．" />
 <meta property="og:description" content="LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．" />
-<link rel="canonical" href="http://localhost:4000/2017/03/25/elvm-llvm-ir.html" />
-<meta property="og:url" content="http://localhost:4000/2017/03/25/elvm-llvm-ir.html" />
+<link rel="canonical" href="/2017/03/25/elvm-llvm-ir.html" />
+<meta property="og:url" content="/2017/03/25/elvm-llvm-ir.html" />
 <meta property="og:site_name" content="retrage.github.io" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2017-03-25T23:03:01+09:00" />
 <script type="application/ld+json">
-{"headline":"ELVMのLLVM IRバックエンドをつくった","dateModified":"2017-03-25T23:03:01+09:00","url":"http://localhost:4000/2017/03/25/elvm-llvm-ir.html","datePublished":"2017-03-25T23:03:01+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/03/25/elvm-llvm-ir.html"},"description":"LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．","@type":"BlogPosting","@context":"http://schema.org"}</script>
+{"headline":"ELVMのLLVM IRバックエンドをつくった","dateModified":"2017-03-25T23:03:01+09:00","url":"/2017/03/25/elvm-llvm-ir.html","datePublished":"2017-03-25T23:03:01+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/03/25/elvm-llvm-ir.html"},"description":"LLVMはよく知られてるコンパイラ基盤であり， 中間表現としてLLVM IRを持っている． 様々なところでこのLLVM IRが使われているが， 今まで触ってこなかったということもあり， 今回LLVM IRで何かしら遊んでみようと思っていた．","@type":"BlogPosting","@context":"http://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
-<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
 
   <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
