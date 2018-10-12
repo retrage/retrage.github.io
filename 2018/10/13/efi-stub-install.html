@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>EFI stubなArch Linuxのインストール | retrage.github.io</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="EFI stubなArch Linuxのインストール" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。" />
+<meta property="og:description" content="QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。" />
+<link rel="canonical" href="/2018/10/13/efi-stub-install.html" />
+<meta property="og:url" content="/2018/10/13/efi-stub-install.html" />
+<meta property="og:site_name" content="retrage.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-10-13T00:20:31+09:00" />
+<script type="application/ld+json">
+{"headline":"EFI stubなArch Linuxのインストール","dateModified":"2018-10-13T00:20:31+09:00","url":"/2018/10/13/efi-stub-install.html","datePublished":"2018-10-13T00:20:31+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2018/10/13/efi-stub-install.html"},"description":"QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。","@type":"BlogPosting","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">EFI stubなArch Linuxのインストール</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2018-10-13T00:20:31+09:00" itemprop="datePublished">Oct 13, 2018
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。
+ここでのホストはUbuntu 16.04.4 TLSとする。
+なお[1][2][3][4]を参考にした。</p>
+
+<h2 id="ovmfのダウンロードとarch-linuxのインストールディスクのダウンロード">OVMFのダウンロードとArch Linuxのインストールディスクのダウンロード</h2>
+
+<p>最初にOVMFをダウンロードして解凍する。
+OVMFはTianoCoreをベースにした仮想マシン向けのUEFI実装である。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ wget https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm
+$ rpm2cpio edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm | cpio -idmv
+$ cp usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd .
+$ cp usr/share/edk2.git/ovmf-x64/OVMF_VARS-pure-efi.fd .
+</code></pre></div></div>
+
+<p>Arch Linuxのインストールディスクをダウンロードする。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ wget http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/iso/2018.05.01/archlinux-2018.05.01-x86_64.iso
+</code></pre></div></div>
+
+<p>インストール先のディスクイメージを作成する。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ qemu-img create -f raw arch-amd64.img 32G
+</code></pre></div></div>
+
+<h2 id="仮想マシンの起動と設定">仮想マシンの起動と設定</h2>
+
+<p>インストールディスクから起動する。
+これ以降は仮想マシンでの操作となる。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user -cdrom archlinux-2018.05.01-x86_64.iso -boot d
+</code></pre></div></div>
+
+<p>キーボードレイアウトを設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># loadkeys jp106
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">gdisk</code>でパーティションを作成。
+ここでは/dev/sda1を512MBのEFIパーティション、
+/dev/sda2を残りのすべての容量としたLinuxパーティションとした。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># gdisk /dev/sda
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Command (? for help):o
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Command (? for help):n
+Permission number: 1
+First sector     : 
+Last sector      : +512M
+Hex code or GUID : ef00
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Command (? for help):n
+Permission number: 2
+First sector     : 
+Last sector      :  
+Hex code or GUID : 8300
+</code></pre></div></div>
+
+<p>最後に書き込みを行う。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Command (? for help):w
+</code></pre></div></div>
+
+<p>各パーティションをフォーマット</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># mkfs.vfat -F32 /dev/sda1
+# mkfs.ext4 /dev/sda2
+</code></pre></div></div>
+
+<p>それぞれをマウント。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># mount /dev/sda2
+# mkdir -p /mnt/boot
+# mount /dev/sda1 /mnt/boot
+</code></pre></div></div>
+
+<p>ダウンロードのミラーサイトを設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># nano /etc/pacman.d/mirrorlist
+</code></pre></div></div>
+
+<p>システムのインストール。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># pacstrap -i /mnt base base-devel
+</code></pre></div></div>
+
+<p>fstabの生成。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># genfstab -U -p /mnt &gt;&gt; /mnt/etc/fstab
+</code></pre></div></div>
+
+<p>localeの設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># locale-gen
+# echo LANG=en_US.UTF-8 &gt; /etc/locale.conf
+# export LANG=en_US.UTF-8
+</code></pre></div></div>
+
+<p>キーボードマップの設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># echo KEYMAP=jp106 &gt; /etc/vconsole.conf
+</code></pre></div></div>
+
+<p>localtimeの設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># rm /etc/localtime
+# ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+</code></pre></div></div>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># hwclock -u -w
+</code></pre></div></div>
+
+<p>ホスト名の設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># echo "arch-vm" &gt; /etc/hostname
+</code></pre></div></div>
+
+<p>DHCPクライアントの設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># systemctl enable dhcpcd.service
+</code></pre></div></div>
+
+<p>パスワードの設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># passwd
+</code></pre></div></div>
+
+<p>GRUB2の代わりに<code class="highlighter-rouge">efibootmgr</code>でEFI Variableを設定。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># efibootmgr -d /dev/sda -p 1 -c -L "Arch Linux" -l /vmlinuz-linux -u "root=dev/sda2 rw initrd=initramfs-linux.img"
+# efibootmgr -v
+</code></pre></div></div>
+
+<p>exitしてhalt。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># exit
+# halt
+</code></pre></div></div>
+
+<p>以下で正しく起動することを確認。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user
+</code></pre></div></div>
+
+<h2 id="efi-stubなlinux-kernelのビルド">EFI stubなLinux kernelのビルド</h2>
+
+<p>先の説明でインストールしたArch LinuxはEFI stubとなっている。
+ここでは、ホストでLinux kernelをビルドしそれを仮想マシンにインストールしてみる。</p>
+
+<h3 id="linuxカーネルのビルド">Linuxカーネルのビルド</h3>
+
+<p>カーネルをダウンロードする。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ git clone https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux.git --branch v4.17 --depth 1
+</code></pre></div></div>
+
+<p>ホストのconfigをコピーして多少の修正を行い、ホスト上でビルドする。
+<code class="highlighter-rouge">make menuconfig</code>で<code class="highlighter-rouge">CONFIG_EFI_STUB=y</code>となっていることを確認する。
+<code class="highlighter-rouge">make</code>するときのjob数はホストのCPUのコア数に応じて変更する。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ cp /boot/config-4.15.0-33-generic .config
+$ make menuconfig
+$ make -j9
+</code></pre></div></div>
+
+<h3 id="linux-kernelの仮想マシンへのインストール">Linux kernelの仮想マシンへのインストール</h3>
+
+<p>仮想マシンのディスクイメージをマウントする。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># /sbin/kpartx -av arch-amd64.img
+# mount /dev/mapper/loop0p2 /mnt
+</code></pre></div></div>
+
+<p>ホストでビルドしたカーネルを仮想マシンにインストールする。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># make INSTALL_MOD_PATH=/mnt modules_install
+# mkdir -p /mnt/var/tmp
+# cp System.map /mnt/var/tmp
+# cp arch/x86_64/boot/bzImage /mnt/var/tmp
+# umount /mnt
+</code></pre></div></div>
+
+<p>最後に仮想マシン上でホストでビルドしたbzImageとSystem.mapをコピーし、
+initramfsを生成する。</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># cp -f /var/tmp/bzImage /boot/vmlinuz-linux
+# cp -f /var/tmp/System.map /boot/System.map
+# mkinitcpio -c /etc/mkinitcpio.conf -g /boot/initramfs-linux.img
+</code></pre></div></div>
+
+<p>最後に再起動し、ビルドしたバージョンのカーネルであることを確認する。</p>
+
+<h2 id="参考文献">参考文献</h2>
+
+<ul>
+  <li>[1] https://wiki.archlinux.org/index.php/Installation_guide</li>
+  <li>[2] https://wiki.archlinux.org/index.php/EFISTUB</li>
+  <li>[3] http://note.kurodigi.com/archlinux-uefi-install/</li>
+  <li>[4] https://kernhack.hatenablog.com/entry/2013/11/01/083558</li>
+</ul>
+
+  </div><a class="u-url" href="/2018/10/13/efi-stub-install.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">retrage.github.io</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">retrage.github.io</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Blog posts by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
