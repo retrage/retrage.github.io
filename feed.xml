@@ -1,4 +1,440 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-10-13T00:24:32+09:00</updated><id>/</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">EFI stubなArch Linuxのインストール</title><link href="/2018/10/13/efi-stub-install.html" rel="alternate" type="text/html" title="EFI stubなArch Linuxのインストール" /><published>2018-10-13T00:20:31+09:00</published><updated>2018-10-13T00:20:31+09:00</updated><id>/2018/10/13/efi-stub-install</id><content type="html" xml:base="/2018/10/13/efi-stub-install.html">&lt;p&gt;QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2018-11-11T22:37:33+09:00</updated><id>/</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">Efi Byte Code Myth</title><link href="/2018/11/11/efi-byte-code-myth.html" rel="alternate" type="text/html" title="Efi Byte Code Myth" /><published>2018-11-11T00:00:00+09:00</published><updated>2018-11-11T00:00:00+09:00</updated><id>/2018/11/11/efi-byte-code-myth</id><content type="html" xml:base="/2018/11/11/efi-byte-code-myth.html">&lt;h1 id=&quot;efi-byte-code解説&quot;&gt;EFI Byte Code解説&lt;/h1&gt;
+&lt;p&gt;layout: post
+title: “EFI Byte Code解説”
+date: 2018-11-11 22:30:22 + 0900
+—&lt;/p&gt;
+
+&lt;p&gt;本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
+発表した内容[10]をまとめたものである．
+ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．&lt;/p&gt;
+
+&lt;h2 id=&quot;efi-byte-codeとは&quot;&gt;EFI Byte Codeとは&lt;/h2&gt;
+
+&lt;p&gt;UEFI Specification v2.7によれば，
+EFI Byte Code (EBC)について&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;platform- and processor-independent mechanisms for loading and executing EFI device drivers&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;とある．
+つまり，OSなどのplatform非依存かつ，processor非依存な
+EFI device driverを読み込み，実行するための仕組み，ということである．&lt;/p&gt;
+
+&lt;p&gt;EBCはPCI Express (PCIe)のOptionROM (OROM)に利用されることが想定されて設計されている．
+OROMはPCIeデバイスの内部に存在する記憶領域であり[8]，
+UEFI向けのデバイスドライバなどが置かれている．
+UEFIはOROMから実行ファイルを読み出し，メモリ上に配置して実行する．
+このとき用いられる実行ファイルに含まれるコードは，native codeかEBCのいずれかである．
+OROMのにあるUEFI向けデバイスドライバにEBCが利用される理由の一つとして，
+複数のアーキテクチャへの対応が挙げられる．
+しかし，実際にはx64マシンがほとんどであるためにEBCではなくx64 native codeの
+UEFI device driverが内蔵されているという話もある．(未確認)&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc向けのドキュメントとツール&quot;&gt;EBC向けのドキュメントとツール&lt;/h2&gt;
+
+&lt;p&gt;EBCはマイナーなため，EBCについての情報はあまり存在しない．
+強いて挙げるとすれば，以下のものがある．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;UEFI Specification[2]&lt;/li&gt;
+  &lt;li&gt;TianoCore/EDK2 source code[3]&lt;/li&gt;
+  &lt;li&gt;いくつかのブログ記事[4][5]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このうち最も詳しいのがUEFI Specificationである．&lt;/p&gt;
+
+&lt;p&gt;また，EBC関連のツールとしては以下のようなものがある．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Intel C Compiler for EFI Byte Code[6]&lt;/li&gt;
+  &lt;li&gt;fasmg-ebc[7]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Intel C Compiler for EFI Byte Codeは$995で有料であるため，
+簡単に入手することができない．(そもそも個人向けに販売しているのか怪しい)
+fasmg-ebcはオープンソースなFlat Assembler (fasm)をベースにしたEBCのアセンブラである．
+fasmg-ebcは部分的に後述するEBCからのnative codeの呼び出しに対応している．&lt;/p&gt;
+
+&lt;p&gt;なお，一般的なGCC/ClangなどではEBC対応がなされていない．
+また，EBCの逆アセンブラも存在しない．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc-vmの構成&quot;&gt;EBC VMの構成&lt;/h2&gt;
+
+&lt;p&gt;EBCのVMは64-bit little endianとなっている．
+EBCのVMのレジスタの構成を以下に示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-registers.png&quot; alt=&quot;EBC VM Registers&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;IP (Instruction Pointer)，FLAGS，R0からR7までの
+合計10の64-bit長のレジスタを持っている．
+FLAGSは比較演算の結果の入るCフラグとsingle-stepを示すSフラグの2つがある．
+汎用レジスタであるR0-R7では，
+R0はスタックポインタを保持し，
+R7は関数からの返り値が代入される．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcのバイナリ形式と関数呼び出し規約&quot;&gt;EBCのバイナリ形式と関数呼び出し規約&lt;/h2&gt;
+
+&lt;p&gt;EBCではWindowsやUEFIで利用されているPortable Executable (PE)のPE32+を採用している．
+また，UEFI側が自由にメモリ上に配置できるように，relocatable imageなっている．
+面白いことに，PEヘッダにあるFileHeader-&amp;gt;Machineは&lt;code class=&quot;highlighter-rouge&quot;&gt;0x0ebc&lt;/code&gt;となっている．
+以下のfasmg-ebcで作成したEBCバイナリのヘッダ情報を
+自作のpeheader[9]の出力として以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Machine: ebc
+Number of Section: 2
+Time Stamp: 1541744287
+Size of Optional Header: 240
+32-bit Architecture
+This file is DLL.
+PE+
+AddressOfEntryPoint: 1000
+ImageBase: 400000
+SectionAlignment: 1000
+FileAlignment: 200
+SizeOfImage: 3000
+SizeOfHeaders: 200
+Section 0
+	Name: .text
+	VirtualSize: 1c
+	VirtualAddress: 1000
+	SizeOfRawData: 200
+	PointerToRawData: 200
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: 60000020 r-x exec
+Section 1
+	Name: .data
+	VirtualSize: 26
+	VirtualAddress: 2000
+	SizeOfRawData: 200
+	PointerToRawData: 400
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: c0000040 rw- inited
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;EBCの関数呼び出し規約はCDECLを採用している．
+これはx64 UEFIのnative codeではMicrosoft x64 Calling Conventionを
+採用している点で大きく異なる．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;func(arg0, arg1, arg2)&lt;/code&gt;のような関数があった場合，
+以下の図に示すように引数を逆順にスタックにプッシュし，
+最後に呼び出し元のアドレスをプッシュして&lt;code class=&quot;highlighter-rouge&quot;&gt;func&lt;/code&gt;が実行される．
+なお，スタックにプッシュされた引数については呼び出し元が責任を持つ．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-stack.png&quot; alt=&quot;EBC Stack Example&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一般にUEFIでは起動時に，UEFI本体より&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_HANDLE ImageHandle,
+IN EFI_SYSTEM_TABLE *SystemTable
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;の2つの引数が渡される．
+EBCのVMでも同様にこれらの値が渡されることとなっており，
+VMの起動時にはあたかもNative codeから起動されたかのように
+これらの引数と呼び出し元のアドレスがEBC上のスタックにプッシュされた状態になる．&lt;/p&gt;
+
+&lt;h2 id=&quot;natural-indexing&quot;&gt;Natural Indexing&lt;/h2&gt;
+
+&lt;p&gt;32-bitと64-bitの複数のアーキテクチャに対応するため，
+EBCではNatural Indexingという仕組みを持っている．
+これはあるアドレスに対するオフセットの値である符号付整数について，
+アーキテクチャによって異なる値となるように設計されたオフセットの表し方である．
+Natural Indexingは以下の図に示すようにエンコードされる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing.png&quot; alt=&quot;EBC Natural Indexing&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;ここで，Nはエンコード後の値の長さ(16, 32, 64-bitのいずれか)である．
+MSBであるN bit目&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;は符号を表し，0であれば正，1であれば負を表す．
+次にN-1からN-3bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;は後述する&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;の長さを表す．
+ただし，&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;はデコード時に&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;A = w * N / 8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;より&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;が計算される．
+次にN-4から&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt; bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;はConstant unitsを表し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;-1から0 bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;はNatural unitsを表す．
+以上で得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;を用いて次のようにデコードされたオフセットが表される．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Offset = (c + n * sizeof(VOID *)) * b
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここで，&lt;code class=&quot;highlighter-rouge&quot;&gt;sizeof(VOID *)&lt;/code&gt;はアーキテクチャ依存であり，
+32-bitであれば4となり，64-bitであれば8となる．&lt;/p&gt;
+
+&lt;h2 id=&quot;natural-indexingの例&quot;&gt;Natural Indexingの例&lt;/h2&gt;
+
+&lt;p&gt;では実際にエンコードされたNatural Indexを計算してみる．
+値はUEFI Specificationに挙げられている例と同一である．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;0xa048&lt;/code&gt;という16-bitのIndexを考える．
+これは2進数で表すを以下のようになる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing-example.png&quot; alt=&quot;EBC Natural Indexing Example&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;先の説明を当てはめると&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;N = 16
+b = 1,
+w = 2, A = 2 * 16 / 8 = 4
+c = 4
+n = 8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;となる．
+32-bit，64-bitそれぞれのアーキテクチャではデコードされた値は&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;32-bit: Offset = (4 + 8 * 4) * -1 = -36
+64-bit: Offset = (4 + 8 * 8) * -1 = -68
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;となり，確かに同じNatural Indexでも異なる値にデコードされることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcの命令セット&quot;&gt;EBCの命令セット&lt;/h2&gt;
+
+&lt;p&gt;EBCの命令セットは可変長なCISC-likeな命令となっている．
+全体では56種類の命令が存在する．
+以下にEBCの命令の一覧を示す．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BREAK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x00 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;JMP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x01 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;JMP8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x02 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CALL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x03 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;RET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x04 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x05 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x06 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x07 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x08 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x09 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NEG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ADD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SUB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MUL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MULU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x0f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;DIV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x10 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;DIVU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x11 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x12 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MODU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x13 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;AND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x14 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;OR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;      &lt;span class=&quot;cm&quot;&gt;/* 0x15 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;XOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x16 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SHL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x17 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x18 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ASHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x19 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVbw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVww&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVdw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x20 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVbd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x21 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x22 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVdd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x23 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x24 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVsnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x25 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVsnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x26 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x27 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x28 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;LOADSP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x29 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;STORESP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x2b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;POP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x2c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x2d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x30 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x31 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x32 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x33 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x34 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;PUSHn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x35 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;POPn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x36 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x37 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVIn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x38 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVREL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x39 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3f */&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;ebcの命令のoperand&quot;&gt;EBCの命令のOperand&lt;/h3&gt;
+
+&lt;p&gt;EBCの命令は基本的に以下のような形式をとる．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;INSTRUCTION Operand1, Operand2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;各Operandは
+Direct, Indirect, Indirect with Index，Immediate
+の4種類の形式をとる．&lt;/p&gt;
+
+&lt;p&gt;Directは&lt;code class=&quot;highlighter-rouge&quot;&gt;R2&lt;/code&gt;などと表し，Operandで指定されているレジスタの値を指す．
+Indirectは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R2&lt;/code&gt;などと表し，
+Operandで指定されているレジスタの値のアドレスにあるメモリ上の値を指す．
+Indirect with Indexでは
+Operandで指定されているレジスタの値と
+他にNatural Indexingによって指定されているオフセットの値を
+足した値のアドレスにあるメモリ上の値を指す．
+これは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R1(+n, +c)&lt;/code&gt;の形式で表される．
+Immediateは即値であり，指定された値そのままを指し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;0x1234&lt;/code&gt;の形式で表される．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebc命令の例-xor&quot;&gt;EBC命令の例: XOR&lt;/h3&gt;
+
+&lt;p&gt;EBCの命令&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;は以下の形式で表される．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;XOR[32|64] {@}R1, {@}R2 {Index16|Immed16}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;XORは次のようにエンコードされる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-xor-encoding.png&quot; alt=&quot;EBC XOR Encoding&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Byte0-Bit7ではOperand2のImmediate/Indexの存在を表す．
+もし1であればByte2からByte3には16-bitのImmediate/Indexの値が存在する．
+Byte0-Bit6では操作が32/64-bitのどちらかであることを示す．
+Byte0-Bit0からBit5はOpecodeを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;0x16&lt;/code&gt;となっている．
+Byte1-Bit7ではOperand2がDirectとIndirectのどちらであることを示す．
+Byte1-Bit4からBit6ではOperand2のレジスタを表す．
+Byte1-Bit3ではOperand1がDirectとIndirectのどちらであることを示す．
+Byte1-Bit0からBit2ではOperand1のレジスタを表す．&lt;/p&gt;
+
+&lt;h2 id=&quot;native-codeの呼び出し&quot;&gt;Native codeの呼び出し&lt;/h2&gt;
+
+&lt;p&gt;EBCには&lt;code class=&quot;highlighter-rouge&quot;&gt;CALL&lt;/code&gt;という命令があるが，
+これはEBCの呼び出しとnative codeの呼び出し(&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;)の2種類がサポートされている．
+EBCは&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;をサポートするための命令をいくつか持っている．
+以下にその命令を列挙する．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MOVn, MOVIn, MOVsn, POPn, PUSHn
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;は各アーキテクチャ依存の処理を行うため，
+あるいはUEFIの容易するランタイムを呼び出すために用いられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc-vmの例外&quot;&gt;EBC VMの例外&lt;/h2&gt;
+
+&lt;p&gt;EBCのVMはEBCを実行した場合に発生する例外をハンドルできる必要がある．
+EBCの実行により発生する可能性のある例外を以下に示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Divide By 0
+Debug Break
+Invalid Opcode
+Stack Fault
+Alignment
+Instruction Encoding
+Bad Break
+Undefined
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;各例外の詳細はUEFI Specificationを参考にしてほしい．&lt;/p&gt;
+
+&lt;p&gt;EBCのVMはEFI Debug Support Protocolをサポートする必要があり，
+このProtocol経由でデバッガをVMにattachすることができる．
+もしデバッガがattachされている場合，
+例外はデバッガによって捕捉される．
+もし，デバッガがattachされていない場合は以下のいずれかの動作となるが，
+どの動作になるかは実装依存となっている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;エラーメッセージを表示しシステムを停止&lt;/li&gt;
+  &lt;li&gt;システムをハング&lt;/li&gt;
+  &lt;li&gt;例外を無視し，処理を続行&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ebcアセンブリの例&quot;&gt;EBCアセンブリの例&lt;/h2&gt;
+
+&lt;p&gt;以下にfasmg-ebcよりEBCアセンブリによるHello, worldの例を示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;section '.text' code executable readable
+EfiMain:
+  MOVn   R1, @R0(EFI_MAIN_PARAMETERS.SystemTable)
+  MOVn   R1, @R1(EFI_SYSTEM_TABLE.ConOut)
+  MOVREL R2, Hello
+  PUSHn  R2 ; Push Pointer to Hello
+  PUSHn  R1 ; Push Pointer to SystemTable-&amp;gt;ConOut
+  CALLEX @R1(SIMPLE_TEXT_OUTPUT_INTERFACE.OutputString)
+  MOV R0, R0(+2,0)
+  RET 
+
+section '.data' data readable writeable
+  Hello:    du &quot;Hello EBC World!&quot;, 0x0D, 0x0A, 0x00
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;このアセンブリではエントリポイントは&lt;code class=&quot;highlighter-rouge&quot;&gt;EfiMain&lt;/code&gt;である．
+最初にR0レジスタにあるスタックポインタの値から
+SystemTableへのアドレスをR1に代入する．
+次にR1の値からConOutへのアドレスのR1に代入する．
+R2に文字列&lt;code class=&quot;highlighter-rouge&quot;&gt;Hello&lt;/code&gt;へのアドレスを代入する．
+次にこれらのR2，R1の順にレジスタの値をスタックにプッシュする．
+これはSimple Text Output ProtocolのOutputStringの
+引数，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *This,
+IN CHAR16 *String
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;に相当する．
+最後に&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLEX&lt;/code&gt;によりConOut-&amp;gt;OutputStringを呼び出している．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcvm-ユーザ空間で動作するebc-vm&quot;&gt;ebcvm: ユーザ空間で動作するEBC VM&lt;/h2&gt;
+
+&lt;p&gt;EBCの仕様の概要は以上のようなものとなっている．
+EBCはUEFIの規格で定められているものの，
+少なくともオープンソースで用いられている事例が全く存在しない．
+また，EBCのVMはOVMFなどで実装されているが，
+ユーザ空間で簡単に利用することが難しい．
+そこで，UEFI SpecificationにあるEBCの仕様と
+fasmg-ebcの生成するEBCバイナリのみを元にしてEBCのVMを作成することにした．
+ebcvmのソースコードは以下GitHub上で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/ebcvm&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ebcvmは現在以下ものをサポートしている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;EBCの全ての命令&lt;/li&gt;
+  &lt;li&gt;いくつかのnative code実行のエミュレーション&lt;/li&gt;
+  &lt;li&gt;簡単なデバッガ&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ebcvmの概観&quot;&gt;ebcvmの概観&lt;/h3&gt;
+
+&lt;p&gt;ebcvmは以下の図のような構成となっている．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebcvm-architecture.png&quot; alt=&quot;ebcvm Architecture&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;最初にVMが起動し，レジスタの初期化とメモリの初期化がなされる．
+LoaderがEBCバイナリを読み込みメモリ上に展開する．
+また，UEFIのランタイムもメモリ上に配置される．
+初期化が完了すると，Decoderがバイトコードをデコードし，
+Executorがデコードされた命令を実行する．
+VMはEXCALLが発行されるとこれをトラップし，
+EFI Native Codeに処理を渡す．
+EFI Native CodeはエミュレートされてVMに処理が戻され，
+処理が続行される．
+VMはまた例外をトラップし，Simple debuggerがattachされていれば
+これに処理を受け渡す．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebcvmの実行例&quot;&gt;ebcvmの実行例&lt;/h3&gt;
+
+&lt;p&gt;先に示したEBCによるHello, worldの例のバイナリを
+ebcvmにより実行した例を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./ebcvm sample/print.efi 
+Hello EBC World!
+exception ENCODE: MOV
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;のエンコードで例外が発行されているものの，
+確かに実行できていることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://uefi.org/&lt;/li&gt;
+  &lt;li&gt;[2] https://uefi.org/specifications&lt;/li&gt;
+  &lt;li&gt;[3] https://github.com/tianocore/edk2&lt;/li&gt;
+  &lt;li&gt;[4] http://vzimmer.blogspot.com/2015/08/efi-byte-code.html&lt;/li&gt;
+  &lt;li&gt;[5] https://habr.com/post/201954/&lt;/li&gt;
+  &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase/?_ga=2.177917472.440178022.1541746062-392223130.1541746062&lt;/li&gt;
+  &lt;li&gt;[7] https://github.com/pbatard/fasmg-ebc&lt;/li&gt;
+  &lt;li&gt;[8] http://opensecuritytraining.info/IntroBIOS_files/Day1_06_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20PCI%20XROMs.pdf&lt;/li&gt;
+  &lt;li&gt;[9] https://github.com/retrage/peheader&lt;/li&gt;
+  &lt;li&gt;[10] https://speakerdeck.com/retrage/efi-byte-code-virtual-machine-for-fun-and-profit&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">EFI Byte Code解説 layout: post title: “EFI Byte Code解説” date: 2018-11-11 22:30:22 + 0900 —</summary></entry><entry><title type="html">EFI stubなArch Linuxのインストール</title><link href="/2018/10/13/efi-stub-install.html" rel="alternate" type="text/html" title="EFI stubなArch Linuxのインストール" /><published>2018-10-13T00:20:31+09:00</published><updated>2018-10-13T00:20:31+09:00</updated><id>/2018/10/13/efi-stub-install</id><content type="html" xml:base="/2018/10/13/efi-stub-install.html">&lt;p&gt;QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。
 ここでのホストはUbuntu 16.04.4 TLSとする。
 なお[1][2][3][4]を参考にした。&lt;/p&gt;
 
@@ -1655,126 +2091,4 @@ pub extern fn main() {
 &lt;ul&gt;
   &lt;li&gt;http://keens.github.io/blog/2016/05/04/rustdebeametaruraspberry_pinolchika/&lt;/li&gt;
   &lt;li&gt;https://www.coreboot.org/Libpayload&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は自作OS Advent Calendar の19日目の記事として書かれた． ここでは，corebootのpayloadをRustを使って作ってみる． corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．</summary></entry><entry><title type="html">Linux kernelの5-Level Paging有効化部分を読んでみる</title><link href="/2017/12/13/five-level-paging.html" rel="alternate" type="text/html" title="Linux kernelの5-Level Paging有効化部分を読んでみる" /><published>2017-12-13T20:22:09+09:00</published><updated>2017-12-13T20:22:09+09:00</updated><id>/2017/12/13/five-level-paging</id><content type="html" xml:base="/2017/12/13/five-level-paging.html">&lt;p&gt;この記事は&lt;a href=&quot;https://qiita.com/advent-calendar/2017/linux&quot;&gt;Linux Advent Calendar&lt;/a&gt; 
-14日目の記事として書かれた．
-本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．&lt;/p&gt;
-
-&lt;h2 id=&quot;5-level-pagingとは&quot;&gt;5-Level Pagingとは&lt;/h2&gt;
-&lt;p&gt;これまで，x86_64では物理アドレス下位48bitのみが使用されてきた．
-このため，64TiBの物理アドレス空間と256TiBの仮想アドレス空間に限られてきた．
-Intelはこれを拡張し，物理アドレス下位52bitへと拡張させた．
-これにより，4PiBの物理アドレス空間と128PiBの仮想アドレス空間が利用できるようになった．
-この拡張に対応するため新たに導入されたのが，ここで紹介する5-Level Pagingである．
-基本的な考え方は4-Level Pagingと同一であり，
-PML4にさらに上位にPML5が追加された形となっている．&lt;/p&gt;
-
-&lt;h2 id=&quot;サポート状況について&quot;&gt;サポート状況について&lt;/h2&gt;
-&lt;p&gt;現在，一部のサーバが5-Level Pagingに対応しているようである．
-では，個人では触ることができないか，というとそんなことはなく，
-QEMUのmasterブランチには5-Level Pagingのエミュレーションが
-&lt;a href=&quot;https://github.com/qemu/qemu/commit/6c7c3c21f95dd9af8a0691c0dd29b07247984122#diff-0517790436e7f5831f2b14f1e93ac740&quot;&gt;取り込まれている&lt;/a&gt;．
-このため，対応ハードウェアを持っていないくても楽しむことができる．
-面白いことに，Library OSの1つであるOSvにおいて，
-Avi Kivityさんが5-Level Paging対応のパッチを
-&lt;a href=&quot;https://groups.google.com/forum/#!topic/osv-dev/9Y1q0j5qhXI&quot;&gt;投稿している&lt;/a&gt;．&lt;/p&gt;
-
-&lt;h2 id=&quot;5-level-pagingの確認&quot;&gt;5-Level Pagingの確認&lt;/h2&gt;
-&lt;p&gt;Linux kernerでコンパイル時に5-Level Pagingを有効にするかを決めているので，
-あまり関係がないが一応記しておく．
-5-Level Pagingの機能を持っているかどうかはCPUID命令を用いることで確かめることができる．
-具体的には&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    mov $7, %eax
-    mov $0, %ecx
-    cpuid
-    test $1&amp;lt;&amp;lt;16, %ecx /* ? */
-    jz .no_5level_paging
-    /* 以下，5Level Paging有効化のコード */
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;となる．&lt;/p&gt;
-
-&lt;h2 id=&quot;5-level-pagingの有効化&quot;&gt;5-Level Pagingの有効化&lt;/h2&gt;
-&lt;p&gt;次に実際に5-Level Pagingを以下のような流れで有効にする．&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;現在のPagingとmodeを確認&lt;/li&gt;
-  &lt;li&gt;long modeの場合はcompatibility modeなどに切り替える&lt;/li&gt;
-  &lt;li&gt;Pagingを無効化&lt;/li&gt;
-  &lt;li&gt;PAEとLA57の有効化&lt;/li&gt;
-  &lt;li&gt;WRMSRでIA32_EFER.LMEを設定&lt;/li&gt;
-  &lt;li&gt;CR3が5-Level Pagingを指すように設定&lt;/li&gt;
-  &lt;li&gt;Pagingの有効化&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;ここで注意したい点は，long modeでは直接LA57を変更できない点である．
-long modeでLA57を変更しようとした場合，general protection exceptionが発生するようである．&lt;/p&gt;
-
-&lt;h2 id=&quot;linux-kernelでの実装&quot;&gt;Linux kernelでの実装&lt;/h2&gt;
-&lt;p&gt;では実際のコードを見ていく．
-なお，参照するkernelはtorvalds/linux v4.14 bebc608 である．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/x86/boot/compressed/head_64.S&lt;/code&gt;の&lt;code class=&quot;highlighter-rouge&quot;&gt;startup_64&lt;/code&gt;のコードを見ていく．
-おおよそコード内のコメントにある通りであるが，簡単コメントしていく．
-ここでは，long modeが有効になっており，まだカーネルが圧縮されている状態である．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movq	%cr4, %rax
-	testl	$X86_CR4_LA57, %eax
-	jnz	lvl5
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;最初にcr4レジスタの値から5-Level Pagingが有効であるかを確認する．
-有効でなければ以下を行う．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	leaq	lvl5_pgtable(%rbx), %rdi
-	xorq	%rax, %rax
-	movq	$(PAGE_SIZE/8), %rcx
-	rep	stosq
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;追加のPML5のテーブル(lvl5_pgtable)をクリアする．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movq	%cr3, %rdi
-	leaq	0x7 (%rdi), %rax
-	movq	%rax, lvl5_pgtable(%rbx)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;ここでCR3を最初かつ勇逸のトップレベルページテーブルのエントリとするらしい．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	pushq	$__KERNEL32_CS
-	leaq	compatible_mode(%rip), %rax
-	pushq	%rax
-	lretq
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;compatibility modeに移行&lt;/p&gt;
-
-&lt;p&gt;compatible_modeの内容は次にようになっている．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	%cr0, %eax
-	btrl	$X86_CR0_PG_BIT, %eax
-	movl	%eax, %cr0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;Pagingを無効&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	leal	lvl5_pgtable(%ebx), %eax
-	movl	%eax, %cr3
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;CR3がPML5のテーブルを指すように設定&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	%cr4, %eax
-	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
-	movl	%eax, %cr4
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;PAEとLA57の有効化&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
-	movl	%eax, %cr0
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;Pagingの有効化&lt;/p&gt;
-
-&lt;p&gt;以上のような流れとなっている．
-意外と短くまとまっていることがわかる．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://software.intel.com/sites/default/files/managed/2b/80/5-level_paging_white_paper.pdf&lt;/li&gt;
-  &lt;li&gt;https://lwn.net/Articles/708526/&lt;/li&gt;
-  &lt;li&gt;https://lwn.net/Articles/717293/&lt;/li&gt;
-  &lt;li&gt;https://lwn.net/Articles/716324/&lt;/li&gt;
-  &lt;li&gt;https://github.com/qemu/qemu/commit/6c7c3c21f95dd9af8a0691c0dd29b07247984122#diff-0517790436e7f5831f2b14f1e93ac740&lt;/li&gt;
-  &lt;li&gt;https://groups.google.com/forum/#!topic/osv-dev/9Y1q0j5qhXI&lt;/li&gt;
-  &lt;li&gt;&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は自作OS Advent Calendar の19日目の記事として書かれた． ここでは，corebootのpayloadをRustを使って作ってみる． corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．</summary></entry></feed>

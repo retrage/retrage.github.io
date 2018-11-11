@@ -1,0 +1,437 @@
+<h1 id="efi-byte-code解説">EFI Byte Code解説</h1>
+<p>layout: post
+title: “EFI Byte Code解説”
+date: 2018-11-11 22:30:22 + 0900
+—</p>
+
+<p>本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
+発表した内容[10]をまとめたものである．
+ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．</p>
+
+<h2 id="efi-byte-codeとは">EFI Byte Codeとは</h2>
+
+<p>UEFI Specification v2.7によれば，
+EFI Byte Code (EBC)について</p>
+
+<blockquote>
+  <p>platform- and processor-independent mechanisms for loading and executing EFI device drivers</p>
+</blockquote>
+
+<p>とある．
+つまり，OSなどのplatform非依存かつ，processor非依存な
+EFI device driverを読み込み，実行するための仕組み，ということである．</p>
+
+<p>EBCはPCI Express (PCIe)のOptionROM (OROM)に利用されることが想定されて設計されている．
+OROMはPCIeデバイスの内部に存在する記憶領域であり[8]，
+UEFI向けのデバイスドライバなどが置かれている．
+UEFIはOROMから実行ファイルを読み出し，メモリ上に配置して実行する．
+このとき用いられる実行ファイルに含まれるコードは，native codeかEBCのいずれかである．
+OROMのにあるUEFI向けデバイスドライバにEBCが利用される理由の一つとして，
+複数のアーキテクチャへの対応が挙げられる．
+しかし，実際にはx64マシンがほとんどであるためにEBCではなくx64 native codeの
+UEFI device driverが内蔵されているという話もある．(未確認)</p>
+
+<h2 id="ebc向けのドキュメントとツール">EBC向けのドキュメントとツール</h2>
+
+<p>EBCはマイナーなため，EBCについての情報はあまり存在しない．
+強いて挙げるとすれば，以下のものがある．</p>
+
+<ul>
+  <li>UEFI Specification[2]</li>
+  <li>TianoCore/EDK2 source code[3]</li>
+  <li>いくつかのブログ記事[4][5]</li>
+</ul>
+
+<p>このうち最も詳しいのがUEFI Specificationである．</p>
+
+<p>また，EBC関連のツールとしては以下のようなものがある．</p>
+
+<ul>
+  <li>Intel C Compiler for EFI Byte Code[6]</li>
+  <li>fasmg-ebc[7]</li>
+</ul>
+
+<p>Intel C Compiler for EFI Byte Codeは$995で有料であるため，
+簡単に入手することができない．(そもそも個人向けに販売しているのか怪しい)
+fasmg-ebcはオープンソースなFlat Assembler (fasm)をベースにしたEBCのアセンブラである．
+fasmg-ebcは部分的に後述するEBCからのnative codeの呼び出しに対応している．</p>
+
+<p>なお，一般的なGCC/ClangなどではEBC対応がなされていない．
+また，EBCの逆アセンブラも存在しない．</p>
+
+<h2 id="ebc-vmの構成">EBC VMの構成</h2>
+
+<p>EBCのVMは64-bit little endianとなっている．
+EBCのVMのレジスタの構成を以下に示す．</p>
+
+<p><img src="/img/ebc-registers.png" alt="EBC VM Registers" /></p>
+
+<p>IP (Instruction Pointer)，FLAGS，R0からR7までの
+合計10の64-bit長のレジスタを持っている．
+FLAGSは比較演算の結果の入るCフラグとsingle-stepを示すSフラグの2つがある．
+汎用レジスタであるR0-R7では，
+R0はスタックポインタを保持し，
+R7は関数からの返り値が代入される．</p>
+
+<h2 id="ebcのバイナリ形式と関数呼び出し規約">EBCのバイナリ形式と関数呼び出し規約</h2>
+
+<p>EBCではWindowsやUEFIで利用されているPortable Executable (PE)のPE32+を採用している．
+また，UEFI側が自由にメモリ上に配置できるように，relocatable imageなっている．
+面白いことに，PEヘッダにあるFileHeader-&gt;Machineは<code class="highlighter-rouge">0x0ebc</code>となっている．
+以下のfasmg-ebcで作成したEBCバイナリのヘッダ情報を
+自作のpeheader[9]の出力として以下に示す．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Machine: ebc
+Number of Section: 2
+Time Stamp: 1541744287
+Size of Optional Header: 240
+32-bit Architecture
+This file is DLL.
+PE+
+AddressOfEntryPoint: 1000
+ImageBase: 400000
+SectionAlignment: 1000
+FileAlignment: 200
+SizeOfImage: 3000
+SizeOfHeaders: 200
+Section 0
+	Name: .text
+	VirtualSize: 1c
+	VirtualAddress: 1000
+	SizeOfRawData: 200
+	PointerToRawData: 200
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: 60000020 r-x exec
+Section 1
+	Name: .data
+	VirtualSize: 26
+	VirtualAddress: 2000
+	SizeOfRawData: 200
+	PointerToRawData: 400
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: c0000040 rw- inited
+</code></pre></div></div>
+
+<p>EBCの関数呼び出し規約はCDECLを採用している．
+これはx64 UEFIのnative codeではMicrosoft x64 Calling Conventionを
+採用している点で大きく異なる．
+<code class="highlighter-rouge">func(arg0, arg1, arg2)</code>のような関数があった場合，
+以下の図に示すように引数を逆順にスタックにプッシュし，
+最後に呼び出し元のアドレスをプッシュして<code class="highlighter-rouge">func</code>が実行される．
+なお，スタックにプッシュされた引数については呼び出し元が責任を持つ．</p>
+
+<p><img src="/img/ebc-stack.png" alt="EBC Stack Example" /></p>
+
+<p>一般にUEFIでは起動時に，UEFI本体より</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IN EFI_HANDLE ImageHandle,
+IN EFI_SYSTEM_TABLE *SystemTable
+</code></pre></div></div>
+<p>の2つの引数が渡される．
+EBCのVMでも同様にこれらの値が渡されることとなっており，
+VMの起動時にはあたかもNative codeから起動されたかのように
+これらの引数と呼び出し元のアドレスがEBC上のスタックにプッシュされた状態になる．</p>
+
+<h2 id="natural-indexing">Natural Indexing</h2>
+
+<p>32-bitと64-bitの複数のアーキテクチャに対応するため，
+EBCではNatural Indexingという仕組みを持っている．
+これはあるアドレスに対するオフセットの値である符号付整数について，
+アーキテクチャによって異なる値となるように設計されたオフセットの表し方である．
+Natural Indexingは以下の図に示すようにエンコードされる．</p>
+
+<p><img src="/img/ebc-natural-indexing.png" alt="EBC Natural Indexing" /></p>
+
+<p>ここで，Nはエンコード後の値の長さ(16, 32, 64-bitのいずれか)である．
+MSBであるN bit目<code class="highlighter-rouge">b</code>は符号を表し，0であれば正，1であれば負を表す．
+次にN-1からN-3bitまで<code class="highlighter-rouge">w</code>は後述する<code class="highlighter-rouge">n</code>の長さを表す．
+ただし，<code class="highlighter-rouge">w</code>はデコード時に</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>A = w * N / 8
+</code></pre></div></div>
+<p>より<code class="highlighter-rouge">A</code>が計算される．
+次にN-4から<code class="highlighter-rouge">A</code> bitまで<code class="highlighter-rouge">c</code>はConstant unitsを表し，
+<code class="highlighter-rouge">A</code>-1から0 bitまで<code class="highlighter-rouge">n</code>はNatural unitsを表す．
+以上で得られた<code class="highlighter-rouge">b</code>，<code class="highlighter-rouge">c</code>，<code class="highlighter-rouge">n</code>を用いて次のようにデコードされたオフセットが表される．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Offset = (c + n * sizeof(VOID *)) * b
+</code></pre></div></div>
+<p>ここで，<code class="highlighter-rouge">sizeof(VOID *)</code>はアーキテクチャ依存であり，
+32-bitであれば4となり，64-bitであれば8となる．</p>
+
+<h2 id="natural-indexingの例">Natural Indexingの例</h2>
+
+<p>では実際にエンコードされたNatural Indexを計算してみる．
+値はUEFI Specificationに挙げられている例と同一である．
+<code class="highlighter-rouge">0xa048</code>という16-bitのIndexを考える．
+これは2進数で表すを以下のようになる．</p>
+
+<p><img src="/img/ebc-natural-indexing-example.png" alt="EBC Natural Indexing Example" /></p>
+
+<p>先の説明を当てはめると</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N = 16
+b = 1,
+w = 2, A = 2 * 16 / 8 = 4
+c = 4
+n = 8
+</code></pre></div></div>
+<p>となる．
+32-bit，64-bitそれぞれのアーキテクチャではデコードされた値は</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>32-bit: Offset = (4 + 8 * 4) * -1 = -36
+64-bit: Offset = (4 + 8 * 8) * -1 = -68
+</code></pre></div></div>
+<p>となり，確かに同じNatural Indexでも異なる値にデコードされることがわかる．</p>
+
+<h2 id="ebcの命令セット">EBCの命令セット</h2>
+
+<p>EBCの命令セットは可変長なCISC-likeな命令となっている．
+全体では56種類の命令が存在する．
+以下にEBCの命令の一覧を示す．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">opcode</span> <span class="n">ops</span><span class="p">[]</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="n">BREAK</span><span class="p">,</span>   <span class="cm">/* 0x00 */</span>
+  <span class="n">JMP</span><span class="p">,</span>     <span class="cm">/* 0x01 */</span>
+  <span class="n">JMP8</span><span class="p">,</span>    <span class="cm">/* 0x02 */</span>
+  <span class="n">CALL</span><span class="p">,</span>    <span class="cm">/* 0x03 */</span>
+  <span class="n">RET</span><span class="p">,</span>     <span class="cm">/* 0x04 */</span>
+  <span class="n">CMPeq</span><span class="p">,</span>   <span class="cm">/* 0x05 */</span>
+  <span class="n">CMPlte</span><span class="p">,</span>  <span class="cm">/* 0x06 */</span>
+  <span class="n">CMPgte</span><span class="p">,</span>  <span class="cm">/* 0x07 */</span>
+  <span class="n">CMPulte</span><span class="p">,</span> <span class="cm">/* 0x08 */</span>
+  <span class="n">CMPugte</span><span class="p">,</span> <span class="cm">/* 0x09 */</span>
+  <span class="n">NOT</span><span class="p">,</span>     <span class="cm">/* 0x0a */</span>
+  <span class="n">NEG</span><span class="p">,</span>     <span class="cm">/* 0x0b */</span>
+  <span class="n">ADD</span><span class="p">,</span>     <span class="cm">/* 0x0c */</span>
+  <span class="n">SUB</span><span class="p">,</span>     <span class="cm">/* 0x0d */</span>
+  <span class="n">MUL</span><span class="p">,</span>     <span class="cm">/* 0x0e */</span>
+  <span class="n">MULU</span><span class="p">,</span>    <span class="cm">/* 0x0f */</span>
+  <span class="n">DIV</span><span class="p">,</span>     <span class="cm">/* 0x10 */</span>
+  <span class="n">DIVU</span><span class="p">,</span>    <span class="cm">/* 0x11 */</span>
+  <span class="n">MOD</span><span class="p">,</span>     <span class="cm">/* 0x12 */</span>
+  <span class="n">MODU</span><span class="p">,</span>    <span class="cm">/* 0x13 */</span>
+  <span class="n">AND</span><span class="p">,</span>     <span class="cm">/* 0x14 */</span>
+  <span class="n">OR</span><span class="p">,</span>      <span class="cm">/* 0x15 */</span>
+  <span class="n">XOR</span><span class="p">,</span>     <span class="cm">/* 0x16 */</span>
+  <span class="n">SHL</span><span class="p">,</span>     <span class="cm">/* 0x17 */</span>
+  <span class="n">SHR</span><span class="p">,</span>     <span class="cm">/* 0x18 */</span>
+  <span class="n">ASHR</span><span class="p">,</span>    <span class="cm">/* 0x19 */</span>
+  <span class="n">EXTNDB</span><span class="p">,</span>  <span class="cm">/* 0x1a */</span>
+  <span class="n">EXTNDW</span><span class="p">,</span>  <span class="cm">/* 0x1b */</span>
+  <span class="n">EXTNDD</span><span class="p">,</span>  <span class="cm">/* 0x1c */</span>
+  <span class="n">MOVbw</span><span class="p">,</span>   <span class="cm">/* 0x1d */</span>
+  <span class="n">MOVww</span><span class="p">,</span>   <span class="cm">/* 0x1e */</span>
+  <span class="n">MOVdw</span><span class="p">,</span>   <span class="cm">/* 0x1f */</span>
+  <span class="n">MOVqw</span><span class="p">,</span>   <span class="cm">/* 0x20 */</span>
+  <span class="n">MOVbd</span><span class="p">,</span>   <span class="cm">/* 0x21 */</span>
+  <span class="n">MOVwd</span><span class="p">,</span>   <span class="cm">/* 0x22 */</span>
+  <span class="n">MOVdd</span><span class="p">,</span>   <span class="cm">/* 0x23 */</span>
+  <span class="n">MOVqd</span><span class="p">,</span>   <span class="cm">/* 0x24 */</span>
+  <span class="n">MOVsnw</span><span class="p">,</span>  <span class="cm">/* 0x25 */</span>
+  <span class="n">MOVsnd</span><span class="p">,</span>  <span class="cm">/* 0x26 */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x27 */</span>
+  <span class="n">MOVqq</span><span class="p">,</span>   <span class="cm">/* 0x28 */</span>
+  <span class="n">LOADSP</span><span class="p">,</span>  <span class="cm">/* 0x29 */</span>
+  <span class="n">STORESP</span><span class="p">,</span> <span class="cm">/* 0x2a */</span>
+  <span class="n">PUSH</span><span class="p">,</span>    <span class="cm">/* 0x2b */</span>
+  <span class="n">POP</span><span class="p">,</span>     <span class="cm">/* 0x2c */</span>
+  <span class="n">CMPIeq</span><span class="p">,</span>  <span class="cm">/* 0x2d */</span>
+  <span class="n">CMPIlte</span><span class="p">,</span> <span class="cm">/* 0x2e */</span>
+  <span class="n">CMPIgte</span><span class="p">,</span> <span class="cm">/* 0x2f */</span>
+  <span class="n">CMPIulte</span><span class="p">,</span><span class="cm">/* 0x30 */</span>
+  <span class="n">CMPIugte</span><span class="p">,</span><span class="cm">/* 0x31 */</span>
+  <span class="n">MOVnw</span><span class="p">,</span>   <span class="cm">/* 0x32 */</span>
+  <span class="n">MOVnd</span><span class="p">,</span>   <span class="cm">/* 0x33 */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x34 */</span>
+  <span class="n">PUSHn</span><span class="p">,</span>   <span class="cm">/* 0x35 */</span>
+  <span class="n">POPn</span><span class="p">,</span>    <span class="cm">/* 0x36 */</span>
+  <span class="n">MOVI</span><span class="p">,</span>    <span class="cm">/* 0x37 */</span>
+  <span class="n">MOVIn</span><span class="p">,</span>   <span class="cm">/* 0x38 */</span>
+  <span class="n">MOVREL</span><span class="p">,</span>  <span class="cm">/* 0x39 */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3a */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3b */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3c */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3d */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3e */</span>
+  <span class="n">NOP</span><span class="p">,</span>     <span class="cm">/* 0x3f */</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<h3 id="ebcの命令のoperand">EBCの命令のOperand</h3>
+
+<p>EBCの命令は基本的に以下のような形式をとる．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>INSTRUCTION Operand1, Operand2
+</code></pre></div></div>
+<p>各Operandは
+Direct, Indirect, Indirect with Index，Immediate
+の4種類の形式をとる．</p>
+
+<p>Directは<code class="highlighter-rouge">R2</code>などと表し，Operandで指定されているレジスタの値を指す．
+Indirectは<code class="highlighter-rouge">@R2</code>などと表し，
+Operandで指定されているレジスタの値のアドレスにあるメモリ上の値を指す．
+Indirect with Indexでは
+Operandで指定されているレジスタの値と
+他にNatural Indexingによって指定されているオフセットの値を
+足した値のアドレスにあるメモリ上の値を指す．
+これは<code class="highlighter-rouge">@R1(+n, +c)</code>の形式で表される．
+Immediateは即値であり，指定された値そのままを指し，
+<code class="highlighter-rouge">0x1234</code>の形式で表される．</p>
+
+<h3 id="ebc命令の例-xor">EBC命令の例: XOR</h3>
+
+<p>EBCの命令<code class="highlighter-rouge">XOR</code>は以下の形式で表される．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>XOR[32|64] {@}R1, {@}R2 {Index16|Immed16}
+</code></pre></div></div>
+<p>XORは次のようにエンコードされる．</p>
+
+<p><img src="/img/ebc-xor-encoding.png" alt="EBC XOR Encoding" /></p>
+
+<p>Byte0-Bit7ではOperand2のImmediate/Indexの存在を表す．
+もし1であればByte2からByte3には16-bitのImmediate/Indexの値が存在する．
+Byte0-Bit6では操作が32/64-bitのどちらかであることを示す．
+Byte0-Bit0からBit5はOpecodeを表し，<code class="highlighter-rouge">XOR</code>では<code class="highlighter-rouge">0x16</code>となっている．
+Byte1-Bit7ではOperand2がDirectとIndirectのどちらであることを示す．
+Byte1-Bit4からBit6ではOperand2のレジスタを表す．
+Byte1-Bit3ではOperand1がDirectとIndirectのどちらであることを示す．
+Byte1-Bit0からBit2ではOperand1のレジスタを表す．</p>
+
+<h2 id="native-codeの呼び出し">Native codeの呼び出し</h2>
+
+<p>EBCには<code class="highlighter-rouge">CALL</code>という命令があるが，
+これはEBCの呼び出しとnative codeの呼び出し(<code class="highlighter-rouge">EXCALL</code>)の2種類がサポートされている．
+EBCは<code class="highlighter-rouge">EXCALL</code>をサポートするための命令をいくつか持っている．
+以下にその命令を列挙する．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>MOVn, MOVIn, MOVsn, POPn, PUSHn
+</code></pre></div></div>
+<p><code class="highlighter-rouge">EXCALL</code>は各アーキテクチャ依存の処理を行うため，
+あるいはUEFIの容易するランタイムを呼び出すために用いられる．</p>
+
+<h2 id="ebc-vmの例外">EBC VMの例外</h2>
+
+<p>EBCのVMはEBCを実行した場合に発生する例外をハンドルできる必要がある．
+EBCの実行により発生する可能性のある例外を以下に示す．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Divide By 0
+Debug Break
+Invalid Opcode
+Stack Fault
+Alignment
+Instruction Encoding
+Bad Break
+Undefined
+</code></pre></div></div>
+<p>各例外の詳細はUEFI Specificationを参考にしてほしい．</p>
+
+<p>EBCのVMはEFI Debug Support Protocolをサポートする必要があり，
+このProtocol経由でデバッガをVMにattachすることができる．
+もしデバッガがattachされている場合，
+例外はデバッガによって捕捉される．
+もし，デバッガがattachされていない場合は以下のいずれかの動作となるが，
+どの動作になるかは実装依存となっている．</p>
+
+<ul>
+  <li>エラーメッセージを表示しシステムを停止</li>
+  <li>システムをハング</li>
+  <li>例外を無視し，処理を続行</li>
+</ul>
+
+<h2 id="ebcアセンブリの例">EBCアセンブリの例</h2>
+
+<p>以下にfasmg-ebcよりEBCアセンブリによるHello, worldの例を示す．</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>section '.text' code executable readable
+EfiMain:
+  MOVn   R1, @R0(EFI_MAIN_PARAMETERS.SystemTable)
+  MOVn   R1, @R1(EFI_SYSTEM_TABLE.ConOut)
+  MOVREL R2, Hello
+  PUSHn  R2 ; Push Pointer to Hello
+  PUSHn  R1 ; Push Pointer to SystemTable-&gt;ConOut
+  CALLEX @R1(SIMPLE_TEXT_OUTPUT_INTERFACE.OutputString)
+  MOV R0, R0(+2,0)
+  RET 
+
+section '.data' data readable writeable
+  Hello:    du "Hello EBC World!", 0x0D, 0x0A, 0x00
+</code></pre></div></div>
+<p>このアセンブリではエントリポイントは<code class="highlighter-rouge">EfiMain</code>である．
+最初にR0レジスタにあるスタックポインタの値から
+SystemTableへのアドレスをR1に代入する．
+次にR1の値からConOutへのアドレスのR1に代入する．
+R2に文字列<code class="highlighter-rouge">Hello</code>へのアドレスを代入する．
+次にこれらのR2，R1の順にレジスタの値をスタックにプッシュする．
+これはSimple Text Output ProtocolのOutputStringの
+引数，</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *This,
+IN CHAR16 *String
+</code></pre></div></div>
+<p>に相当する．
+最後に<code class="highlighter-rouge">CALLEX</code>によりConOut-&gt;OutputStringを呼び出している．</p>
+
+<h2 id="ebcvm-ユーザ空間で動作するebc-vm">ebcvm: ユーザ空間で動作するEBC VM</h2>
+
+<p>EBCの仕様の概要は以上のようなものとなっている．
+EBCはUEFIの規格で定められているものの，
+少なくともオープンソースで用いられている事例が全く存在しない．
+また，EBCのVMはOVMFなどで実装されているが，
+ユーザ空間で簡単に利用することが難しい．
+そこで，UEFI SpecificationにあるEBCの仕様と
+fasmg-ebcの生成するEBCバイナリのみを元にしてEBCのVMを作成することにした．
+ebcvmのソースコードは以下GitHub上で公開している．</p>
+
+<ul>
+  <li>https://github.com/yabits/ebcvm</li>
+</ul>
+
+<p>ebcvmは現在以下ものをサポートしている．</p>
+
+<ul>
+  <li>EBCの全ての命令</li>
+  <li>いくつかのnative code実行のエミュレーション</li>
+  <li>簡単なデバッガ</li>
+</ul>
+
+<h3 id="ebcvmの概観">ebcvmの概観</h3>
+
+<p>ebcvmは以下の図のような構成となっている．</p>
+
+<p><img src="/img/ebcvm-architecture.png" alt="ebcvm Architecture" /></p>
+
+<p>最初にVMが起動し，レジスタの初期化とメモリの初期化がなされる．
+LoaderがEBCバイナリを読み込みメモリ上に展開する．
+また，UEFIのランタイムもメモリ上に配置される．
+初期化が完了すると，Decoderがバイトコードをデコードし，
+Executorがデコードされた命令を実行する．
+VMはEXCALLが発行されるとこれをトラップし，
+EFI Native Codeに処理を渡す．
+EFI Native CodeはエミュレートされてVMに処理が戻され，
+処理が続行される．
+VMはまた例外をトラップし，Simple debuggerがattachされていれば
+これに処理を受け渡す．</p>
+
+<h3 id="ebcvmの実行例">ebcvmの実行例</h3>
+
+<p>先に示したEBCによるHello, worldの例のバイナリを
+ebcvmにより実行した例を以下に示す．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./ebcvm sample/print.efi 
+Hello EBC World!
+exception ENCODE: MOV
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">MOV</code>のエンコードで例外が発行されているものの，
+確かに実行できていることがわかる．</p>
+
+<h2 id="参考文献">参考文献</h2>
+
+<ul>
+  <li>[1] https://uefi.org/</li>
+  <li>[2] https://uefi.org/specifications</li>
+  <li>[3] https://github.com/tianocore/edk2</li>
+  <li>[4] http://vzimmer.blogspot.com/2015/08/efi-byte-code.html</li>
+  <li>[5] https://habr.com/post/201954/</li>
+  <li>[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase/?_ga=2.177917472.440178022.1541746062-392223130.1541746062</li>
+  <li>[7] https://github.com/pbatard/fasmg-ebc</li>
+  <li>[8] http://opensecuritytraining.info/IntroBIOS_files/Day1_06_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20PCI%20XROMs.pdf</li>
+  <li>[9] https://github.com/retrage/peheader</li>
+  <li>[10] https://speakerdeck.com/retrage/efi-byte-code-virtual-machine-for-fun-and-profit</li>
+</ul>
