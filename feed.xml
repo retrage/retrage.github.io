@@ -1,4 +1,152 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-12-17T01:09:52+09:00</updated><id>http://localhost:4000/</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">EFI Byte Code解説</title><link href="http://localhost:4000/2018/11/11/efi-byte-code-myth.html" rel="alternate" type="text/html" title="EFI Byte Code解説" /><published>2018-11-11T22:30:22+09:00</published><updated>2018-11-11T22:30:22+09:00</updated><id>http://localhost:4000/2018/11/11/efi-byte-code-myth</id><content type="html" xml:base="http://localhost:4000/2018/11/11/efi-byte-code-myth.html">&lt;p&gt;本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.3">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2018-12-19T00:09:44+09:00</updated><id>http://localhost:4000/</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">ebcvm: A Usermode EFI Byte Code Virtual Machine</title><link href="http://localhost:4000/2018/12/19/introduction-to-ebcvm.html" rel="alternate" type="text/html" title="ebcvm: A Usermode EFI Byte Code Virtual Machine" /><published>2018-12-19T00:00:00+09:00</published><updated>2018-12-19T00:00:00+09:00</updated><id>http://localhost:4000/2018/12/19/introduction-to-ebcvm</id><content type="html" xml:base="http://localhost:4000/2018/12/19/introduction-to-ebcvm.html">&lt;p&gt;この記事は
+&lt;a href=&quot;https://adventar.org/calendars/2915&quot;&gt;自作OS Advent Calendar 2018&lt;/a&gt;
+の19日目の記事として書かれた．
+ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである
+ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．&lt;/p&gt;
+
+&lt;h2 id=&quot;efi-byte-codeについて&quot;&gt;EFI Byte Codeについて&lt;/h2&gt;
+
+&lt;p&gt;すでにEFI Bye Codeを解説した記事を書いている[3]ため．
+そちらを参考にしていただきたい．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcvmの概要&quot;&gt;ebcvmの概要&lt;/h2&gt;
+
+&lt;p&gt;ebcvmは*nix向けに開発したEFI Byte Code Virtual Machine実装である．
+TianoCore/EDK2にはEBCのVMの実装が既に存在する[4]が，
+ここではそちらの実装を使わずにUEFI Specificationとオンラインで公開されている
+ごく少数の EBCバイナリを参考に実装を行なった．
+ebcvmの開発のモチベーションとしては(ほとんど)規格書のみで実装できるか
+ということに興味があったため，という側面が強い．&lt;/p&gt;
+
+&lt;p&gt;ebcvmの概略図を以下に示す．
+&lt;img src=&quot;/img/ebcvm-architecture.png&quot; alt=&quot;ebcvm-architecture&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;この図から分かるように，ebcvmは以下の部分で構成される．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Virtual Machine
+    &lt;ul&gt;
+      &lt;li&gt;Memory&lt;/li&gt;
+      &lt;li&gt;Registers&lt;/li&gt;
+      &lt;li&gt;Decoder&lt;/li&gt;
+      &lt;li&gt;Executor&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;EFI Native Code Emulator&lt;/li&gt;
+  &lt;li&gt;Loader&lt;/li&gt;
+  &lt;li&gt;Debugger&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ebcvmでは規格書に記載されている全ての命令が実装されている．&lt;/p&gt;
+
+&lt;p&gt;EBCではほぼ全ての操作がVM内部で閉じている．
+しかし，例外としてEFIのNative Codeの呼び出しが可能となっている．
+(仕様上，EBCからNative, NativeからEBCどちらも可能となっている．)
+このため，EBCからSystemTable以下にあるBootServicesやRuntimeServicesへの
+アクセスが可能となっている．
+特に，文字の入出力についてはConIn, ConOut, StdErrを使わざるを得ないので，
+ebcvmでもNative Codeの呼び出しに対応する必要がある．
+このため，EFIの用意するNative CodeのEmulationを行なっている．
+現状，ebcvmでは以下のごく一部のNative Codeのみ対応している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;BootServices-&amp;gt;AllocatePool&lt;/li&gt;
+  &lt;li&gt;ConIn-&amp;gt;ReadKeyStroke&lt;/li&gt;
+  &lt;li&gt;ConOut-&amp;gt;OutputString&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;UEFIではFirmware側が動的にApplicationをメモリ上に配置できるように
+UEFI Application/Driverはrelocatableなものとなっている．
+EBCのバイナリでもこれは同様である．
+そのため，ebcvmのローダもrelocationに対応しており，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;--reloc=1&lt;/code&gt;のオプションを実行時に渡すことで
+relocationが行われるようになっている．&lt;/p&gt;
+
+&lt;p&gt;EBCは現状GNU binutils, GCC, LLVM/Clangなど一般的なコンパイラでは
+対応されていない．
+このため，デバッグを容易にするためにebcvmでは
+簡単なデバッガを実装している．
+以下に主なebcvmのデバッガの機能を示す．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;continue - continue program&lt;/li&gt;
+  &lt;li&gt;reg - show registers&lt;/li&gt;
+  &lt;li&gt;examine - show memory&lt;/li&gt;
+  &lt;li&gt;disassemble - disassemble memory&lt;/li&gt;
+  &lt;li&gt;memmap - show memory map&lt;/li&gt;
+  &lt;li&gt;backtrace - show backtrace&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ebcvmのテスト&quot;&gt;ebcvmのテスト&lt;/h3&gt;
+
+&lt;p&gt;ebcvmはCで書かれているが，
+できるだけ正確にEBCの動作を再現できるように
+DecoderとExecutorについてはテストコードを書いている．
+冪等性を確保した設計にし，テストを容易にすることが重要である．
+初期の段階ではC++では一般的なGoogle Test[5]の導入も考えたが，
+依存するライブラリはできるだけ少なくしたかったため，
+Cでベタ書きしたテストケースと
+&lt;code class=&quot;highlighter-rouge&quot;&gt;test.sh&lt;/code&gt;というテストを行うシェルスクリプトを置くことで
+テストを行えるようにした．&lt;/p&gt;
+
+&lt;p&gt;Decoderでは実装が405行に対してテストコードが2277行，
+Executorでは実装が1221行に対してテストコードが8490行
+となっている．&lt;/p&gt;
+
+&lt;h2 id=&quot;elvmのebcバックエンド&quot;&gt;ELVMのEBCバックエンド&lt;/h2&gt;
+
+&lt;p&gt;先のEBC解説記事でも言及したように，
+EBCにはIntel C Compiler for EFI Byte Code[6]以外に
+利用可能なコンパイラが存在しない．
+そこで，自由なEBCの開発を行えるようにするため，
+ELVMのEBCバックエンドを開発した．．
+LEVMはShinichiro Hamaji(@shinh)さんによって開発された
+EsoLangVM Compiler Infrastructureである．
+ELVMでは内部で使われるELVM IR(EIR)の命令の種類が少ないため，
+LLVMと比較して簡単にバックエンドを追加することができる．
+ELVMのEBCバックエンドを追加することにより，
+Cコンパイラである8cc[7]から出力されるEIRからEBCバイナリが生成可能となる．
+これにより(バイナリが非効率などの問題があるにせよ)
+自由なEBC向けCコンパイラを入手することができるようになる．&lt;/p&gt;
+
+&lt;h3 id=&quot;デザイン&quot;&gt;デザイン&lt;/h3&gt;
+
+&lt;p&gt;EBCバックエンドのデザインはx86-linuxバックエンドを参考にしている．
+EBCバックエンドでは外部のEBCアセンブラを使わずに
+直接PEバイナリを出力している．
+EBCバックエンドでは，最初にEIR内部のprogram couner(pc)と
+バイナリ内部でのアドレスの対応表&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;を作成する．
+これによって得られた値を元に各セクションのアドレス，サイズを決定し，
+それらの値を埋め込んだPEヘッダを出力する．
+次に&lt;code class=&quot;highlighter-rouge&quot;&gt;init_state_ebc&lt;/code&gt;が実行される．
+ここでは主に&lt;code class=&quot;highlighter-rouge&quot;&gt;BootServices-&amp;gt;AllocatePool&lt;/code&gt;により
+メモリ領域を確保し，その領域を初期化する．
+EBCバックエンドでは&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;の2つのセクションが作成される．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;には実際のEBCのコード，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;には&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;の対応表が書き込まれる．
+以上の流れでEBCバイナリが直接出力される．&lt;/p&gt;
+
+&lt;p&gt;ELVMではA, B, C, D, BP, SPのレジスタが定義されている．
+EBCではR0からR7までの64-bit幅のレジスタが用意されており，
+このうちR0はスタックポインタとして予約されている．
+そのため，EBCバックエンドではR1-R6をそれぞれA-SPに割り当てており，
+残りのR7を自由なレジスタとして利用している．
+実際の実装では，Native Code呼び出しなどで
+R1, R2, R3などを利用せざるを得ない場合があり，
+この場合はレジスタの値をスタックにPUSHしておくことで
+実行に影響しないようにしている．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://github.com/yabits/ebcvm&lt;/li&gt;
+  &lt;li&gt;[2] https://github.com/retrage/elvm/tree/retrage/ebc-v2&lt;/li&gt;
+  &lt;li&gt;[3] https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&lt;/li&gt;
+  &lt;li&gt;[4] https://github.com/tianocore/edk2/tree/master/MdeModulePkg/Universal/EbcDxe&lt;/li&gt;
+  &lt;li&gt;[5] https://github.com/google/googletest&lt;/li&gt;
+  &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase&lt;/li&gt;
+  &lt;li&gt;[7] https://github.com/rui314/8cc&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は 自作OS Advent Calendar 2018 の19日目の記事として書かれた． ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．</summary></entry><entry><title type="html">EFI Byte Code解説</title><link href="http://localhost:4000/2018/11/11/efi-byte-code-myth.html" rel="alternate" type="text/html" title="EFI Byte Code解説" /><published>2018-11-11T22:30:22+09:00</published><updated>2018-11-11T22:30:22+09:00</updated><id>http://localhost:4000/2018/11/11/efi-byte-code-myth</id><content type="html" xml:base="http://localhost:4000/2018/11/11/efi-byte-code-myth.html">&lt;p&gt;本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
 発表した内容[10]をまとめたものである．
 ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．&lt;/p&gt;
 
@@ -2001,88 +2149,4 @@ origは&lt;/p&gt;
   &lt;li&gt;https://webassembly.github.io/spec/core/index.html&lt;/li&gt;
   &lt;li&gt;https://developer.mozilla.org/ja/docs/WebAssembly/Understanding_the_text_format&lt;/li&gt;
   &lt;li&gt;https://github.com/v8/v8/blob/master/src/wasm/wasm-interpreter.cc&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．</summary></entry><entry><title type="html">Rustでcoreboot payload</title><link href="http://localhost:4000/2017/12/18/coreboot-ffi.html" rel="alternate" type="text/html" title="Rustでcoreboot payload" /><published>2017-12-18T23:28:27+09:00</published><updated>2017-12-18T23:28:27+09:00</updated><id>http://localhost:4000/2017/12/18/coreboot-ffi</id><content type="html" xml:base="http://localhost:4000/2017/12/18/coreboot-ffi.html">&lt;p&gt;この記事は&lt;a href=&quot;https://adventar.org/calendars/2282&quot;&gt;自作OS Advent Calendar&lt;/a&gt;
-の19日目の記事として書かれた．
-ここでは，corebootのpayloadをRustを使って作ってみる．
-corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．&lt;/p&gt;
-
-&lt;h2 id=&quot;corebootについて&quot;&gt;corebootについて&lt;/h2&gt;
-&lt;p&gt;corebootとは既存のプロプライエタリなBIOSを置き換えるBIOSと
-そのプロジェクトのことである．
-corebootは大きくcoreboot本体とPayloadの2つがあり，
-Payloadには様々なソフトウェアを載せることができる．
-今回はPayloadをRustで作ってみようということである．
-ここでは，Libpayloadと呼ばれるPayload向けのライブラリの関数を
-Rustから呼び出してみる．&lt;/p&gt;
-
-&lt;h2 id=&quot;rustでのベアメタルプログラミング&quot;&gt;Rustでのベアメタルプログラミング&lt;/h2&gt;
-&lt;p&gt;Rustでのベアメタルプログラミングについてはκeenさんの&lt;a href=&quot;http://keens.github.io/blog/2016/05/04/rustdebeametaruraspberry_pinolchika/&quot;&gt;記事&lt;/a&gt;
-が詳しい．ほとんどここを参考にした．&lt;/p&gt;
-
-&lt;p&gt;ホストの環境はx86_64であるとする．
-最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;cargo new --bin cb-ffi&lt;/code&gt;とかやって新規のCargoプロジェクトを作成する．&lt;/p&gt;
-
-&lt;p&gt;次に以下のような内容で&lt;code class=&quot;highlighter-rouge&quot;&gt;main.rs&lt;/code&gt;を書く．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#![feature(lang_items, asm)]
-#![crate_type = &quot;staticlib&quot;]
-#![no_std]
-
-#[link(name = &quot;libpayload&quot;, kind = &quot;static&quot;)]
-extern {
-    fn putchar(c: u32);
-}
-
-#[no_mangle]
-pub extern fn main() {
-    loop{
-        unsafe { putchar(65) };
-    }   
-}
-
-#[lang = &quot;eh_personality&quot;]
-extern fn eh_personality() {}
-
-#[lang = &quot;panic_fmt&quot;]
-extern fn panic_fmt() {}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;ほとんど上記の記事と同じであるが，&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#[link(name = &quot;libpayload&quot;, kind = &quot;static&quot;)]
-extern {
-    fn putchar(c: u32);
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;でlibpayloadの&lt;code class=&quot;highlighter-rouge&quot;&gt;putchar&lt;/code&gt;の参照を定義しており，&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;#[no_mangle]
-pub extern fn main() {
-    loop{
-        unsafe { putchar(65) };
-    }   
-}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;で上記のputcharを呼び出していることがわかる．&lt;/p&gt;
-
-&lt;p&gt;次に&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;rustc --target i686-unknown-linux-gnu --emit=obj main.rs
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;とかやって&lt;code class=&quot;highlighter-rouge&quot;&gt;main.o&lt;/code&gt;を作成する．&lt;/p&gt;
-
-&lt;p&gt;最後に，あらかじめ作成しておいた&lt;code class=&quot;highlighter-rouge&quot;&gt;libpayload.a&lt;/code&gt;とリンクする．
-ここでは，Libpayloadの&lt;code class=&quot;highlighter-rouge&quot;&gt;lpgcc&lt;/code&gt;を用いる．Libpayloadについては
-&lt;a href=&quot;https://www.coreboot.org/Libpayload&quot;&gt;ここ&lt;/a&gt;を参照のこと．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;~/src/coreboot/payloads/libpayload/bin/lpgcc main.o libpayload.a
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;できた&lt;code class=&quot;highlighter-rouge&quot;&gt;a.out&lt;/code&gt;をcorebootのPayloadに指定すればできあがり．&lt;/p&gt;
-
-&lt;p&gt;以上，ファームウェアといいつつも，
-ただのベアメタルプログラミングであることがわかる．
-しかも一切アセンブリに触れずにできていることからも簡単であると言える．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-&lt;ul&gt;
-  &lt;li&gt;http://keens.github.io/blog/2016/05/04/rustdebeametaruraspberry_pinolchika/&lt;/li&gt;
-  &lt;li&gt;https://www.coreboot.org/Libpayload&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は自作OS Advent Calendar の19日目の記事として書かれた． ここでは，corebootのpayloadをRustを使って作ってみる． corebootはファームウェアなのでOSとは異なるが，そこはご愛嬌ということで．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．</summary></entry></feed>
