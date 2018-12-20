@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>LinuxにおけるEFI Variableをみてみる | retrage.github.io</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="LinuxにおけるEFI Variableをみてみる" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="LinuxにおけるEFI Variableをみてみる" />
+<meta property="og:description" content="LinuxにおけるEFI Variableをみてみる" />
+<link rel="canonical" href="http://localhost:4000/2018/12/20/linux-efivars.html" />
+<meta property="og:url" content="http://localhost:4000/2018/12/20/linux-efivars.html" />
+<meta property="og:site_name" content="retrage.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2018-12-20T10:09:49+09:00" />
+<script type="application/ld+json">
+{"headline":"LinuxにおけるEFI Variableをみてみる","dateModified":"2018-12-20T10:09:49+09:00","url":"http://localhost:4000/2018/12/20/linux-efivars.html","datePublished":"2018-12-20T10:09:49+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2018/12/20/linux-efivars.html"},"description":"LinuxにおけるEFI Variableをみてみる","@type":"BlogPosting","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">LinuxにおけるEFI Variableをみてみる</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2018-12-20T10:09:49+09:00" itemprop="datePublished">Dec 20, 2018
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h1 id="linuxにおけるefi-variableをみてみる">LinuxにおけるEFI Variableをみてみる</h1>
+
+<p>この記事は
+<a href="https://qiita.com/advent-calendar/2018/linux">Linux Advent Calendar 2018</a>
+の20日目の記事として書かれた．
+ここではLinux kerenlにおけるEFI Variableのコードをみていく．</p>
+
+<h2 id="efi-variableとは">EFI Variableとは</h2>
+
+<p>UEFIでは，EFI varibale(EFI変数)というものが存在する．
+これは不揮発性メモリ(NVRAM)に値が書き込まれるため，
+電源を切っても値が失われることなく保存される．
+EFI Variableは起動時の起動の順番などが保存される．</p>
+
+<p>UEFIにはEFI Variablesへの読み書きを行うための機能が
+Runtime Servicesに存在する．
+このため後述するように，OSの起動後もEFI Variableが
+Runtime Servicesを通して利用可能となっている．
+関連する関数は具体的には以下の4つである．</p>
+
+<ul>
+  <li><code class="highlighter-rouge">GetVariables</code></li>
+  <li><code class="highlighter-rouge">GetNextVariablesName</code></li>
+  <li><code class="highlighter-rouge">SetVariables</code></li>
+  <li><code class="highlighter-rouge">QueryVairableInfo</code></li>
+</ul>
+
+<p>EFI Variableはkey-valueの形式になっており，
+文字列keyを入力として，<code class="highlighter-rouge">GetVariables</code>/<code class="highlighter-rouge">SetVariables</code>により
+valueの読み/書きができる．
+Valueを得るために必要なkeyは<code class="highlighter-rouge">GetNextVariableName</code>
+により得ることができる．
+<code class="highlighter-rouge">QueryVairbaleInfo</code>ではEFI Variable全体のについての情報を得ることができる．</p>
+
+<h2 id="linux-kernelにおけるefi-variable">Linux kernelにおけるEFI Variable</h2>
+
+<p>Linux kernelでは，EFI Variableは
+擬似ファイルシステムとして表現され，
+<code class="highlighter-rouge">/sys/firmware/efi/efivars</code>にマウントされる．
+(なお，過去には<code class="highlighter-rouge">sysfs</code>経由でのサポートだったようだが，
+<code class="highlighter-rouge">sysfs</code>の制限のため，別実装となったようである)</p>
+
+<p>ここで実際の<code class="highlighter-rouge">efivars</code>を例示してみる．</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">ls</span> /sys/firmware/efi/efivars
+<span class="c"># snip</span>
+Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c
+Boot0001-8be4df61-93ca-11d2-aa0d-00e098032b8c
+Boot0002-8be4df61-93ca-11d2-aa0d-00e098032b8c
+Boot0003-8be4df61-93ca-11d2-aa0d-00e098032b8c
+<span class="c"># snip</span>
+</code></pre></div></div>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cat</span> /sys/firmware/efi/efivars/Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c
+bubuntu??H??yC??Y??ä?4<span class="se">\E</span>FI<span class="se">\U</span>BUNTU<span class="se">\S</span>HIMX64.EFI?%
+</code></pre></div></div>
+
+<p>このように，0000には現在起動しているUbuntuについてのパスが保存されていることがわかる．</p>
+
+<h2 id="efivarsの実装">efivarsの実装</h2>
+
+<p>ではここから実際にefivarsの実装をみていく．
+トップダウンに<code class="highlighter-rouge">efivarfs</code>の実装から
+どのようにEFI Variableがファイルにマップされるかを見て，
+次にRuntime Servicesがどのように呼ばれるかを見ていく．
+参照するLnux kernelはmainlineのv4.20-rc2(ccda4af0f4b92f7b4c308d3acc262f4a7e3affad)
+である．</p>
+
+<h3 id="efivarfsの初期化">efivarfsの初期化</h3>
+
+<p><code class="highlighter-rouge">efivarfs</code>の実装は<code class="highlighter-rouge">fs/efivarfs/</code>にある．
+最初に<code class="highlighter-rouge">fs/efivarfs/super.c</code>をみる．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">__init</span> <span class="kt">int</span> <span class="nf">efivarfs_init</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">efi_enabled</span><span class="p">(</span><span class="n">EFI_RUNTIME_SERVICES</span><span class="p">))</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">ENODEV</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">efivars_kobject</span><span class="p">())</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">ENODEV</span><span class="p">;</span>
+
+    <span class="k">return</span> <span class="n">register_filesystem</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivarfs_type</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Linux kernel初期化時に<code class="highlighter-rouge">efivarfs</code>の初期化が
+<code class="highlighter-rouge">efivarfs_init</code>により行われて<code class="highlighter-rouge">efivarfs</code>がマウントされる．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="k">struct</span> <span class="n">file_system_type</span> <span class="n">efivarfs_type</span> <span class="o">=</span> <span class="p">{</span> 
+    <span class="p">.</span><span class="n">owner</span>   <span class="o">=</span> <span class="n">THIS_MODULE</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">name</span>    <span class="o">=</span> <span class="s">"efivarfs"</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">mount</span>   <span class="o">=</span> <span class="n">efivarfs_mount</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">kill_sb</span> <span class="o">=</span> <span class="n">efivarfs_kill_sb</span><span class="p">,</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="k">struct</span> <span class="n">dentry</span> <span class="o">*</span><span class="nf">efivarfs_mount</span><span class="p">(</span><span class="k">struct</span> <span class="n">file_system_type</span> <span class="o">*</span><span class="n">fs_type</span><span class="p">,</span>
+                    <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">dev_name</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>   
+    <span class="k">return</span> <span class="n">mount_single</span><span class="p">(</span><span class="n">fs_type</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">efivarfs_fill_super</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>辿っていくと，<code class="highlighter-rouge">efivarfs_fill_super</code>が
+<code class="highlighter-rouge">mount_single</code>により実行される．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">int</span> <span class="nf">efivarfs_fill_super</span><span class="p">(</span><span class="k">struct</span> <span class="n">super_block</span> <span class="o">*</span><span class="n">sb</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="kt">int</span> <span class="n">silent</span><span class="p">)</span>
+<span class="p">{</span>   
+    <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">inode</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">dentry</span> <span class="o">*</span><span class="n">root</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">err</span><span class="p">;</span>
+    
+    <span class="n">efivarfs_sb</span> <span class="o">=</span> <span class="n">sb</span><span class="p">;</span>
+    
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_maxbytes</span>          <span class="o">=</span> <span class="n">MAX_LFS_FILESIZE</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_blocksize</span>         <span class="o">=</span> <span class="n">PAGE_SIZE</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_blocksize_bits</span>    <span class="o">=</span> <span class="n">PAGE_SHIFT</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_magic</span>             <span class="o">=</span> <span class="n">EFIVARFS_MAGIC</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_op</span>                <span class="o">=</span> <span class="o">&amp;</span><span class="n">efivarfs_ops</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_d_op</span>      <span class="o">=</span> <span class="o">&amp;</span><span class="n">efivarfs_d_ops</span><span class="p">;</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_time_gran</span>         <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+    
+    <span class="n">inode</span> <span class="o">=</span> <span class="n">efivarfs_get_inode</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="n">S_IFDIR</span> <span class="o">|</span> <span class="mo">0755</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="nb">true</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">inode</span><span class="p">)</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">ENOMEM</span><span class="p">;</span>
+    <span class="n">inode</span><span class="o">-&gt;</span><span class="n">i_op</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">efivarfs_dir_inode_operations</span><span class="p">;</span>
+    
+    <span class="n">root</span> <span class="o">=</span> <span class="n">d_make_root</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+    <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_root</span> <span class="o">=</span> <span class="n">root</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">root</span><span class="p">)</span> 
+        <span class="k">return</span> <span class="o">-</span><span class="n">ENOMEM</span><span class="p">;</span>
+    
+    <span class="n">INIT_LIST_HEAD</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivarfs_list</span><span class="p">);</span>
+    
+    <span class="n">err</span> <span class="o">=</span> <span class="n">efivar_init</span><span class="p">(</span><span class="n">efivarfs_callback</span><span class="p">,</span> <span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="p">)</span><span class="n">sb</span><span class="p">,</span> <span class="nb">true</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">efivarfs_list</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="n">__efivar_entry_iter</span><span class="p">(</span><span class="n">efivarfs_destroy</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">efivarfs_list</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+    
+    <span class="k">return</span> <span class="n">err</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>ここでファイルシステムの中身を作成している．
+最初に<code class="highlighter-rouge">/sys/firmware/efi/efivar</code>が作成され，
+<code class="highlighter-rouge">efivar_init</code>により<code class="highlighter-rouge">efivarfs_list</code>に
+EFI Variableのエントリが追加される．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/**
+ * efivar_init - build the initial list of EFI variables
+ * @func: callback function to invoke for every variable
+ * @data: function-specific data to pass to @func
+ * @atomic: do we need to execute the @func-loop atomically?
+ * @duplicates: error if we encounter duplicates on @head?
+ * @head: initialised head of variable list
+ *
+ * Get every EFI variable from the firmware and invoke @func. @func
+ * should call efivar_entry_add() to build the list of variables.
+ *
+ * Returns 0 on success, or a kernel error code on failure.
+ */</span>
+<span class="kt">int</span> <span class="nf">efivar_init</span><span class="p">(</span><span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">func</span><span class="p">)(</span><span class="n">efi_char16_t</span> <span class="o">*</span><span class="p">,</span> <span class="n">efi_guid_t</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">long</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="p">),</span>
+        <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="n">bool</span> <span class="n">duplicates</span><span class="p">,</span> <span class="k">struct</span> <span class="n">list_head</span> <span class="o">*</span><span class="n">head</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">const</span> <span class="k">struct</span> <span class="n">efivar_operations</span> <span class="o">*</span><span class="n">ops</span> <span class="o">=</span> <span class="n">__efivars</span><span class="o">-&gt;</span><span class="n">ops</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">variable_name_size</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">;</span> 
+    <span class="n">efi_char16_t</span> <span class="o">*</span><span class="n">variable_name</span><span class="p">;</span>
+    <span class="n">efi_status_t</span> <span class="n">status</span><span class="p">;</span>
+    <span class="n">efi_guid_t</span> <span class="n">vendor_guid</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="cm">/* snip */</span>
+    <span class="k">do</span> <span class="p">{</span>
+        <span class="n">variable_name_size</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">;</span>
+
+        <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">-&gt;</span><span class="n">get_next_variable</span><span class="p">(</span><span class="o">&amp;</span><span class="n">variable_name_size</span><span class="p">,</span>
+                        <span class="n">variable_name</span><span class="p">,</span>
+                        <span class="o">&amp;</span><span class="n">vendor_guid</span><span class="p">);</span>
+        <span class="k">switch</span> <span class="p">(</span><span class="n">status</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">case</span> <span class="n">EFI_SUCCESS</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">duplicates</span><span class="p">)</span>
+                <span class="n">up</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivars_lock</span><span class="p">);</span>
+
+            <span class="n">variable_name_size</span> <span class="o">=</span> <span class="n">var_name_strnsize</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span>
+                                   <span class="n">variable_name_size</span><span class="p">);</span>
+
+            <span class="cm">/*
+             * Some firmware implementations return the
+             * same variable name on multiple calls to
+             * get_next_variable(). Terminate the loop
+             * immediately as there is no guarantee that
+             * we'll ever see a different variable name,
+             * and may end up looping here forever.
+             */</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">duplicates</span> <span class="o">&amp;&amp;</span>
+                <span class="n">variable_is_present</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">vendor_guid</span><span class="p">,</span>
+                        <span class="n">head</span><span class="p">))</span> <span class="p">{</span>
+                <span class="n">dup_variable_bug</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">vendor_guid</span><span class="p">,</span>
+                         <span class="n">variable_name_size</span><span class="p">);</span>
+                <span class="n">status</span> <span class="o">=</span> <span class="n">EFI_NOT_FOUND</span><span class="p">;</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">variable_name</span><span class="p">,</span> <span class="n">vendor_guid</span><span class="p">,</span>
+                       <span class="n">variable_name_size</span><span class="p">,</span> <span class="n">data</span><span class="p">);</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">err</span><span class="p">)</span>
+                    <span class="n">status</span> <span class="o">=</span> <span class="n">EFI_NOT_FOUND</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">duplicates</span><span class="p">)</span> <span class="p">{</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">down_interruptible</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivars_lock</span><span class="p">))</span> <span class="p">{</span>
+                    <span class="n">err</span> <span class="o">=</span> <span class="o">-</span><span class="n">EINTR</span><span class="p">;</span>
+                    <span class="k">goto</span> <span class="n">free</span><span class="p">;</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+
+            <span class="k">break</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">efivar_init</code>では，
+<code class="highlighter-rouge">ops-&gt;get_next_variable</code>により
+実際にRuntimeServices-&gt;GetNextVariableが呼ばれ，
+EFI Variableが読み出される．
+なお，コメントにあるように，いくつかのUEFI Firmwareの実装では
+複数のGetNextVariableの呼び出しにより同じEFI Variableが得られてしまう
+というバグがあるため，重複があった場合，<code class="highlighter-rouge">dup_variable_bug</code>により
+これを処理し，do-whileを抜けるようになっているようである．</p>
+
+<p>さて，問題がない場合は，引数として渡される<code class="highlighter-rouge">func</code>を呼び出す．
+これは<code class="highlighter-rouge">efivarfs_callback</code>となっている．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">int</span> <span class="nf">efivarfs_callback</span><span class="p">(</span><span class="n">efi_char16_t</span> <span class="o">*</span><span class="n">name16</span><span class="p">,</span> <span class="n">efi_guid_t</span> <span class="n">vendor</span><span class="p">,</span>
+                 <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">name_size</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">struct</span> <span class="n">super_block</span> <span class="o">*</span><span class="n">sb</span> <span class="o">=</span> <span class="p">(</span><span class="k">struct</span> <span class="n">super_block</span> <span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">efivar_entry</span> <span class="o">*</span><span class="n">entry</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">inode</span> <span class="o">=</span> <span class="nb">NULL</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">dentry</span> <span class="o">*</span><span class="n">dentry</span><span class="p">,</span> <span class="o">*</span><span class="n">root</span> <span class="o">=</span> <span class="n">sb</span><span class="o">-&gt;</span><span class="n">s_root</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="o">*</span><span class="n">name</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">len</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">err</span> <span class="o">=</span> <span class="o">-</span><span class="n">ENOMEM</span><span class="p">;</span>
+    <span class="n">bool</span> <span class="n">is_removable</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="cm">/* snip */</span>
+    <span class="n">inode</span> <span class="o">=</span> <span class="n">efivarfs_get_inode</span><span class="p">(</span><span class="n">sb</span><span class="p">,</span> <span class="n">d_inode</span><span class="p">(</span><span class="n">root</span><span class="p">),</span> <span class="n">S_IFREG</span> <span class="o">|</span> <span class="mo">0644</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span>
+                   <span class="n">is_removable</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">inode</span><span class="p">)</span>
+        <span class="k">goto</span> <span class="n">fail_name</span><span class="p">;</span>
+
+    <span class="n">dentry</span> <span class="o">=</span> <span class="n">efivarfs_alloc_dentry</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">name</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">IS_ERR</span><span class="p">(</span><span class="n">dentry</span><span class="p">))</span> <span class="p">{</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">PTR_ERR</span><span class="p">(</span><span class="n">dentry</span><span class="p">);</span>
+        <span class="k">goto</span> <span class="n">fail_inode</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">efivar_entry_size</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">size</span><span class="p">);</span>
+    <span class="n">err</span> <span class="o">=</span> <span class="n">efivar_entry_add</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">efivarfs_list</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">err</span><span class="p">)</span>
+        <span class="k">goto</span> <span class="n">fail_inode</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">efivarfs_callback</code>では，
+得られたEFI Variableに対応するファイルを作成して追加する．</p>
+
+<p>以上が<code class="highlighter-rouge">efivarfs</code>の初期化の流れとなっている．</p>
+
+<h2 id="efivarfsのreadwrite">efivarfsのread/write</h2>
+
+<p>次に<code class="highlighter-rouge">efivarfs</code>でのread/write時の動作をみてみる．</p>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="k">struct</span> <span class="n">file_operations</span> <span class="n">efivarfs_file_operations</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">.</span><span class="n">open</span>   <span class="o">=</span> <span class="n">simple_open</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">read</span>   <span class="o">=</span> <span class="n">efivarfs_file_read</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">write</span>  <span class="o">=</span> <span class="n">efivarfs_file_write</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">llseek</span> <span class="o">=</span> <span class="n">no_llseek</span><span class="p">,</span>
+    <span class="p">.</span><span class="n">unlocked_ioctl</span> <span class="o">=</span> <span class="n">efivarfs_file_ioctl</span><span class="p">,</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>より，<code class="highlighter-rouge">efivarfs_file_read</code>と<code class="highlighter-rouge">efivarfs_file_write</code>に集約されている．</p>
+
+<h3 id="read時">read時</h3>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">ssize_t</span> <span class="nf">efivarfs_file_read</span><span class="p">(</span><span class="k">struct</span> <span class="n">file</span> <span class="o">*</span><span class="n">file</span><span class="p">,</span> <span class="kt">char</span> <span class="n">__user</span> <span class="o">*</span><span class="n">userbuf</span><span class="p">,</span>
+        <span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="n">loff_t</span> <span class="o">*</span><span class="n">ppos</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">struct</span> <span class="n">efivar_entry</span> <span class="o">*</span><span class="n">var</span> <span class="o">=</span> <span class="n">file</span><span class="o">-&gt;</span><span class="n">private_data</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">datasize</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="n">u32</span> <span class="n">attributes</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+    <span class="kt">ssize_t</span> <span class="n">size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">err</span><span class="p">;</span>
+    <span class="cm">/* snip */</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="n">efivar_entry_get</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">attributes</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">datasize</span><span class="p">,</span>
+                <span class="n">data</span> <span class="o">+</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">attributes</span><span class="p">));</span>
+</code></pre></div></div>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">efivar_entry_get</span><span class="p">(</span><span class="k">struct</span> <span class="n">efivar_entry</span> <span class="o">*</span><span class="n">entry</span><span class="p">,</span> <span class="n">u32</span> <span class="o">*</span><span class="n">attributes</span><span class="p">,</span>
+             <span class="kt">unsigned</span> <span class="kt">long</span> <span class="o">*</span><span class="n">size</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">const</span> <span class="k">struct</span> <span class="n">efivar_operations</span> <span class="o">*</span><span class="n">ops</span> <span class="o">=</span> <span class="n">__efivars</span><span class="o">-&gt;</span><span class="n">ops</span><span class="p">;</span>
+    <span class="n">efi_status_t</span> <span class="n">status</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">down_interruptible</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivars_lock</span><span class="p">))</span>
+        <span class="k">return</span> <span class="o">-</span><span class="n">EINTR</span><span class="p">;</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">-&gt;</span><span class="n">get_variable</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VariableName</span><span class="p">,</span>
+                   <span class="o">&amp;</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VendorGuid</span><span class="p">,</span>
+                   <span class="n">attributes</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">data</span><span class="p">);</span>
+    <span class="n">up</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivars_lock</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">efi_status_to_err</span><span class="p">(</span><span class="n">status</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>このように，
+<code class="highlighter-rouge">efivarfs_file_read</code>-&gt;<code class="highlighter-rouge">efivar_entry_get</code>-&gt;<code class="highlighter-rouge">get_variable</code>
+によりread時にRuntimeServices-&gt;GetVariableを呼び出していることがわかる．</p>
+
+<h3 id="write時">write時</h3>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">ssize_t</span> <span class="nf">efivarfs_file_write</span><span class="p">(</span><span class="k">struct</span> <span class="n">file</span> <span class="o">*</span><span class="n">file</span><span class="p">,</span>
+        <span class="k">const</span> <span class="kt">char</span> <span class="n">__user</span> <span class="o">*</span><span class="n">userbuf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="n">loff_t</span> <span class="o">*</span><span class="n">ppos</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">struct</span> <span class="n">efivar_entry</span> <span class="o">*</span><span class="n">var</span> <span class="o">=</span> <span class="n">file</span><span class="o">-&gt;</span><span class="n">private_data</span><span class="p">;</span>
+    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+    <span class="n">u32</span> <span class="n">attributes</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">inode</span> <span class="o">*</span><span class="n">inode</span> <span class="o">=</span> <span class="n">file</span><span class="o">-&gt;</span><span class="n">f_mapping</span><span class="o">-&gt;</span><span class="n">host</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">long</span> <span class="n">datasize</span> <span class="o">=</span> <span class="n">count</span> <span class="o">-</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">attributes</span><span class="p">);</span>
+    <span class="kt">ssize_t</span> <span class="n">bytes</span><span class="p">;</span>
+    <span class="n">bool</span> <span class="n">set</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+    <span class="cm">/* snip */</span>
+    <span class="n">bytes</span> <span class="o">=</span> <span class="n">efivar_entry_set_get_size</span><span class="p">(</span><span class="n">var</span><span class="p">,</span> <span class="n">attributes</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">datasize</span><span class="p">,</span>
+                      <span class="n">data</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">set</span><span class="p">);</span>
+    <span class="cm">/* snip */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">bytes</span> <span class="o">==</span> <span class="o">-</span><span class="n">ENOENT</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">drop_nlink</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+        <span class="n">d_delete</span><span class="p">(</span><span class="n">file</span><span class="o">-&gt;</span><span class="n">f_path</span><span class="p">.</span><span class="n">dentry</span><span class="p">);</span>
+        <span class="n">dput</span><span class="p">(</span><span class="n">file</span><span class="o">-&gt;</span><span class="n">f_path</span><span class="p">.</span><span class="n">dentry</span><span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+        <span class="n">inode_lock</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+        <span class="n">i_size_write</span><span class="p">(</span><span class="n">inode</span><span class="p">,</span> <span class="n">datasize</span> <span class="o">+</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">attributes</span><span class="p">));</span>
+        <span class="n">inode_unlock</span><span class="p">(</span><span class="n">inode</span><span class="p">);</span>
+    <span class="p">}</span> 
+</code></pre></div></div>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="nf">efivar_entry_set_get_size</span><span class="p">(</span><span class="k">struct</span> <span class="n">efivar_entry</span> <span class="o">*</span><span class="n">entry</span><span class="p">,</span> <span class="n">u32</span> <span class="n">attributes</span><span class="p">,</span>
+                  <span class="kt">unsigned</span> <span class="kt">long</span> <span class="o">*</span><span class="n">size</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">,</span> <span class="n">bool</span> <span class="o">*</span><span class="n">set</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">const</span> <span class="k">struct</span> <span class="n">efivar_operations</span> <span class="o">*</span><span class="n">ops</span> <span class="o">=</span> <span class="n">__efivars</span><span class="o">-&gt;</span><span class="n">ops</span><span class="p">;</span>
+    <span class="n">efi_char16_t</span> <span class="o">*</span><span class="n">name</span> <span class="o">=</span> <span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VariableName</span><span class="p">;</span>
+    <span class="n">efi_guid_t</span> <span class="o">*</span><span class="n">vendor</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VendorGuid</span><span class="p">;</span>
+    <span class="n">efi_status_t</span> <span class="n">status</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">err</span><span class="p">;</span>
+    <span class="cm">/* snip */</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">-&gt;</span><span class="n">set_variable</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">vendor</span><span class="p">,</span> <span class="n">attributes</span><span class="p">,</span> <span class="o">*</span><span class="n">size</span><span class="p">,</span> <span class="n">data</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">!=</span> <span class="n">EFI_SUCCESS</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">err</span> <span class="o">=</span> <span class="n">efi_status_to_err</span><span class="p">(</span><span class="n">status</span><span class="p">);</span>
+        <span class="k">goto</span> <span class="n">out</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="o">*</span><span class="n">size</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+
+    <span class="cm">/*
+     * Writing to the variable may have caused a change in size (which
+     * could either be an append or an overwrite), or the variable to be
+     * deleted. Perform a GetVariable() so we can tell what actually
+     * happened.
+     */</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">ops</span><span class="o">-&gt;</span><span class="n">get_variable</span><span class="p">(</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VariableName</span><span class="p">,</span>
+                   <span class="o">&amp;</span><span class="n">entry</span><span class="o">-&gt;</span><span class="n">var</span><span class="p">.</span><span class="n">VendorGuid</span><span class="p">,</span>
+                   <span class="nb">NULL</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">status</span> <span class="o">==</span> <span class="n">EFI_NOT_FOUND</span><span class="p">)</span>
+        <span class="n">efivar_entry_list_del_unlock</span><span class="p">(</span><span class="n">entry</span><span class="p">);</span>
+    <span class="k">else</span>
+        <span class="n">up</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efivars_lock</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>write時も同様にして
+<code class="highlighter-rouge">efivarfs_file_write</code>-&gt;<code class="highlighter-rouge">efivar_entry_set_get_size</code>-&gt;<code class="highlighter-rouge">set_variable</code>
+により与えられたデータをEFI Variableとして書き込んでいる．
+コメントにあるように，RuntimeServices-&gt;GetVariableを実行し，
+データの追加や上書き，削除のどれがなされたかを<code class="highlighter-rouge">size</code>により判定する．
+<code class="highlighter-rouge">efivar_entry_set_get_size</code>の返り値<code class="highlighter-rouge">bytes</code>により，
+ファイルを削除するか，サイズを変更するなどの操作を行う．</p>
+
+<h3 id="runtime-servicesの呼び出しに関するtips">Runtime Servicesの呼び出しに関するTips</h3>
+
+<div class="language-c highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">efi_status_t</span> <span class="nf">virt_efi_get_variable</span><span class="p">(</span><span class="n">efi_char16_t</span> <span class="o">*</span><span class="n">name</span><span class="p">,</span>
+                      <span class="n">efi_guid_t</span> <span class="o">*</span><span class="n">vendor</span><span class="p">,</span>
+                      <span class="n">u32</span> <span class="o">*</span><span class="n">attr</span><span class="p">,</span>
+                      <span class="kt">unsigned</span> <span class="kt">long</span> <span class="o">*</span><span class="n">data_size</span><span class="p">,</span>
+                      <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="n">efi_status_t</span> <span class="n">status</span><span class="p">;</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">down_interruptible</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efi_runtime_lock</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">EFI_ABORTED</span><span class="p">;</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">efi_queue_work</span><span class="p">(</span><span class="n">GET_VARIABLE</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">vendor</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">data_size</span><span class="p">,</span>
+                <span class="n">data</span><span class="p">);</span>
+    <span class="n">up</span><span class="p">(</span><span class="o">&amp;</span><span class="n">efi_runtime_lock</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">status</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Linux kernelにおいて，
+UEFI Runtime Servicesを呼び出す場合には，
+<code class="highlighter-rouge">efi_runtime_lock</code>セマフォをdownしてから
+実行すべきUEFIサービスを<code class="highlighter-rouge">efi_queue_work</code>キューに挿入して
+実行させ，最後にセマフォをupさせている．
+(例外もあり，nonblockingな呼び出しも存在する)</p>
+
+<p>OSを自作する際にも参考にしたい工夫である．</p>
+
+  </div><a class="u-url" href="/2018/12/20/linux-efivars.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">retrage.github.io</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">retrage.github.io</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Blog posts by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
