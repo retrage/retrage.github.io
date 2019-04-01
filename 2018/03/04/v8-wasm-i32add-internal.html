@@ -2,9 +2,9 @@
 <html lang="en"><head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.0 -->
 <title>Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる | retrage.github.io</title>
-<meta name="generator" content="Jekyll v3.8.3" />
+<meta name="generator" content="Jekyll v3.8.5" />
 <meta property="og:title" content="Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる" />
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．" />
@@ -15,7 +15,7 @@
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2018-03-04T14:43:55+09:00" />
 <script type="application/ld+json">
-{"headline":"Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる","dateModified":"2018-03-04T14:43:55+09:00","url":"/2018/03/04/v8-wasm-i32add-internal.html","datePublished":"2018-03-04T14:43:55+09:00","mainEntityOfPage":{"@type":"WebPage","@id":"/2018/03/04/v8-wasm-i32add-internal.html"},"description":"WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．","@type":"BlogPosting","@context":"http://schema.org"}</script>
+{"datePublished":"2018-03-04T14:43:55+09:00","dateModified":"2018-03-04T14:43:55+09:00","url":"/2018/03/04/v8-wasm-i32add-internal.html","mainEntityOfPage":{"@type":"WebPage","@id":"/2018/03/04/v8-wasm-i32add-internal.html"},"description":"WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmがどのように実装され，実行されるのかを見ていく． 参照する実装はGoogle V8 JavaScript Engineの 1b254a25163fd84a7696ff62e87cb6dcde7e13f2である．","@type":"BlogPosting","headline":"Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 <link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
