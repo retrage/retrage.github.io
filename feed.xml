@@ -1,4 +1,86 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-04-13T12:21:27+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</title><link href="http://localhost:4000/2019/04/13/efi-book2-ad.html" rel="alternate" type="text/html" title="技術書典6で新刊「UEFI読本 GRUB編」を頒布" /><published>2019-04-13T12:18:33+09:00</published><updated>2019-04-13T12:18:33+09:00</updated><id>http://localhost:4000/2019/04/13/efi-book2-ad</id><content type="html" xml:base="http://localhost:4000/2019/04/13/efi-book2-ad.html">&lt;h1 id=&quot;技術書典6で新刊uefi読本-grub編を頒布&quot;&gt;技術書典6で新刊「UEFI読本 GRUB編」を頒布&lt;/h1&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-05-12T17:51:18+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">正規表現からLLVM IRを生成する</title><link href="http://localhost:4000/2019/05/12/regex-to-llvm-ir.html" rel="alternate" type="text/html" title="正規表現からLLVM IRを生成する" /><published>2019-05-12T17:47:26+09:00</published><updated>2019-05-12T17:47:26+09:00</updated><id>http://localhost:4000/2019/05/12/regex-to-llvm-ir</id><content type="html" xml:base="http://localhost:4000/2019/05/12/regex-to-llvm-ir.html">&lt;h1 id=&quot;正規表現からllvm-irを生成する&quot;&gt;正規表現からLLVM IRを生成する&lt;/h1&gt;
+
+&lt;p&gt;正規表現は文字列マッチングなどに広く用いられている形式言語であるが，
+等価な決定性有限オートマトン(DFA)に変換できることが知られている．
+&lt;a href=&quot;https://github.com/google/redgrep&quot;&gt;google/redgrep&lt;/a&gt;
+は与えられた正規表現から等価なDFAに相当するネイティブコードを
+LLVMにより生成する．
+ここではredgrepを改造して
+正規表現からどのようなLLVM IRが生成されるのかをみてみる．&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;redll&lt;/code&gt;というツールを追加した．コードは&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/retrage/redgrep/tree/retrage/redll&quot;&gt;https://github.com/retrage/redgrep/tree/retrage/redll&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;に置いてある．&lt;/p&gt;
+
+&lt;h2 id=&quot;使い方&quot;&gt;使い方&lt;/h2&gt;
+
+&lt;p&gt;最初にLLVMのソースコードをダウンロードして
+ビルドしてローカルの適当な場所にインストールしておく．
+redgrepは新しいLLVMを要求するのでLLVM 8.0.0あたりを入れておく．
+redgrepのビルドが通るようにパスを通す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ export LLVM_CONFIG=/path/to/bin/llvm-config
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;とかやってからredgrepをビルドする．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./redll &quot;regex&quot;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;で遊べる．&lt;/p&gt;
+
+&lt;h2 id=&quot;例-a&quot;&gt;例: “a”&lt;/h2&gt;
+
+&lt;p&gt;試しに正規表現パターン”a”がどのようになるのかを以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./redll &quot;a&quot;
+; dfa is 3 states
+; ModuleID = 'M'
+source_filename = &quot;M&quot;
+target datalayout = &quot;e-m:e-i64:64-f80:128-n8:16:32:64-S128&quot;
+
+; Function Attrs: norecurse nounwind readonly
+define i1 @F(i8* nocapture readonly, i64) local_unnamed_addr #0 {
+entry:
+  %2 = icmp eq i64 %1, 0
+  br i1 %2, label %return_true, label %3
+
+return_true:                                      ; preds = %3, %entry
+  ret i1 false
+
+; &amp;lt;label&amp;gt;:3:                                      ; preds = %entry
+  %4 = load i8, i8* %0, align 1
+  %cond = icmp eq i8 %4, 97
+  br i1 %cond, label %5, label %return_true
+
+; &amp;lt;label&amp;gt;:5:                                      ; preds = %3
+  %6 = icmp eq i64 %1, 1
+  ret i1 %6
+}
+
+attributes #0 = { norecurse nounwind readonly }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでは&lt;code class=&quot;highlighter-rouge&quot;&gt;F&lt;/code&gt;という関数があり，
+入力が0であれば&lt;code class=&quot;highlighter-rouge&quot;&gt;false&lt;/code&gt;を返し，
+そうでなければ入力から1文字取り出し
+&lt;code class=&quot;highlighter-rouge&quot;&gt;97&lt;/code&gt;=&lt;code class=&quot;highlighter-rouge&quot;&gt;a&lt;/code&gt;であれば&lt;code class=&quot;highlighter-rouge&quot;&gt;1&lt;/code&gt;=&lt;code class=&quot;highlighter-rouge&quot;&gt;true&lt;/code&gt;を返す，
+というような状態機械になっていることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;他にも色々面白く遊べるはずなので試してほしい．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/google/redgrep&lt;/li&gt;
+  &lt;li&gt;https://github.com/retrage/redgrep&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">正規表現からLLVM IRを生成する</summary></entry><entry><title type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</title><link href="http://localhost:4000/2019/04/13/efi-book2-ad.html" rel="alternate" type="text/html" title="技術書典6で新刊「UEFI読本 GRUB編」を頒布" /><published>2019-04-13T12:18:33+09:00</published><updated>2019-04-13T12:18:33+09:00</updated><id>http://localhost:4000/2019/04/13/efi-book2-ad</id><content type="html" xml:base="http://localhost:4000/2019/04/13/efi-book2-ad.html">&lt;h1 id=&quot;技術書典6で新刊uefi読本-grub編を頒布&quot;&gt;技術書典6で新刊「UEFI読本 GRUB編」を頒布&lt;/h1&gt;
 
 &lt;p&gt;2019年4月14日に池袋サンシャインシティで開催される
 技術書典6において「海洋軟件」として
@@ -2369,90 +2451,4 @@ $ export GCCRISCV32_TOOLCHAIN_PATH=~/rv32
 $ make
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;これで，ビルドされ&lt;code class=&quot;highlighter-rouge&quot;&gt;build/zephyr/zephyr.elf&lt;/code&gt;が生成される．&lt;/p&gt;</content><author><name></name></author><summary type="html">HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである． 一方，Zephyrは，Linux Foundationにより開発が進められている組み込み向けOSである． upstreamのZephyrはHiFive1に対応している． ここでは，ZephyrをHiFive1向けにビルドしてみる．</summary></entry><entry><title type="html">RustでBrainfuck処理系を高速化して遊んでみる</title><link href="http://localhost:4000/2018/06/18/brainfuck-performance.html" rel="alternate" type="text/html" title="RustでBrainfuck処理系を高速化して遊んでみる" /><published>2018-06-18T22:37:02+09:00</published><updated>2018-06-18T22:37:02+09:00</updated><id>http://localhost:4000/2018/06/18/brainfuck-performance</id><content type="html" xml:base="http://localhost:4000/2018/06/18/brainfuck-performance.html">&lt;p&gt;Brainfuckとは&lt;code class=&quot;highlighter-rouge&quot;&gt;&amp;gt;&amp;lt;+-.,[]&lt;/code&gt;の8つの命令からなるプログラミング言語である．
-実装が簡単であるために，すでに多くの言語によって実装がなされている．
-ここでは，
-&lt;a href=&quot;https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-1-an-interpreter.html&quot;&gt;Adventures in JIT compilation: Part 1 - an interpreter&lt;/a&gt;
-を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．&lt;/p&gt;
-
-&lt;h2 id=&quot;brainfuckの実装&quot;&gt;Brainfuckの実装&lt;/h2&gt;
-
-&lt;p&gt;実装したBrainfuckは&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;simpleinterp&lt;/li&gt;
-  &lt;li&gt;optinterp&lt;/li&gt;
-  &lt;li&gt;optinterp2&lt;/li&gt;
-  &lt;li&gt;optinterp3&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;の4通りがある．&lt;/p&gt;
-
-&lt;p&gt;simpleinterpは素朴な実装であり，高速化はなされていない．
-optinterpは&lt;code class=&quot;highlighter-rouge&quot;&gt;[&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;]&lt;/code&gt;の対応表を実行時に作成することにより最適化を図っている．
-optinterp2は8つの命令に加えて高水準な命令を定義し，
-局所的に実行される命令をそれらの命令に置き換えることで最適化を行う．
-optinterp3はさらに実行されるループに使われるパターンを高水準な命令に置き換え，最適化を行う．&lt;/p&gt;
-
-&lt;p&gt;実装の概要については
-&lt;a href=&quot;https://speakerdeck.com/retrage/brainf-star-ckfalsegao-su-hua-1&quot;&gt;BrainFuckの高速化&lt;/a&gt;
-において解説している．&lt;/p&gt;
-
-&lt;h2 id=&quot;ベンチマークと計測方法&quot;&gt;ベンチマークと計測方法&lt;/h2&gt;
-
-&lt;p&gt;先に挙げたブログ内では
-&lt;code class=&quot;highlighter-rouge&quot;&gt;mandelbrot&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;factor&lt;/code&gt;の2つのスクリプトをベンチマークに用いている．
-ここでもこれらのスクリプトを用いることとする．&lt;/p&gt;
-
-&lt;p&gt;実行速度の計測には&lt;code class=&quot;highlighter-rouge&quot;&gt;time&lt;/code&gt;を用いる．
-計測時には&lt;code class=&quot;highlighter-rouge&quot;&gt;--release&lt;/code&gt;オプションを指定し，最適化がなされるようにした．&lt;/p&gt;
-
-&lt;p&gt;実行環境は&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MacBook Air (11-inch, Early 2014)
-CPU: 1.7 GHz Intel Core i7
-RAM: 8GB 1600 MHz DDR3
-OS: macOS High Sierra 10.13.5
-cargo: 1.26.0
-rustc: 1.26.2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;である．&lt;/p&gt;
-
-&lt;h2 id=&quot;mandelbrot&quot;&gt;mandelbrot&lt;/h2&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;mandelbrot&lt;/code&gt;の場合の比較．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;simpleinterp: cargo run --release mandelbrot.bf  47.78s user 0.14s system 99% cpu 48.037 total
-optinterp:    cargo run --release mandelbrot.bf  25.90s user 0.10s system 99% cpu 26.080 total
-optinterp2:   cargo run --release mandelbrot.bf  8.30s user 0.08s system 99% cpu 8.443 total
-optinterp3:   cargo run --release mandelbrot.bf  6.46s user 0.09s system 99% cpu 6.617 total
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/bf-perf-mandelbrot.png&quot; alt=&quot;Mandelbrot Performance&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;factor&quot;&gt;factor&lt;/h2&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;factor&lt;/code&gt;の場合の比較&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;simpleinterp: cargo run --release factor.bf &amp;lt; prime  17.16s user 0.10s system 99% cpu 17.321 total
-optinterp:    cargo run --release factor.bf &amp;lt; prime  9.64s user 0.09s system 99% cpu 9.790 total
-optinterp2:   cargo run --release factor.bf &amp;lt; prime  3.45s user 0.09s system 98% cpu 3.611 total
-optinterp3:   cargo run --release factor.bf &amp;lt; prime  2.93s user 0.07s system 98% cpu 3.039 total
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/bf-perf-factor.png&quot; alt=&quot;Factor Performace&quot; /&gt;&lt;/p&gt;
-
-&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
-
-&lt;p&gt;いずれのスクリプトの場合でも
-simpleinterp &amp;gt; optinterp &amp;gt; optinterp2 &amp;gt; optinterp3
-の順の実行時間であった．これは元記事とも一致する．
-さらに元記事のようにJITなどを用いて最適化することも考えられる．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://eli.thegreenplace.net/2017/adventures-in-jit-compilation-part-1-an-interpreter.html&lt;/li&gt;
-  &lt;li&gt;https://github.com/retrage/brainfuck-rs&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">Brainfuckとは&amp;gt;&amp;lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．</summary></entry></feed>
+&lt;p&gt;これで，ビルドされ&lt;code class=&quot;highlighter-rouge&quot;&gt;build/zephyr/zephyr.elf&lt;/code&gt;が生成される．&lt;/p&gt;</content><author><name></name></author><summary type="html">HiFive1とは，SiFiveによって開発されたRISC-V搭載のArduino互換ボードである． 一方，Zephyrは，Linux Foundationにより開発が進められている組み込み向けOSである． upstreamのZephyrはHiFive1に対応している． ここでは，ZephyrをHiFive1向けにビルドしてみる．</summary></entry></feed>
