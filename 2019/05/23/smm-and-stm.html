@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.0 -->
+<title>SMMとSTMについて | retrage.github.io</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="SMMとSTMについて" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="SMMとSTMについて" />
+<meta property="og:description" content="SMMとSTMについて" />
+<link rel="canonical" href="/2019/05/23/smm-and-stm.html" />
+<meta property="og:url" content="/2019/05/23/smm-and-stm.html" />
+<meta property="og:site_name" content="retrage.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-05-23T14:55:34+09:00" />
+<script type="application/ld+json">
+{"datePublished":"2019-05-23T14:55:34+09:00","dateModified":"2019-05-23T14:55:34+09:00","url":"/2019/05/23/smm-and-stm.html","mainEntityOfPage":{"@type":"WebPage","@id":"/2019/05/23/smm-and-stm.html"},"description":"SMMとSTMについて","@type":"BlogPosting","headline":"SMMとSTMについて","@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">SMMとSTMについて</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2019-05-23T14:55:34+09:00" itemprop="datePublished">May 23, 2019
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h1 id="smmとstmについて">SMMとSTMについて</h1>
+
+<p>ここではx86のSystem Management Mode(SMM)についてと
+SMI Transfer Monitor(STM)について解説する．</p>
+
+<h2 id="system-management-mode">System Management Mode</h2>
+
+<h3 id="概要">概要</h3>
+
+<p>ここでの話は
+<a href="http://opensecuritytraining.info/IntroBIOS.html">Advanced x86: Introduction to BIOS &amp; SMM</a>
+を元にしている．
+SMMのセキュリティなどについて詳しく知りたい場合は
+こちらの資料を参照したい．</p>
+
+<p>x86には16-bit real modeや32-bit protected mode，
+64-bit long modeなど様々なモードが存在する．
+System Management Mode(SMM)はそのようなモードの一つである．
+次にx86のmodeの遷移図を示す．</p>
+
+<p><img src="img/amd64-mode-state.png" alt="Operating Modes of the AMD64 Architecture" /></p>
+
+<p>ここで示されているように
+プロセッサがどのモードであっても<code class="highlighter-rouge">SMI#</code>によりSMMに移行できることがわかる．
+また，後述するようにSMMは<code class="highlighter-rouge">RSM</code>命令により元のモードに復帰する．</p>
+
+<p>SMMはx86においてもっとも高い権限を持ったモードであり，
+通常はOSにも透過的に動作する．
+SMMにはSystem Management Interrupt(SMI)という
+割り込みが発生することで移行する．
+SMMは通常<code class="highlighter-rouge">RSM</code>命令によりSMMから復帰する．</p>
+
+<p>SMMはOSなどとは隔離された環境を用意し，
+主に次のような用途で用いられる．</p>
+
+<ul>
+  <li>電源やバッテリ管理</li>
+  <li>システムハードウェアの制御</li>
+  <li>proprietaryなコードの実行</li>
+</ul>
+
+<h3 id="system-management-interrupt">System Management Interrupt</h3>
+
+<p>SMMにはSMIを受け取ることで移行することは先に述べた．
+SMIはプロセッサの<code class="highlighter-rouge">SMI#</code>ピンかAPICバス経由で受け取る．
+SMIは通常の割り込みのようにマスクすることができずNMIよりも優先度が高いとされる．
+また通常の割り込みや例外処理とは独立した機構となっている．</p>
+
+<p>SMIを受け取りSMMに移行したプロセッサはSMRAMと呼ばれるメモリ領域に
+移行前のプロセッサのコンテキストを保存してから処理を行う．
+<code class="highlighter-rouge">RSM</code>命令によりSMMから抜けるとき，
+保存していたプロセッサのコンテキストを復帰して元の状態に戻る．
+なお，<code class="highlighter-rouge">RSM</code>命令はSMMのみで有効な命令でありSMMでないモードで実行すると
+invalid opcode exceptionが発生する．</p>
+
+<h3 id="smram">SMRAM</h3>
+
+<p>SMRAMはSMMで使われるメモリ領域全体のことであり，
+SMIハンドラのコードやデータ，
+また前述のプロセッサのコンテキストが保存される．
+SMRAMのベースアドレスはSMBASEと呼ばれる
+CPU内部に存在するレジスタに保存されている．
+コンテキストなどSMBASEからのあるオフセット位置に配置される．</p>
+
+<p>なお，SMMにより保存されるプロセッサのコンテキストにもSMBASEの値が含まれている．
+これによりコンテキストのSMBASEの値を変えることで
+SMRAMを再配置することも可能となっている．</p>
+
+<p>次にSMRAMの配置を示す．</p>
+
+<p><img src="img/smram-map.png" alt="SMRAM Memory Map" /></p>
+
+<p>SMIハンドラのentry pointは<code class="highlighter-rouge">SMBASE + 8000h</code>と定められている．
+64-bitの場合<code class="highlighter-rouge">SMBASE + 8000h + 7C00h</code>以降にはプロセッサのコンテキストが配置される．
+これら2つ以外の領域は空き領域としてSMMのコードが自由に使うことができる．</p>
+
+<p>SMRAMは4GBのメモリアドレス空間であればどこにでも配置することができる．
+また，先に説明したようにプロセッサのコンテキストを書き換えることにより
+SMRAMを再配置することができるため，SMRAMはシステム起動時に再配置されることが多い．</p>
+
+<h2 id="smi-transfer-monitor">SMI Transfer Monitor</h2>
+
+<p>SMMは以上で述べたような構成となっているが，
+ここでVMXが加わると事情が変わってくる場合がある．
+VMXが有効な場合，SMMは次の2つのモードを持つことができる</p>
+
+<ul>
+  <li>Default Treatment</li>
+  <li>Dual-Monitor Treatment</li>
+</ul>
+
+<p>一般的に使われるモードはDefault Treatmentであるが，
+ここではDual-Monitor Treatmentについてみていく．</p>
+
+<p>Dual-Monitor Treatmentの場合，
+executive monitorと呼ばれる通常のVMMに加えて
+SMM Transfer Monitor (STM)と呼ばれるVMMが必要となる．
+STMはSMM内部で動作するVMMであり後述するように
+通常のVMMではトラップできないSMIをトラップすることが可能である．
+なお，STMと言った場合，ドキュメント上想定されるソフトウェアとしてのSTMと
+実装としてのSTMの2通りが存在するが，ここでは前者のみを扱うことにする．</p>
+
+<p>次にDual-Monitor Treatmentの構成を示す．</p>
+
+<p><img src="img/stm-architecture.png" alt="STM Architecture" /></p>
+
+<p>右下が通常のVMMであり右上がその上で動くVMである．
+VMM VMはVMX non-root modeで動作し，
+VMMはVMX root modeで動作する．
+ここまでは通常のVMMど同様である．
+Dual-Monitor Treatmentではこれらに加えて
+STMとSMM VMが追加される．
+STMはVMX root modeで動作し，
+SMM VMはVMX non-root modeで動作する．
+STMはSMM内部で完結しており
+コードやデータはSMRAMに配置される．</p>
+
+<p>ここではVMM VMにおいてSMIが発生した場合の流れをみていく．
+VMM VMにおいてSMIが発生すると
+SMMに移行するが直接SMIハンドラが実行されるのではなく，
+STMにトラップされる．
+このとき，VMMで利用するVMCS (executive-VMCS)とは別に
+SMI VMCSと呼ばれるコンテキストにVMの状態が保存される．
+STMはSMM VMに対してVM Entryを行い，
+(なお，ここでSMM VMはもともとExitされており，
+SMM VMCSと呼ばれるSMM VMのためのVMCSを用いる)
+トラップしたSMIに基づきSMM VM内部でSMIハンドラの処理を行う．
+<code class="highlighter-rouge">RSM</code>命令によりSMM VMからVM Exitし
+STMは先に保存しておいたSMI VMCSを用いてVM Entryを行う．</p>
+
+<p>STMの特徴的な点として挙げられるのは
+VMMからVMCALLによりSTMを呼び出すことができる点である．
+この場合もSMI VMCSによりコンテキストが保存されて，
+VMMに戻る際にVM Entryによりコンテキストから状態を復帰させることとなる．</p>
+
+<p>通常のSMMとDual-Monitor treatmentの違いは
+SMIはVM Exit扱いとなり，SMI VMCSを用いる点や
+<code class="highlighter-rouge">RSM</code>命令からSMMから復帰するのではなく
+VM EntryによりSMMから復帰する点などが挙げられる．</p>
+
+<h2 id="参考文献">参考文献</h2>
+
+<ul>
+  <li><a href="https://www.amd.com/system/files/TechDocs/24593.pdf">AMD64 Architecture Programmer’s Manual Volume 2: System Programming</a></li>
+  <li><a href="http://opensecuritytraining.info/IntroBIOS_files/Day1_07_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20SMM.pdf">Advanced x86: BIOS and System Management Mode Internals System Management Mode (SMM)</a></li>
+  <li><a href="http://opensecuritytraining.info/IntroBIOS_files/Day1_08_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20SMRAM.pdf">Advanced x86: BIOS and System Management Mode Internals SMRAM (System Management RAM)</a></li>
+</ul>
+
+  </div><a class="u-url" href="/2019/05/23/smm-and-stm.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">retrage.github.io</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">retrage.github.io</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage01"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage01</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Blog posts by @retrage01</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

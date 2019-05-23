@@ -9,15 +9,15 @@
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="EFI環境においてLinux kernelの起動方法には ブートローダを用いる方法とEFI stubの2通りがある． EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで EFIから直接kernelを起動する． ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで どのように直接起動できるようにしているかを見ていく． 実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．" />
 <meta property="og:description" content="EFI環境においてLinux kernelの起動方法には ブートローダを用いる方法とEFI stubの2通りがある． EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで EFIから直接kernelを起動する． ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで どのように直接起動できるようにしているかを見ていく． 実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．" />
-<link rel="canonical" href="http://localhost:4000/2017/12/09/efi-stub-header.html" />
-<meta property="og:url" content="http://localhost:4000/2017/12/09/efi-stub-header.html" />
+<link rel="canonical" href="/2017/12/09/efi-stub-header.html" />
+<meta property="og:url" content="/2017/12/09/efi-stub-header.html" />
 <meta property="og:site_name" content="retrage.github.io" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2017-12-09T00:12:14+09:00" />
 <script type="application/ld+json">
-{"datePublished":"2017-12-09T00:12:14+09:00","dateModified":"2017-12-09T00:12:14+09:00","url":"http://localhost:4000/2017/12/09/efi-stub-header.html","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/12/09/efi-stub-header.html"},"description":"EFI環境においてLinux kernelの起動方法には ブートローダを用いる方法とEFI stubの2通りがある． EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで EFIから直接kernelを起動する． ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで どのように直接起動できるようにしているかを見ていく． 実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．","@type":"BlogPosting","headline":"EFI stubなLinux kernelのヘッダ部分を見てみる","@context":"https://schema.org"}</script>
+{"datePublished":"2017-12-09T00:12:14+09:00","dateModified":"2017-12-09T00:12:14+09:00","url":"/2017/12/09/efi-stub-header.html","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/12/09/efi-stub-header.html"},"description":"EFI環境においてLinux kernelの起動方法には ブートローダを用いる方法とEFI stubの2通りがある． EFI stubではbzImageに対してEFI Application相当のヘッダを付加することで EFIから直接kernelを起動する． ここでは，EFI stubなLinux kernelのヘッダが実際に見ることで どのように直接起動できるようにしているかを見ていく． 実際の記事を書いたのが相当前なので，ここではLinux kernel 4.5を対象としている．","@type":"BlogPosting","headline":"EFI stubなLinux kernelのヘッダ部分を見てみる","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
-<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
 
   <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
