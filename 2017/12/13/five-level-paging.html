@@ -9,15 +9,15 @@
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．" />
 <meta property="og:description" content="この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．" />
-<link rel="canonical" href="http://localhost:4000/2017/12/13/five-level-paging.html" />
-<meta property="og:url" content="http://localhost:4000/2017/12/13/five-level-paging.html" />
+<link rel="canonical" href="/2017/12/13/five-level-paging.html" />
+<meta property="og:url" content="/2017/12/13/five-level-paging.html" />
 <meta property="og:site_name" content="retrage.github.io" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2017-12-13T20:22:09+09:00" />
 <script type="application/ld+json">
-{"datePublished":"2017-12-13T20:22:09+09:00","dateModified":"2017-12-13T20:22:09+09:00","url":"http://localhost:4000/2017/12/13/five-level-paging.html","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2017/12/13/five-level-paging.html"},"description":"この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．","@type":"BlogPosting","headline":"Linux kernelの5-Level Paging有効化部分を読んでみる","@context":"https://schema.org"}</script>
+{"datePublished":"2017-12-13T20:22:09+09:00","dateModified":"2017-12-13T20:22:09+09:00","url":"/2017/12/13/five-level-paging.html","mainEntityOfPage":{"@type":"WebPage","@id":"/2017/12/13/five-level-paging.html"},"description":"この記事はLinux Advent Calendar 14日目の記事として書かれた． 本記事ではLinuxにおける5-Level Paging(la57 paging)の実装を見ていく．","@type":"BlogPosting","headline":"Linux kernelの5-Level Paging有効化部分を読んでみる","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
-<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
 
   <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
