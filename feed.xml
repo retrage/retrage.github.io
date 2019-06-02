@@ -1,4 +1,501 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2019-06-02T00:59:49+09:00</updated><id>/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">Linux kernelをUnikernelのライブラリ化する</title><link href="/2019/05/30/lkl-on-unikraft.html" rel="alternate" type="text/html" title="Linux kernelをUnikernelのライブラリ化する" /><published>2019-05-30T23:26:23+09:00</published><updated>2019-05-30T23:26:23+09:00</updated><id>/2019/05/30/lkl-on-unikraft</id><content type="html" xml:base="/2019/05/30/lkl-on-unikraft.html">&lt;p&gt;Linux kernelをUnikraftのライブラリ化した．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2019-06-02T19:36:29+09:00</updated><id>/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">Librarizing Linux kernel for Unikernels</title><link href="/2019/06/02/lkl-on-unikraft-en.html" rel="alternate" type="text/html" title="Librarizing Linux kernel for Unikernels" /><published>2019-06-02T19:35:32+09:00</published><updated>2019-06-02T19:35:32+09:00</updated><id>/2019/06/02/lkl-on-unikraft-en</id><content type="html" xml:base="/2019/06/02/lkl-on-unikraft-en.html">&lt;p&gt;I ported the Linux kernel to Unikraft as an external library.
+This makes it possible to reuse the rich functions of the Linux kernel
+for Unikernel with less functionality.
+In this blog post, I describe the overview of the library.&lt;/p&gt;
+
+&lt;h2 id=&quot;background&quot;&gt;Background&lt;/h2&gt;
+
+&lt;h3 id=&quot;linux-kernel-library&quot;&gt;Linux Kernel Library&lt;/h3&gt;
+
+&lt;p&gt;The Linux kernel is a well-maintained mature open source OS kernel.
+Recently, there have been researches that propose reuse its components.
+&lt;a href=&quot;https://github.com/lkl/linux&quot;&gt;The Linux Kernel Library (LKL)&lt;/a&gt;
+is one of them, which uses the Linux kernel as a form of Library OS
+with minimum modifications.
+LKL is not currently official Linux project,
+but it is actively being developed (v4.19 is latest).
+Below is the architecture of LKL.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/lkl-architecture.png&quot; alt=&quot;The architecture of LKL&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;LKL has a host-independent architecture named &lt;code class=&quot;highlighter-rouge&quot;&gt;lkl&lt;/code&gt;,
+and actual host-dependent code is separated from the arch.
+The independent and dependent code is placed
+under &lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl&lt;/code&gt; correspondingly.
+For POSIX host environment, &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/lib/posix-host.c&lt;/code&gt; plays the role.&lt;/p&gt;
+
+&lt;h3 id=&quot;unikraft&quot;&gt;Unikraft&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://xenproject.org/developers/teams/unikraft/&quot;&gt;Unikraft&lt;/a&gt;
+is an experimental project by Xen Project
+which aims to build small and lightweight Unikernel images
+by providing divided Unikernel functions.
+The following is the architecture.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/unikraft-architecture.png&quot; alt=&quot;The architecture of Unikraft&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Unikraft itself consists of three parts:
+main libs, platform libs, and architecture libs.
+main libs contain architecture and platform independent libraries.
+platform libs provide platform dependent code as libraries.
+It currently supports Xen, KVM, and Linux userspace as platforms.
+architecture libs are libraries for architecture; x86, arm, and arm64.
+A user has to specify the target architecture and platform by Kconfig
+when building Unikraft application.
+The Unikraft build system generates a Unikernel image
+corresponding to each target.&lt;/p&gt;
+
+&lt;p&gt;Unikraft supports external libraries along with internal libraries.
+There are several official external libraries in public
+such as newlib, lwip, compiler-rt, eigen,
+libcxx, libcxxabi, libunwind, and libuuid.&lt;/p&gt;
+
+&lt;p&gt;For more details about porting external libraries to Unikraft,
+see &lt;a href=&quot;http://www.unikraft.org/developers-app.html&quot;&gt;External Library Development&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;lkl-on-unikraft&quot;&gt;LKL on Unikraft&lt;/h2&gt;
+
+&lt;p&gt;Since Unikraft is still at an early stage,
+it does not have a mature network stack or file system.
+To tackle this issue, we ported LKL as an external library for Unikraft.
+Here we introduce two types of the port.&lt;/p&gt;
+
+&lt;h3 id=&quot;lkl-on-unikraft-v1&quot;&gt;LKL on Unikraft v1&lt;/h3&gt;
+
+&lt;p&gt;First of all, we integrated LKL to Unikraft build system.
+The architecture is shown below.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/lkl-on-unikraft-v1.png&quot; alt=&quot;The architecture of LKL on Unikraft v1&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;In this version of the port,
+we added new architecture and platform libraries for LKL.
+They are just stub and only used when specified in Kconfig.
+The disadvantage of this design is that
+it is impossible to build LKL for other architectures or platforms.
+In addition, it can not cooperate with other Unikraft libraries.&lt;/p&gt;
+
+&lt;p&gt;The code is available at:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/uk-lkl/unikraft/tree/retrage/lkl&quot;&gt;uk-lkl/unikraft:retrage/lkl&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;lkl-on-unikraft-v2&quot;&gt;LKL on Unikraft v2&lt;/h3&gt;
+
+&lt;p&gt;Next, we introduce v2 which can be used as an actual library.
+Below is the overview.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/lkl-on-unikraft-v2.png&quot; alt=&quot;The architecture of LKL on Unikraft v2&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;By this design, we can choose any architecture and platform in concept
+since LKL is separated from architecture and platform.
+In addition, other Unikraft libraries can use LKL functions.&lt;/p&gt;
+
+&lt;p&gt;For implementation, we added a new host-dependent code called &lt;code class=&quot;highlighter-rouge&quot;&gt;uk-host.c&lt;/code&gt;
+to support Unikraft as a new LKL host environment.
+The LKL host-dependent code requires some primitives
+such as mutex, semaphore, thread, timer, etc. on the host side,
+however, Unikraft main libs cannot satisfy the requirements
+because of the lack of functionality.
+Therefore, we ported these primitives
+from &lt;a href=&quot;https://github.com/littlekernel/lk&quot;&gt;littlekernel&lt;/a&gt;, an embedded kernel to LKL.
+The only LKL host has to do is that
+calling callback functions periodic time to run the preemptive scheduler.
+The port of littlekernel is independent of Unikraft.
+Here is the implementation.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/retrage/linux/tree/retrage/fiber&quot;&gt;retrage/linux:retrage/fiber&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;implementation&quot;&gt;Implementation&lt;/h4&gt;
+
+&lt;p&gt;The port of LKL supports only x86_64 architecture and KVM platform
+for some reasons.&lt;/p&gt;
+
+&lt;p&gt;Unikraft has two types of libc implementation, newlib, and nolibc.
+newlib is an official external library that supports full libc functions.
+On the other hand, nolibc provides minimal libc functions
+so that general libc functions can be used even if newlib does not exist.
+This version of LKL port is designed to work with nolibc
+to reduce dependencies.
+However, since nolibc have enough functions and constants required by LKL,
+we added the following functions and constants to nolibc.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;stdbool&lt;/li&gt;
+  &lt;li&gt;fputc, putchar&lt;/li&gt;
+  &lt;li&gt;STD{IN,OUT,ERR}_FILENO&lt;/li&gt;
+  &lt;li&gt;strncat&lt;/li&gt;
+  &lt;li&gt;strtok_r&lt;/li&gt;
+  &lt;li&gt;setjmp/longjmp&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The modified LKL expects the callback function is called periodically
+as mentioned above, but Unikraft does not provide an interface
+to register a callback function.
+Fortunately, it starts a periodic timer at startup,
+so we just added the interface.&lt;/p&gt;
+
+&lt;p&gt;In the KVM platform, a final image is generated using the custom linker script.
+Since The LKL binary &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.o&lt;/code&gt; has symbols
+that are not referred explicitly,
+they are deleted or hidden by linking using the linker script.
+For this reason, the linker script is modified
+so that the symbols from LKL are kept correctly.&lt;/p&gt;
+
+&lt;p&gt;The modified Unikraft and the port of LKL is here:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/uk-lkl/unikraft/tree/retrage/lkl-v2&quot;&gt;uk-lkl/unikraft:retrage/lkl-v2&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/uk-lkl/lkl&quot;&gt;uk-lkl/lkl&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;demonstration&quot;&gt;Demonstration&lt;/h4&gt;
+
+&lt;p&gt;To demonstrate LKL on Unikraft,
+we ported &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/tests/boot&lt;/code&gt; from LKL as &lt;a href=&quot;https://github.com/uk-lkl/boot&quot;&gt;uk-lkl/boot&lt;/a&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ mkdir unikraft &amp;amp;&amp;amp; cd unikraft
+$ git clone git@github.com:uk-lkl/unikraft.git --branch=retrage/lkl-v2
+$ mkdir libs &amp;amp;&amp;amp; cd libs
+$ git clone --recursive git@github.com:uk-lkl/lkl.git
+$ cd ..
+$ mkdir apps &amp;amp;&amp;amp; cd apps
+$ git clone git@github.com:uk-lkl/boot.git
+$ cd boot
+$ make menuconfi
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Select x86 architecture and KVM guest platform.
+Save and exit Kconfig. Then, run make.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ make
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;To run the final image, run &lt;code class=&quot;highlighter-rouge&quot;&gt;run.sh&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./run.sh
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;It will output as follow:&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;[    0.721134] ERR:  [libukboot] boot.c @ 88   : Failed to initialize bus driver 0x56b060: -1
+Welcome to  _ __             _____
+ __ _____  (_) /__ _______ _/ _/ /_
+/ // / _ \/ /  '_// __/ _ `/ _/ __/
+\_,_/_//_/_/_/\_\/_/  \_,_/_/ \__/
+                  Titan 0.2~ebcb42a
+1..33 # boot
+* 1 mutex
+ok 1 mutex
+ ---
+ time_us: 0
+ log: |
+ ...
+* 2 semaphore
+ok 2 semaphore
+ ---
+ time_us: 0
+ log: |
+ ...
+* 3 join
+ok 3 join
+ ---
+ time_us: 1
+ log: |
+  joined 7909384
+ ...
+* 4 start_kernel
+ok 4 start_kernel
+ ---
+ time_us: 9281
+ log: |
+  [    0.000000] Linux version 4.19.0+ (akira@akira-Z270) (gcc version 5.4.0 20160609 (Ubuntu 5.4.0-6ubuntu1~16.04.11)) #1 Thu May 30 23:10:09 JST 2019
+  [    0.000000] bootmem address range: 0x1c001000 - 0x1d000000
+  [    0.000000] On node 0 totalpages: 4095
+  [    0.000000]   Normal zone: 56 pages used for memmap
+  [    0.000000]   Normal zone: 0 pages reserved
+  [    0.000000]   Normal zone: 4095 pages, LIFO batch:0
+  [    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+  [    0.000000] pcpu-alloc: [0] 0 
+  [    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 4039
+  [    0.000000] Kernel command line: mem=16M loglevel=8
+  [    0.000000] Dentry cache hash table entries: 2048 (order: 2, 16384 bytes)
+  [    0.000000] Inode-cache hash table entries: 1024 (order: 1, 8192 bytes)
+  [    0.000000] Memory available: 16088k/16380k RAM
+  [    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+  [    0.000000] NR_IRQS: 4096
+  [    0.000000] lkl: irqs initialized
+  [    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+  [    0.198000] lkl: time and timers initialized (irq1)
+  [    2.093000] pid_max: default: 4096 minimum: 301
+  [   15.926000] Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
+  [   18.024000] Mountpoint-cache hash table entries: 512 (order: 0, 4096 bytes)
+  [ 2722.817000] console [lkl_console0] enabled
+  [ 2732.709000] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+  [ 2760.874000] random: get_random_u32 called from bucket_table_alloc.isra.6+0x9b/0x250 with crng_init=0
+  [ 2774.823000] NET: Registered protocol family 16
+  [ 3121.319000] clocksource: Switched to clocksource lkl
+  [ 3181.520000] NET: Registered protocol family 2
+  [ 3261.648000] tcp_listen_portaddr_hash hash table entries: 256 (order: 0, 4096 bytes)
+  [ 3263.125000] TCP established hash table entries: 512 (order: 0, 4096 bytes)
+  [ 3264.198000] TCP bind hash table entries: 512 (order: 0, 4096 bytes)
+  [ 3265.141000] TCP: Hash tables configured (established 512 bind 512)
+  [ 3286.743000] UDP hash table entries: 128 (order: 0, 4096 bytes)
+  [ 3287.830000] UDP-Lite hash table entries: 128 (order: 0, 4096 bytes)
+  [ 3456.331000] workingset: timestamp_bits=62 max_order=12 bucket_order=0
+  [ 4041.077000] SGI XFS with ACLs, security attributes, no debug enabled
+  [ 6032.987000] jitterentropy: Initialization failed with host not compliant with requirements: 2
+  [ 6038.248000] io scheduler noop registered
+  [ 6038.908000] io scheduler deadline registered
+  [ 6067.383000] io scheduler cfq registered (default)
+  [ 6068.093000] io scheduler mq-deadline registered
+  [ 6068.764000] io scheduler kyber registered
+  [ 7894.266000] NET: Registered protocol family 10
+  [ 7979.259000] Segment Routing with IPv6
+  [ 7988.492000] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+  [ 8097.859000] Warning: unable to open an initial console.
+  [ 8106.456000] This architecture does not have kernel memory protection.
+  [ 8107.119000] Run /init as init process
+  lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 
+ ...
+* 5 getpid
+ok 5 getpid
+ ---
+ time_us: 5
+ log: |
+  lkl_sys_getpid() = 1 
+ ...
+* 6 syscall_latency
+ok 6 syscall_latency
+ ---
+ time_us: 126
+ log: |
+  avg/min/max: lkl:107822000/104000000/450000000 native:6788000/6000000/77000000
+ ...
+* 7 umask
+ok 7 umask
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_umask(0777) = 18 
+ ...
+* 8 umask2
+ok 8 umask2
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_umask(0) = 511 
+ ...
+* 9 creat
+ok 9 creat
+ ---
+ time_us: 9
+ log: |
+  lkl_sys_creat(&quot;/file&quot;, access_rights) = 0 
+ ...
+* 10 close
+ok 10 close
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_close(0) = 0 
+ ...
+* 11 failopen
+ok 11 failopen
+ ---
+ time_us: 9
+ log: |
+  lkl_sys_open(&quot;/file2&quot;, 0, 0) = -2 No such file or directory
+ ...
+* 12 open
+ok 12 open
+ ---
+ time_us: 7
+ log: |
+  lkl_sys_open(&quot;/file&quot;, LKL_O_RDWR, 0) = 0 
+ ...
+* 13 write
+ok 13 write
+ ---
+ time_us: 4
+ log: |
+  lkl_sys_write(0, wrbuf, sizeof(wrbuf)) = 5 
+ ...
+* 14 lseek_cur
+ok 14 lseek_cur
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_lseek(0, 0, LKL_SEEK_CUR) = 5 
+ ...
+* 15 lseek_end
+ok 15 lseek_end
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_lseek(0, 0, LKL_SEEK_END) = 5 
+ ...
+* 16 lseek_set
+ok 16 lseek_set
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_lseek(0, 0, LKL_SEEK_SET) = 0 
+ ...
+* 17 read
+ok 17 read
+ ---
+ time_us: 1
+ log: |
+  lkl_sys_read=5 buf=test
+ ...
+* 18 fstat
+ok 18 fstat
+ ---
+ time_us: 1
+ log: |
+  lkl_sys_fstat=0 mode=100721 size=5
+ ...
+* 19 mkdir
+ok 19 mkdir
+ ---
+ time_us: 8
+ log: |
+  lkl_sys_mkdir(&quot;/mnt&quot;, access_rights) = 0 
+ ...
+* 20 stat
+ok 20 stat
+ ---
+ time_us: 7
+ log: |
+  lkl_sys_stat(&quot;/mnt&quot;)=0 mode=40721
+ ...
+* 21 pipe2
+ok 21 pipe2
+ ---
+ time_us: 9
+ log: |
+ ...
+* 22 epoll
+ok 22 epoll
+ ---
+ time_us: 5
+ log: |
+ ...
+* 23 mount_fs_proc
+ok 23 mount_fs_proc
+ ---
+ time_us: 18
+ log: |
+  lkl_mount_fs(&quot;proc&quot;) = 0 
+ ...
+* 24 chdir_proc
+ok 24 chdir_proc
+ ---
+ time_us: 7
+ log: |
+  lkl_sys_chdir(&quot;proc&quot;) = 0 
+ ...
+* 25 open_cwd
+ok 25 open_cwd
+ ---
+ time_us: 7
+ log: |
+ ...
+* 26 getdents64
+ok 26 getdents64
+ ---
+ time_us: 6
+ log: |
+  4 . .. fs bus irq net sys tty kmsg maps misc stat iomem crypto driver 
+  mounts uptime vmstat cmdline cpuinfo devices ioports loadavg meminfo version 
+  consoles kallsyms slabinfo softirqs zoneinfo buddyinfo diskstats interrupts 
+  partitions timer_list 
+ ...
+* 27 close_dir_fd
+ok 27 close_dir_fd
+ ---
+ time_us: 0
+ log: |
+  lkl_sys_close(dir_fd) = 0 
+ ...
+* 28 chdir_root
+ok 28 chdir_root
+ ---
+ time_us: 7
+ log: |
+  lkl_sys_chdir(&quot;/&quot;) = 0 
+ ...
+* 29 umount_fs_proc
+ok 29 umount_fs_proc
+ ---
+ time_us: 11
+ log: |
+  lkl_umount_timeout(&quot;proc&quot;, 0, 1000) = 0 
+ ...
+* 30 lo_ifup
+ok 30 lo_ifup
+ ---
+ time_us: 44
+ log: |
+  lkl_if_up(1) = 0 
+ ...
+* 31 gettid
+ok 31 gettid
+ ---
+ time_us: 0
+ log: |
+  7893000
+ ...
+* 32 many_syscall_threads
+ok 32 many_syscall_threads
+ ---
+ time_us: 26
+ log: |
+ ...
+* 33 stop_kernel
+ok 33 stop_kernel
+ ---
+ time_us: 531
+ log: |
+  [145272.871000] reboot: Restarting system
+  lkl_sys_halt() = 0 
+ ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;issues&quot;&gt;Issues&lt;/h2&gt;
+
+&lt;p&gt;The current LKL on Unikraft has the following issues.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;It needs modifications to Unikraft.&lt;/li&gt;
+  &lt;li&gt;It does not support disk operations and networks.&lt;/li&gt;
+  &lt;li&gt;It hangs under some certain situations.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The first issue is described above in details.
+The second issue is 
+because of the lack of file system and network support by Unikraft.
+The third issue is not only on Unikraft,
+but also with &lt;a href=&quot;https://github.com/retrage/linux/tree/retrage/fiber&quot;&gt;retrage/linux:retrage/fiber&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;As a design issue,
+the use of Linux kernel does not match with Unikraft policy.
+Unikraft aims to build ‘slim’ Unikernel images
+by building the necessary libraries,
+but LKL reuses existing Linux kernel which is ‘fat’.
+The size of the final image tends to be large if LKL is integrated.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://ieeexplore.ieee.org/document/5541547&quot;&gt;LKL: The Linux kernel library&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://xenproject.org/developers/teams/unikraft/&quot;&gt;Unikraft - Xen Project&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.usenix.org/sites/default/files/conference/protected-files/lisa18_slides_kuenzer.pdf&quot;&gt;Unikraft: Unikernels Made Easy&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.unikraft.org/&quot;&gt;Unikraft’s Documentation&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">I ported the Linux kernel to Unikraft as an external library. This makes it possible to reuse the rich functions of the Linux kernel for Unikernel with less functionality. In this blog post, I describe the overview of the library.</summary></entry><entry><title type="html">Linux kernelをUnikernelのライブラリ化する</title><link href="/2019/05/30/lkl-on-unikraft.html" rel="alternate" type="text/html" title="Linux kernelをUnikernelのライブラリ化する" /><published>2019-05-30T23:26:23+09:00</published><updated>2019-05-30T23:26:23+09:00</updated><id>/2019/05/30/lkl-on-unikraft</id><content type="html" xml:base="/2019/05/30/lkl-on-unikraft.html">&lt;p&gt;Linux kernelをUnikraftのライブラリ化した．
 これにより機能の少ないUnikernelの資源として
 Linux kernelの持つ機能を利用することが可能となる．&lt;/p&gt;
 
@@ -2112,547 +2609,4 @@ UEFIに対応しており、かつOSも当然のように対応している。
 
 &lt;ul&gt;
   &lt;li&gt;https://techbookfest.org/event/tbf05/circle/45190001&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">2018年10月8日に池袋サンシャインシティで開催される 技術書典5において「海洋軟件」として 「UEFI読本 基礎編 Linux編」を頒布する． 配置先は「お09」である．</summary></entry><entry><title type="html">LKL.js: Running Linux Kernel on JavaScript *Directly*</title><link href="/2018/07/25/lkl-js-en.html" rel="alternate" type="text/html" title="LKL.js: Running Linux Kernel on JavaScript *Directly*" /><published>2018-07-25T20:29:00+09:00</published><updated>2018-07-25T20:29:00+09:00</updated><id>/2018/07/25/lkl-js-en</id><content type="html" xml:base="/2018/07/25/lkl-js-en.html">&lt;p&gt;I ported Linux kernel directly on JavaScript.
-In other words, I translated the Linux kernel to JavaScript using Emscripten,
-and Unlike JSLinux, it runs without emulators.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/lkl-js-architecture.png&quot; alt=&quot;LKL.js Architecture&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The following is the working repository.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/em-v2&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;I published a demonstration site for LKL.js.
-Please enable SharedArrayBuffer and try it out&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://retrage.github.io/lkl-js&quot;&gt;LKL.js Demo&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;I also published slides about LKL.js.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://speakerdeck.com/retrage/lkl-dot-js-running-linux-kernel-on-javascript-star-directly-star&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;linux-kernel-library-lkl&quot;&gt;Linux Kernel Library (LKL)&lt;/h2&gt;
-
-&lt;p&gt;We use Linux Kernel Library (LKL) which makes the Linux kernel an anykernel.
-LKL is a fork of torvalds/linux.
-It is designed to put LKL specific code only in
-&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl&lt;/code&gt; and runs without modifications of other code.
-By this design, it makes easy to follow the mainline. (Currently v4.16)
-Since LKL is anykernel, it runs on user space of
-various OS such as Linux, FreeBSD, and Windows etc.&lt;/p&gt;
-
-&lt;h2 id=&quot;emscripten&quot;&gt;Emscripten&lt;/h2&gt;
-
-&lt;p&gt;Emscripten is LLVM based C/C++ to 
-JavaScript/WebAssembly transpiler.
-It also provides a Unix-like environment to run translated software
-on web browsers.&lt;/p&gt;
-
-&lt;h2 id=&quot;can-we-port-lkl-to-javascript-with-emscripten&quot;&gt;Can we port LKL to JavaScript with Emscripten?&lt;/h2&gt;
-
-&lt;p&gt;LKL runs on various OSes, Emscripten provides Unix-like
-environment. So can LKL be ported to JavaScript with Emscripten?&lt;/p&gt;
-
-&lt;h3 id=&quot;current-status-of-linux-kernel-build-with-clang&quot;&gt;Current Status of Linux Kernel Build with Clang&lt;/h3&gt;
-
-&lt;p&gt;First of all, the Linux kernel is deeply dependent on 
-gcc-extension, and there is a doubt that Clang can not compile it.
-Once upon the time, there was LLVMLinux project that aims to compile
-Linux kernel with Clang.
-However, through the efforts of the Google Android team, two LTS (4.4 and 4.9)
-can be built with Clang.
-Now, LKL can be built with Clang.&lt;/p&gt;
-
-&lt;h3 id=&quot;lkl-build-flow-101&quot;&gt;LKL Build Flow 101&lt;/h3&gt;
-
-&lt;p&gt;Let’s look at the build flow of LKL.
-First, when&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; tools/lkl
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;is performed, the build system determines which source code (*.c/*.S)
-to be built from the Kconfig settings and compiles them.
-Object files (*.o) generated by compiling are once archived by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar&lt;/code&gt;
-to &lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt;.
-Next, it links all &lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt; files into &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; at once.
-For host side code, files under &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/lib&lt;/code&gt; compiled and linked
-to &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.o&lt;/code&gt;.
-Finally, link all files (&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.o&lt;/code&gt;) to &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.so&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;This is a simple build flow of LKL.&lt;/p&gt;
-
-&lt;h2 id=&quot;porting-lkl-with-emscripten&quot;&gt;Porting LKL with Emscripten&lt;/h2&gt;
-
-&lt;p&gt;Next, we will take a look at how to port LKL with Emscripten.&lt;/p&gt;
-
-&lt;p&gt;Not limited to Emscripten, when using LLVM infrastructures,
-the compiler compiles source to target with the following flow.&lt;/p&gt;
-
-&lt;p&gt;Soruce -&amp;gt; LLVM IR -&amp;gt; Target&lt;/p&gt;
-
-&lt;p&gt;In this way, the source is once converted to LLVM IR (*.bc/*.ll)
-and then converted to the target.
-In Emscripten, the “linking” is the conversion from LLVM IR to JavaScript.
-Therefore, it is necessary to first convert all
-(including libc etc. provided by Emscripten) to LLVM IR.&lt;/p&gt;
-
-&lt;h3 id=&quot;generating-vmlinuxbc&quot;&gt;Generating vmlinux.bc&lt;/h3&gt;
-
-&lt;p&gt;The build using &lt;code class=&quot;highlighter-rouge&quot;&gt;emcc&lt;/code&gt; (An Emscripten Clang wrapper) is:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; tools/lkl &lt;span class=&quot;nv&quot;&gt;CC&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;AR&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PWD&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/ar.py&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;V&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The two important things here are &lt;code class=&quot;highlighter-rouge&quot;&gt;$FCFLAS&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.
-I will explain each one.
-(Note that &lt;code class=&quot;highlighter-rouge&quot;&gt;C=&quot;$CC $CFLAGS&quot;&lt;/code&gt; is forced to pass &lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt;)&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt; is:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s WASM=0&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s ASYNCIFY=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s EMULATE_FUNCTION_POINTER_CASTS=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s USE_PTHREADS=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s PTHREAD_POOL_SIZE=4&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s TOTAL_MEMORY=1342177280&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The options are to pass to Emscripten.
-Please refer to the Emscripten manual for details.&lt;/p&gt;
-
-&lt;p&gt;Furthermore, the following definitions are specified.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DMAX_NR_ZONES=2&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DNR_PAGEFLAGS=20&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DSPINLOCK_SIZE=0&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_GETLK64=12&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLK64=13&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLKW64=14&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;These values are originally obtained by compiling an empty file
-at the time of Linux kernel build. However, this time they can not be
-obtained directly. Therefore, we have to specify these values
-which come from when building with the x86_64 environment.&lt;/p&gt;
-
-&lt;p&gt;Next, I will explain &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;. The following is a snippet of &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;objs&quot;&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exists&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;w&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.o&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;built-in&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;aw&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;As explained above, the build system of Linux kernel gathers object files
-by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar&lt;/code&gt; and links them to get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;To work with Emscripten we need to get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; as a LLVM bitcode.
-LLVM has a linker called &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt; that links multiple LLVM bitcode files
-to get one LLVM bitcode.
-To generate &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;, we need to use &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;,
-but there is a problem.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt; can not take archive files as arguments like &lt;code class=&quot;highlighter-rouge&quot;&gt;ld&lt;/code&gt;s.
-Therefore, we have to record object files that are originally archived.
-In this case, &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt; will record them as file paths in &lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Next, Let’s look at the part of &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt; generation.
-I added following scripts to &lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;info CLEAN obj 
-python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/clean-obj.py&quot;&lt;/span&gt;
-
-info GEN link-vmlinux.sh
-python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux-gen.py&quot;&lt;/span&gt;
-
-info LINK vmlinux
-bash &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux.sh&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;clean-obj.py&lt;/code&gt; removes duplicated file paths from &lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;
-which is generated by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;link-vmlinux-gen.py&lt;/code&gt; generates &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux-link.sh&lt;/code&gt;
-(not &lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;) which performs &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;.
-By performing &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux-link.sh&lt;/code&gt;, we can get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;This is the flow of generating &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;generating-bootjs&quot;&gt;Generating boot.js&lt;/h3&gt;
-
-&lt;p&gt;Next, I will look at until JavaScript code is generated.
-As explained above, since LKL is one of Library OS,
-&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; does not work on its own, it works only when it has
-a part of an application. In this case, our target is &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/tests/boot&lt;/code&gt;
-which is LKL’s &lt;code class=&quot;highlighter-rouge&quot;&gt;Hello, world&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$LINK&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-    &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/liblkl-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/lkl.o
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, we have to link &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt; (&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/lkl.o&lt;/code&gt;),
-host dependent part &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/liblkl-in.o&lt;/code&gt; and
-applicatin part &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot-in.o&lt;/code&gt; and get &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/libc.bc js/libc.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/dlmalloc.ll js/dlmalloc.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/libc.ll js/libc.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/pthreads.ll js/pthreads.bc
-&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt; rename_symbols.py &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, it disassembles all LLVM bitcode files
-(&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot.bc&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;libc.bc&lt;/code&gt; etc.)
-using &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-dis&lt;/code&gt;.
-Next, it applies &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt; to &lt;code class=&quot;highlighter-rouge&quot;&gt;boot.ll&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;There is a reason for performing such operations.
-This is because function names used in the Linux kernel conflict
-with function names used in libcs.
-In normal LKL, this conflict is avoided by using ELF linker tricks.
-Meanwhile, since JavaScript generated by Emscripten does not
-have a namespace, such collisions occur.
-Therefore, by rewriting the functions names that would collide
-with &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt;, it can avoid collisions.&lt;/p&gt;
-
-&lt;p&gt;In addition, &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt; also performs operations such as
-converting inline assemblies in Linux kernel to Emscripten
-&lt;code class=&quot;highlighter-rouge&quot;&gt;emscripten_asm_const_int&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;From the &lt;code class=&quot;highlighter-rouge&quot;&gt;boot-mod.ll&lt;/code&gt;,&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;EMCC_DEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1 &lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/boot.html &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll &lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;generate HTML and JavaScript files.&lt;/p&gt;
-
-&lt;h2 id=&quot;adding-workarounds&quot;&gt;Adding Workarounds&lt;/h2&gt;
-
-&lt;p&gt;Although we generated the Linux kernel translated in “completely”
-JavaScript and the application &lt;code class=&quot;highlighter-rouge&quot;&gt;boot.js&lt;/code&gt;, it will not work as it is.
-This is due to the fact that the architecture of computers and
-JavaScript is very different. So we have to make some modifications.&lt;/p&gt;
-
-&lt;h3 id=&quot;replacing-inline-assemblies&quot;&gt;Replacing inline assemblies&lt;/h3&gt;
-
-&lt;p&gt;In the Linux kernel, the architecture-dependent code is basically placed
-under &lt;code class=&quot;highlighter-rouge&quot;&gt;arch/$ARCH&lt;/code&gt;, and other code are architecture independent.
-However, an empty inline assembly may be inserted so that optimization
-by the compiler prevents meaningful code from being lost at compile time.
-Here is an example, &lt;code class=&quot;highlighter-rouge&quot;&gt;set_normalized_timespec64&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;kernel/time/time.c&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;set_normalized_timespec64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;timespec64&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;time64_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;cm&quot;&gt;/*
-		 * The following asm() prevents the compiler from
-		 * optimising this loop into a modulo operation. See
-		 * also __iter_div_u64_rem() in include/linux/time.h
-		 */&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_sec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Such Inline assemblies cause a failure to convert from LLVM bitcode to
-JavaScript. Therefore, we have to replace inline assemblies such as
-&lt;code class=&quot;highlighter-rouge&quot;&gt;asm(&quot;&quot; : &quot;+rm&quot;(nsec))&lt;/code&gt; with &lt;code class=&quot;highlighter-rouge&quot;&gt;emcsripten_asm_const_int&lt;/code&gt;
-which calls JavaScript code from C defined in Emscripten.&lt;/p&gt;
-
-&lt;h3 id=&quot;fix-early_param&quot;&gt;Fix early_param&lt;/h3&gt;
-
-&lt;p&gt;In the Linux kernel, there is &lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;.
-This is defined in &lt;code class=&quot;highlighter-rouge&quot;&gt;include/linux/init.h&lt;/code&gt; as follows:&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#define __setup_param(str, unique_id, fn, early)			\
-	static const char __setup_str_##unique_id[] __initconst		\
-		__aligned(1) = str; 					\
-	static struct obs_kernel_param __setup_##unique_id		\
-		__used __section(.init.setup)				\
-		__attribute__((aligned((sizeof(long)))))		\
-		= { __setup_str_##unique_id, fn, early }
-&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#define early_param(str, fn)						\
-	__setup_param(str, fn, fn, 1)
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt; is a macro, taking &lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;fn&lt;/code&gt; as arguments,
-and &lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt; structure placed in &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;By referring to &lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl/kernel/vmlinux.ldS&lt;/code&gt; which is generated
-in the build of LKL, we can see that &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt; is arranged
-between &lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_start&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_end&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;__setup_start = .; KEEP(*(.init.setup)) __setup_end = .;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;These symbols will be used in &lt;code class=&quot;highlighter-rouge&quot;&gt;init/main.c&lt;/code&gt; as follows.
-Here it compares one of boot parameter (&lt;code class=&quot;highlighter-rouge&quot;&gt;param&lt;/code&gt;) of Linux kernel
-with &lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt; of &lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;.
-If it matches, it will execute &lt;code class=&quot;highlighter-rouge&quot;&gt;(*setup_func)(char*)&lt;/code&gt; with argument &lt;code class=&quot;highlighter-rouge&quot;&gt;val&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cm&quot;&gt;/* Check for early params. */&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-	&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parameq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
-		    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-		     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-		&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-			&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-				&lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-		&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In summary, &lt;code class=&quot;highlighter-rouge&quot;&gt;do_early_param&lt;/code&gt; executes &lt;code class=&quot;highlighter-rouge&quot;&gt;setup_func&lt;/code&gt; registered by
-&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt; by referring boot parameters.&lt;/p&gt;
-
-&lt;p&gt;However, since it uses ELF symbols, it does not work correctly
-in JavaScript. For this reason, the function which will be called here
-is hard coded.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* XXX: There is a lot of early_param, but hardcode in init/main.c */&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_INIT_ARGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;debug&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;quiet&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;loglevel&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
-                    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-                     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                        &lt;span class=&quot;k&quot;&gt;switch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* debug */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;debug_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* quiet */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quiet_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* loglevel */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;loglevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;nl&quot;&gt;default:&lt;/span&gt;
-                                &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Unknown early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;fix-initcall&quot;&gt;Fix initcall&lt;/h3&gt;
-
-&lt;p&gt;Like &lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;initcall&lt;/code&gt; which are called in the initialization
-manages functions using ELF symbols.
-With JavaScript alone, we can not know which function should be called.
-Therefore, we have to generate inticall tables from &lt;code class=&quot;highlighter-rouge&quot;&gt;System.map&lt;/code&gt;
-generated by a normal build of LKL.&lt;/p&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;r&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;ValueError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                    &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/* initcall{} */&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;EM_ASM({&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blacklist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    /* _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;(); */&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;();&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;});&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The above is the initcall table generation script.
-We hard-code the code to &lt;code class=&quot;highlighter-rouge&quot;&gt;do_initcalls&lt;/code&gt;.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;EM_ASM&lt;/code&gt; is an inline assembly that directly calls the JavaScript code
-in C.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* XXX: initcalls are broken, so hardcode here */&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* initcall0 */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_net_ns_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* initcall1 */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_lkl_console_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_wq_sysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_ksysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;demonstration-and-the-results&quot;&gt;Demonstration and the Results&lt;/h2&gt;
-
-&lt;p&gt;As described at the top, LKL.js uses pthread,
-we have to enable SharedArrayBuffer.
-Although every modern web browsers are shipped with SharedarrayBuffer,
-it is disabled by default because of Spectre mitigation in Mozilla Firefox.
-Therefore, please enable it before executing the demo.&lt;/p&gt;
-
-&lt;p&gt;The following is the result of &lt;code class=&quot;highlighter-rouge&quot;&gt;start_kernel&lt;/code&gt;.
-We can see that it shows dmesg on browsers.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  [    0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018
-  [    0.000000] bootmem address range: 0x675000 - 0x1674000
-  [    0.000000] On node 0 totalpages: 4095
-  [    0.000000]   Normal zone: 36 pages used for memmap
-  [    0.000000]   Normal zone: 0 pages reserved
-  [    0.000000]   Normal zone: 4095 pages, LIFO batch:0
-  [    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
-  [    0.000000] pcpu-alloc: [0] 0 
-  [    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 4059
-  [    0.000000] Kernel command line: mem=16M loglevel=8
-  [    0.000000] Parameter  is obsolete, ignored
-  [    0.000000] Parameter  is obsolete, ignored
-  [    0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes)
-  [    0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.000000] Memory available: 16144k/16380k RAM
-  [    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
-  [    0.000000] NR_IRQS: 1024
-  [    0.000000] lkl: irqs initialized
-  [    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
-  [    0.000100] lkl: time and timers initialized (irq1)
-  [    0.001100] pid_max: default: 4096 minimum: 301
-  [    0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.327100] console [lkl_console0] enabled
-  [    0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
-  [    0.329700] xor: automatically using best checksumming function   8regs     
-  [    0.341199] NET: Registered protocol family 16
-  [    0.388999] clocksource: Switched to clocksource lkl
-  [    0.414100] NET: Registered protocol family 2
-  [    0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes)
-  [    0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.439600] TCP: Hash tables configured (established 1024 bind 1024)
-  [    0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes)
-  [    0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes)
-  [    0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0
-  [    0.863100] SGI XFS with ACLs, security attributes, no debug enabled
-  [    0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2
-  [    0.924599] io scheduler noop registered
-  [    0.924900] io scheduler deadline registered
-  [    0.933099] io scheduler cfq registered (default)
-  [    0.933500] io scheduler kyber registered
-  [    1.633500] NET: Registered protocol family 10
-  [    1.658400] Segment Routing with IPv6
-  [    1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
-  [    1.674200] ------------[ cut here ]------------
-  [    1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188   (null)
-  [    1.675899] Call Trace:
-  [    1.676200] 
-  [    1.676999] ---[ end trace 941dc55fe0966cff ]---
-  [    1.684299] Warning: unable to open an initial console.
-  [    1.685200] This architecture does not have kernel memory protection.
-  pthread_join((pthread_t)tid, NULL): No such process
-  lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;limitations&quot;&gt;Limitations&lt;/h2&gt;
-
-&lt;p&gt;From the above results, we confirmed that Linux kernel was booted
-directly in JavaScript.
-However, it just outputted dmesg and
-it is not suitable for practical use at all.
-This is because of the following problems:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;It fails to create kernel threads.&lt;/li&gt;
-  &lt;li&gt;It fails to mount rootfs.&lt;/li&gt;
-  &lt;li&gt;It fails to execute init (PID 1).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Also, support for pthreads in Emscripten is not good.
-We extracted semaphore, mutex, and thread from Little Kernel (LK)
-and add them to LKL as green threads.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/fiber&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We plan to create LKL.js using this green threads.&lt;/p&gt;
-
-&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
-
-&lt;p&gt;We created a Linux kernel fully translated in JavaScript using
-LKL and Emscripten. It boots the Linux kernel and we confirmed
-that it shows dmesg.
-Although the architecture is greatly different between
-computers and JavaScript, we found that it works somewhat by adding
-some fixes and workarounds.&lt;/p&gt;
-
-&lt;h2 id=&quot;reference&quot;&gt;Reference&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/lkl/linux&lt;/li&gt;
-  &lt;li&gt;https://github.com/kripken/emscripten&lt;/li&gt;
-  &lt;li&gt;https://llvm.org/&lt;/li&gt;
-  &lt;li&gt;https://clang.llvm.org/&lt;/li&gt;
-  &lt;li&gt;https://wiki.linuxfoundation.org/llvmlinux&lt;/li&gt;
-  &lt;li&gt;https://lwn.net/Articles/734071/&lt;/li&gt;
-  &lt;li&gt;http://llvm.org/docs/CommandGuide/llvm-link.html&lt;/li&gt;
-  &lt;li&gt;https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html&lt;/li&gt;
-  &lt;li&gt;https://github.com/littlekernel/lk&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">I ported Linux kernel directly on JavaScript. In other words, I translated the Linux kernel to JavaScript using Emscripten, and Unlike JSLinux, it runs without emulators. The following is the working repository. https://github.com/retrage/linux/tree/retrage/em-v2 I published a demonstration site for LKL.js. Please enable SharedArrayBuffer and try it out LKL.js Demo I also published slides about LKL.js. https://speakerdeck.com/retrage/lkl-dot-js-running-linux-kernel-on-javascript-star-directly-star Linux Kernel Library (LKL) We use Linux Kernel Library (LKL) which makes the Linux kernel an anykernel. LKL is a fork of torvalds/linux. It is designed to put LKL specific code only in arch/lkl and runs without modifications of other code. By this design, it makes easy to follow the mainline. (Currently v4.16) Since LKL is anykernel, it runs on user space of various OS such as Linux, FreeBSD, and Windows etc. Emscripten Emscripten is LLVM based C/C++ to JavaScript/WebAssembly transpiler. It also provides a Unix-like environment to run translated software on web browsers. Can we port LKL to JavaScript with Emscripten? LKL runs on various OSes, Emscripten provides Unix-like environment. So can LKL be ported to JavaScript with Emscripten? Current Status of Linux Kernel Build with Clang First of all, the Linux kernel is deeply dependent on gcc-extension, and there is a doubt that Clang can not compile it. Once upon the time, there was LLVMLinux project that aims to compile Linux kernel with Clang. However, through the efforts of the Google Android team, two LTS (4.4 and 4.9) can be built with Clang. Now, LKL can be built with Clang. LKL Build Flow 101 Let’s look at the build flow of LKL. First, when $ make -C tools/lkl is performed, the build system determines which source code (*.c/*.S) to be built from the Kconfig settings and compiles them. Object files (*.o) generated by compiling are once archived by ar to built-in.o. Next, it links all built-in.o files into vmlinux at once. For host side code, files under tools/lkl/lib compiled and linked to liblkl.o. Finally, link all files (vmlinux and liblkl.o) to liblkl.so. This is a simple build flow of LKL. Porting LKL with Emscripten Next, we will take a look at how to port LKL with Emscripten. Not limited to Emscripten, when using LLVM infrastructures, the compiler compiles source to target with the following flow. Soruce -&amp;gt; LLVM IR -&amp;gt; Target In this way, the source is once converted to LLVM IR (*.bc/*.ll) and then converted to the target. In Emscripten, the “linking” is the conversion from LLVM IR to JavaScript. Therefore, it is necessary to first convert all (including libc etc. provided by Emscripten) to LLVM IR. Generating vmlinux.bc The build using emcc (An Emscripten Clang wrapper) is: make -C tools/lkl CC=&quot;$CC $CFLAGS&quot; AR=&quot;$PY $PWD/ar.py&quot; V=1 The two important things here are $FCFLAS and ar.py. I will explain each one. (Note that C=&quot;$CC $CFLAGS&quot; is forced to pass $CFLAGS) $CFLAGS is: CFLAGS=&quot;$CFLAGS -s WASM=0&quot; CFLAGS=&quot;$CFLAGS -s ASYNCIFY=1&quot; CFLAGS=&quot;$CFLAGS -s EMULATE_FUNCTION_POINTER_CASTS=1&quot; CFLAGS=&quot;$CFLAGS -s USE_PTHREADS=1&quot; CFLAGS=&quot;$CFLAGS -s PTHREAD_POOL_SIZE=4&quot; CFLAGS=&quot;$CFLAGS -s TOTAL_MEMORY=1342177280&quot; The options are to pass to Emscripten. Please refer to the Emscripten manual for details. Furthermore, the following definitions are specified. CFLAGS=&quot;$CFLAGS -DMAX_NR_ZONES=2&quot; CFLAGS=&quot;$CFLAGS -DNR_PAGEFLAGS=20&quot; CFLAGS=&quot;$CFLAGS -DSPINLOCK_SIZE=0&quot; CFLAGS=&quot;$CFLAGS -DF_GETLK64=12&quot; CFLAGS=&quot;$CFLAGS -DF_SETLK64=13&quot; CFLAGS=&quot;$CFLAGS -DF_SETLKW64=14&quot; These values are originally obtained by compiling an empty file at the time of Linux kernel build. However, this time they can not be obtained directly. Therefore, we have to specify these values which come from when building with the x86_64 environment. Next, I will explain ar.py. The following is a snippet of ar.py. filename = &quot;objs&quot; def main(): if not os.path.exists(filename): with open(filename, &quot;w&quot;) as fp: pass objs = [] for i, arg in enumerate(sys.argv): if &quot;.o&quot; in arg and not &quot;built-in&quot; in arg and i &amp;gt; 2: objs.append(arg) with open(filename, &quot;aw&quot;) as fp: for obj in objs: if not obj is &quot;&quot;: fp.write(obj + &quot; &quot;) return 0 As explained above, the build system of Linux kernel gathers object files by ar and links them to get vmlinux. To work with Emscripten we need to get vmlinux as a LLVM bitcode. LLVM has a linker called llvm-link that links multiple LLVM bitcode files to get one LLVM bitcode. To generate vmlinux.bc, we need to use llvm-link, but there is a problem. llvm-link can not take archive files as arguments like lds. Therefore, we have to record object files that are originally archived. In this case, ar.py will record them as file paths in objs. Next, Let’s look at the part of vmlinux.bc generation. I added following scripts to scripts/link-vmlinux.sh. info CLEAN obj python &quot;${srctree}/clean-obj.py&quot; info GEN link-vmlinux.sh python &quot;${srctree}/link-vmlinux-gen.py&quot; info LINK vmlinux bash &quot;${srctree}/link-vmlinux.sh&quot; clean-obj.py removes duplicated file paths from objs which is generated by ar.py. link-vmlinux-gen.py generates vmlinux-link.sh (not scripts/link-vmlinux.sh) which performs llvm-link. By performing vmlinux-link.sh, we can get vmlinux.bc. This is the flow of generating vmlinux.bc. Generating boot.js Next, I will look at until JavaScript code is generated. As explained above, since LKL is one of Library OS, vmlinux does not work on its own, it works only when it has a part of an application. In this case, our target is tools/lkl/tests/boot which is LKL’s Hello, world. $LINK -o $LKL/tests/boot.bc \ $LKL/tests/boot-in.o $LKL/lib/liblkl-in.o $LKL/lib/lkl.o First, we have to link vmlinux.bc ($LKL/lib/lkl.o), host dependent part $LKL/lib/liblkl-in.o and applicatin part $LKL/tests/boot-in.o and get $LKL/tests/boot.bc. $DIS -o $LKL/tests/boot.ll $LKL/tests/boot.bc $CP ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc $CP ~/.emscripten_cache/asmjs/libc.bc js/libc.bc $CP ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc $DIS -o js/dlmalloc.ll js/dlmalloc.bc $DIS -o js/libc.ll js/libc.bc $DIS -o js/pthreads.ll js/pthreads.bc $PY rename_symbols.py $LKL/tests/boot.ll $LKL/tests/boot-mod.ll First, it disassembles all LLVM bitcode files ($LKL/tests/boot.bc and libc.bc etc.) using llvm-dis. Next, it applies rename_symbols.py to boot.ll. There is a reason for performing such operations. This is because function names used in the Linux kernel conflict with function names used in libcs. In normal LKL, this conflict is avoided by using ELF linker tricks. Meanwhile, since JavaScript generated by Emscripten does not have a namespace, such collisions occur. Therefore, by rewriting the functions names that would collide with rename_symbols.py, it can avoid collisions. In addition, rename_symbols.py also performs operations such as converting inline assemblies in Linux kernel to Emscripten emscripten_asm_const_int. From the boot-mod.ll, EMCC_DEBUG=1 $CC -o js/boot.html $LKL/tests/boot-mod.ll $CFLAGS -v generate HTML and JavaScript files. Adding Workarounds Although we generated the Linux kernel translated in “completely” JavaScript and the application boot.js, it will not work as it is. This is due to the fact that the architecture of computers and JavaScript is very different. So we have to make some modifications. Replacing inline assemblies In the Linux kernel, the architecture-dependent code is basically placed under arch/$ARCH, and other code are architecture independent. However, an empty inline assembly may be inserted so that optimization by the compiler prevents meaningful code from being lost at compile time. Here is an example, set_normalized_timespec64 in kernel/time/time.c: void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec) { while (nsec &amp;gt;= NSEC_PER_SEC) { /* * The following asm() prevents the compiler from * optimising this loop into a modulo operation. See * also __iter_div_u64_rem() in include/linux/time.h */ asm(&quot;&quot; : &quot;+rm&quot;(nsec)); nsec -= NSEC_PER_SEC; ++sec; } while (nsec &amp;lt; 0) { asm(&quot;&quot; : &quot;+rm&quot;(nsec)); nsec += NSEC_PER_SEC; --sec; } ts-&amp;gt;tv_sec = sec; ts-&amp;gt;tv_nsec = nsec; } Such Inline assemblies cause a failure to convert from LLVM bitcode to JavaScript. Therefore, we have to replace inline assemblies such as asm(&quot;&quot; : &quot;+rm&quot;(nsec)) with emcsripten_asm_const_int which calls JavaScript code from C defined in Emscripten. Fix early_param In the Linux kernel, there is early_param. This is defined in include/linux/init.h as follows: struct obs_kernel_param { const char *str; int (*setup_func)(char *); int early; }; /* snip */ #define __setup_param(str, unique_id, fn, early) \ static const char __setup_str_##unique_id[] __initconst \ __aligned(1) = str; \ static struct obs_kernel_param __setup_##unique_id \ __used __section(.init.setup) \ __attribute__((aligned((sizeof(long))))) \ = { __setup_str_##unique_id, fn, early } /* snip */ #define early_param(str, fn) \ __setup_param(str, fn, fn, 1) early_param is a macro, taking str and fn as arguments, and obs_kernel_param structure placed in .init.setup. By referring to arch/lkl/kernel/vmlinux.ldS which is generated in the build of LKL, we can see that .init.setup is arranged between __setup_start and __setup_end. __setup_start = .; KEEP(*(.init.setup)) __setup_end = .; These symbols will be used in init/main.c as follows. Here it compares one of boot parameter (param) of Linux kernel with str of obs_kernel_param in .init.setup. If it matches, it will execute (*setup_func)(char*) with argument val. /* Check for early params. */ static int __init do_early_param(char *param, char *val, const char *unused, void *arg) { const struct obs_kernel_param *p; for (p = __setup_start; p &amp;lt; __setup_end; p++) { if ((p-&amp;gt;early &amp;amp;&amp;amp; parameq(param, p-&amp;gt;str)) || (strcmp(param, &quot;console&quot;) == 0 &amp;amp;&amp;amp; strcmp(p-&amp;gt;str, &quot;earlycon&quot;) == 0) ) { if (p-&amp;gt;setup_func(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); } } /* We accept everything at this stage. */ return 0; } In summary, do_early_param executes setup_func registered by early_param by referring boot parameters. However, since it uses ELF symbols, it does not work correctly in JavaScript. For this reason, the function which will be called here is hard coded. static int __init do_early_param(char *param, char *val, const char *unused, void *arg) { /* XXX: There is a lot of early_param, but hardcode in init/main.c */ const char *early_params[MAX_INIT_ARGS+2] = { &quot;debug&quot;, &quot;quiet&quot;, &quot;loglevel&quot;, NULL, }; int i; for (i = 0; early_params[i]; i++) { if (strcmp(param, early_params[i]) == 0 || (strcmp(param, &quot;console&quot;) == 0 &amp;amp;&amp;amp; strcmp(early_params[i], &quot;earlycon&quot;) == 0) ) { switch (i) { case 0: /* debug */ if (debug_kernel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; case 1: /* quiet */ if (quiet_kernel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; case 2: /* loglevel */ if (loglevel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; default: pr_warn(&quot;Unknown early option '%s'\n&quot;, param); } } } /* We accept everything at this stage. */ return 0; } Fix initcall Like early_param, initcall which are called in the initialization manages functions using ELF symbols. With JavaScript alone, we can not know which function should be called. Therefore, we have to generate inticall tables from System.map generated by a normal build of LKL. with open(sys.argv[1], &quot;r&quot;) as fp: for line in fp: if SIG in line: symbol = line[:-1].split(&quot; &quot;)[2] try: level = int(symbol[-1]) initcall = symbol[symbol.index(SIG)+len(SIG):len(symbol)-1] initcalls[level].append(initcall) except ValueError: pass for level, row in enumerate(initcalls): print(&quot;/* initcall{} */&quot;.format(level)) print(&quot;EM_ASM({&quot;) for initcall in row: if initcall in blacklist: print(&quot; /* _&quot;+initcall+&quot;(); */&quot;) else: print(&quot; _&quot;+initcall+&quot;();&quot;) print(&quot;});&quot;) The above is the initcall table generation script. We hard-code the code to do_initcalls. EM_ASM is an inline assembly that directly calls the JavaScript code in C. static void __init do_initcalls(void) { /* XXX: initcalls are broken, so hardcode here */ /* initcall0 */ EM_ASM({ _net_ns_init(); }); /* initcall1 */ EM_ASM({ _lkl_console_init(); _wq_sysfs_init(); _ksysfs_init(); /* snip */ }); } Demonstration and the Results As described at the top, LKL.js uses pthread, we have to enable SharedArrayBuffer. Although every modern web browsers are shipped with SharedarrayBuffer, it is disabled by default because of Spectre mitigation in Mozilla Firefox. Therefore, please enable it before executing the demo. The following is the result of start_kernel. We can see that it shows dmesg on browsers. [ 0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018 [ 0.000000] bootmem address range: 0x675000 - 0x1674000 [ 0.000000] On node 0 totalpages: 4095 [ 0.000000] Normal zone: 36 pages used for memmap [ 0.000000] Normal zone: 0 pages reserved [ 0.000000] Normal zone: 4095 pages, LIFO batch:0 [ 0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768 [ 0.000000] pcpu-alloc: [0] 0 [ 0.000000] Built 1 zonelists, mobility grouping off. Total pages: 4059 [ 0.000000] Kernel command line: mem=16M loglevel=8 [ 0.000000] Parameter is obsolete, ignored [ 0.000000] Parameter is obsolete, ignored [ 0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes) [ 0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.000000] Memory available: 16144k/16380k RAM [ 0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1 [ 0.000000] NR_IRQS: 1024 [ 0.000000] lkl: irqs initialized [ 0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns [ 0.000100] lkl: time and timers initialized (irq1) [ 0.001100] pid_max: default: 4096 minimum: 301 [ 0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.327100] console [lkl_console0] enabled [ 0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns [ 0.329700] xor: automatically using best checksumming function 8regs [ 0.341199] NET: Registered protocol family 16 [ 0.388999] clocksource: Switched to clocksource lkl [ 0.414100] NET: Registered protocol family 2 [ 0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes) [ 0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes) [ 0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes) [ 0.439600] TCP: Hash tables configured (established 1024 bind 1024) [ 0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes) [ 0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes) [ 0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0 [ 0.863100] SGI XFS with ACLs, security attributes, no debug enabled [ 0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2 [ 0.924599] io scheduler noop registered [ 0.924900] io scheduler deadline registered [ 0.933099] io scheduler cfq registered (default) [ 0.933500] io scheduler kyber registered [ 1.633500] NET: Registered protocol family 10 [ 1.658400] Segment Routing with IPv6 [ 1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver [ 1.674200] ------------[ cut here ]------------ [ 1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188 (null) [ 1.675899] Call Trace: [ 1.676200] [ 1.676999] ---[ end trace 941dc55fe0966cff ]--- [ 1.684299] Warning: unable to open an initial console. [ 1.685200] This architecture does not have kernel memory protection. pthread_join((pthread_t)tid, NULL): No such process lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 Limitations From the above results, we confirmed that Linux kernel was booted directly in JavaScript. However, it just outputted dmesg and it is not suitable for practical use at all. This is because of the following problems: It fails to create kernel threads. It fails to mount rootfs. It fails to execute init (PID 1). Also, support for pthreads in Emscripten is not good. We extracted semaphore, mutex, and thread from Little Kernel (LK) and add them to LKL as green threads. https://github.com/retrage/linux/tree/retrage/fiber We plan to create LKL.js using this green threads. Summary We created a Linux kernel fully translated in JavaScript using LKL and Emscripten. It boots the Linux kernel and we confirmed that it shows dmesg. Although the architecture is greatly different between computers and JavaScript, we found that it works somewhat by adding some fixes and workarounds. Reference https://github.com/lkl/linux https://github.com/kripken/emscripten https://llvm.org/ https://clang.llvm.org/ https://wiki.linuxfoundation.org/llvmlinux https://lwn.net/Articles/734071/ http://llvm.org/docs/CommandGuide/llvm-link.html https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html https://github.com/littlekernel/lk</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">2018年10月8日に池袋サンシャインシティで開催される 技術書典5において「海洋軟件」として 「UEFI読本 基礎編 Linux編」を頒布する． 配置先は「お09」である．</summary></entry></feed>
