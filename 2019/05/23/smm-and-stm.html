@@ -185,6 +185,50 @@ SMIはVM Exit扱いとなり，SMI VMCSを用いる点や
 <code class="highlighter-rouge">RSM</code>命令からSMMから復帰するのではなく
 VM EntryによりSMMから復帰する点などが挙げられる．</p>
 
+<h2 id="20190528-追記">2019/05/28 追記</h2>
+
+<h3 id="out命令によるsmiの発生">out命令によるSMIの発生</h3>
+
+<p>SMIはout命令によりユーザランドから発生させることもできる．
+SDMによればout命令は以下のようになっている．</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>out imm8, al
+</code></pre></div></div>
+
+<p>alレジスタ(1-byte)の内容をimm8の示すポート番号に出力
+という意味となっている．
+SMIのポートは伝統的に0xb2と決まっているようである．
+0xb2にはAPMのコントローラが接続されており，
+チップセットはここへの書き込みにより
+SMIを発生させるように設計されている．</p>
+
+<h3 id="smramの再配置">SMRAMの再配置</h3>
+
+<p>SeaBIOSではQEMU向けにSMMをサポートしており，
+最初のSMIの発生時にSMRAMを再配置する．
+これはSMBASEが最初0x30000に設定されている一方で
+伝統的には0xa0000 (VGAバッファの裏側)とされていることから
+この領域に再配置させる必要があるためと考えられる．</p>
+
+<h3 id="stmの利用例">STMの利用例</h3>
+
+<p>STMはVMMから起動させる必要があり，
+一般的なVMMのユースケースには適用しにくい．
+<a href="https://firmware.intel.com/sites/default/files/A_Tour_Beyond_BIOS_Launching_STM_to_Monitor_SMM_in_EFI_Developer_Kit_II.pdf">A Tour Beyond BIOS Lanuching a STM to Monitor SMM in EFI Developer Kit II</a>
+ではFirmware Reference Monitor (FRM)を提案している．
+以下にFRMの図を示す．</p>
+
+<p><img src="/img/frm-architecture.png" alt="FRM Architecture" /></p>
+
+<p>FRMはVMMとして動作し，VMM VM内部でUEFIを動作させている．</p>
+
+<h2 id="stmの実装">STMの実装</h2>
+
+<p>STMの実験的な実装は<a href="https://github.com/jyao1/STM">jyao1/STM</a>があり，
+<a href="https://elinux.org/Minnowboard:MinnowMax">MinnowMax</a>向けとなっている．
+この実装ではSTMに加えて前述のFRMの実装やSTMのテストも含まれている．
+また，このコードはEDK2をベースにしている．</p>
+
 <h2 id="参考文献">参考文献</h2>
 
 <ul>
