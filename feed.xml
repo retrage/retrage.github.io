@@ -1,4 +1,315 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-11T15:07:07+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">Librarizing Linux kernel for Unikernels</title><link href="http://localhost:4000/2019/06/02/lkl-on-unikraft-en.html" rel="alternate" type="text/html" title="Librarizing Linux kernel for Unikernels" /><published>2019-06-02T19:35:32+09:00</published><updated>2019-06-02T19:35:32+09:00</updated><id>http://localhost:4000/2019/06/02/lkl-on-unikraft-en</id><content type="html" xml:base="http://localhost:4000/2019/06/02/lkl-on-unikraft-en.html">&lt;p&gt;I ported the Linux kernel to Unikraft as an external library.
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-13T17:27:21+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+09:00</published><updated>2019-07-13T17:23:26+09:00</updated><id>http://localhost:4000/2019/07/13/elvm-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
+&lt;a href=&quot;https://github.com/shinh/elvm&quot;&gt;ELVM&lt;/a&gt;
+のEFI Byte Codeバックエンドについて紹介する．
+特にELVM IRとEFI Byte Codeのsemantic gapに注目する．&lt;/p&gt;
+
+&lt;h2 id=&quot;efi-byte-codeについて&quot;&gt;EFI Byte Codeについて&lt;/h2&gt;
+
+&lt;p&gt;EFI Byte Code (EBC)はUEFI Specificationで定義されている
+アーキテクチャ非依存なUEFI向けデバイスドライバのための仮想マシンである，
+EBCの詳細については過去の記事である
+&lt;a href=&quot;https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&quot;&gt;EFI Byte Code解説&lt;/a&gt;
+を参考にしたい．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcバックエンドのビルドとテスト&quot;&gt;EBCバックエンドのビルドとテスト&lt;/h2&gt;
+
+&lt;p&gt;コードは以下で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/retrage/elvm/tree/retrage/ebcvm&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;以下でビルドとebcvmによるテストが行える．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ git clone https://github.com/retrage/elvm.git
+$ cd elvm &amp;amp;&amp;amp; git checkout retrage/ebcvm
+$ make ebc
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;バックエンドの概要&quot;&gt;バックエンドの概要&lt;/h2&gt;
+
+&lt;p&gt;EBCは64-bitなlittle endianなアーキテクチャであり，
+UEFIの仕様ではEBCのバイナリフォーマットはPE32+である．
+ELVMにはLinux向けのx86_32とARMのバックエンドが存在し，これらは直接ELFを出力する．
+一方でPEのサポートがないため新たにPEの出力をELVMに追加した．&lt;/p&gt;
+
+&lt;p&gt;EBCバックエンドの構成は既存のx86_32やARMのバックエンドを参考にしている．
+出力されるPEは&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;セクションと&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;セクションの2つのセクションを持つ．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;セクションにはELVM IRから変換したコードが配置され，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;セクションには後述のELVM IRでのプログラムカウンタと実アドレスのテーブルが配置される．&lt;/p&gt;
+
+&lt;h2 id=&quot;pc2addrの作成&quot;&gt;pc2addrの作成&lt;/h2&gt;
+
+&lt;p&gt;ELVM IRでは&lt;code class=&quot;highlighter-rouge&quot;&gt;JMP&lt;/code&gt;命令などのターゲットのアドレスを
+ELVM IRにおけるプログラムカウンタの値で保持している．
+一方でEBCではターゲットのアドレスは実アドレスでなければならない．
+このため，ELVM IRでのプログラムカウンタの値と実アドレスの対応表を作成する必要がある．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;c1&quot;&gt;// pc_cnt: get program counter count&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最初にELVM IRのtextの命令数を&lt;code class=&quot;highlighter-rouge&quot;&gt;pc_cnt&lt;/code&gt;に数え上げる．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;c1&quot;&gt;// pc2addr: table from pc to addr&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;calloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;ebc_emit_inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;にプログラムカウンタの値をインデックスとして
+実アドレスの値のテーブルを作成する．
+ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;ebc_emit_inst()&lt;/code&gt;を呼んでいるが，
+実際にEBCの命令を出力しているのではなく出力される命令の大きさ分
+&lt;code class=&quot;highlighter-rouge&quot;&gt;g_emit_cnt&lt;/code&gt;をインクリメントしているだけである．&lt;/p&gt;
+
+&lt;h2 id=&quot;ヘッダの生成&quot;&gt;ヘッダの生成&lt;/h2&gt;
+
+&lt;p&gt;ELFやPEなどのバイナリフォーマットでは各セクションの大きさが
+正しくヘッダに書き込まれている必要がある．
+このため，実際にバイナリを出力する前に必ず先にセクションの大きさを計算して置く必要がある．
+既に&lt;code class=&quot;highlighter-rouge&quot;&gt;g_emit_cnt&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;pc_cnt&lt;/code&gt;に必要な値が取得できているので，
+これらを元に出力する．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.text&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PE_HEADER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PE_HEADER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x60000020&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// r-x exec&lt;/span&gt;
+
+  &lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.rodata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+                                                    &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x40000040&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// r-- inited&lt;/span&gt;
+
+  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+  &lt;span class=&quot;c1&quot;&gt;// generate PE header&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;emit_headers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;elvm-irとebcの対応&quot;&gt;ELVM IRとEBCの対応&lt;/h2&gt;
+
+&lt;p&gt;ELVM IRはA, B, C, D, SP, BPの6個のレジスタを持つ．
+一方EBCはR0, R1, R2, R3, R4, R5, R6, R7, IP, FLAGSの10個のレジスタを持つ．
+このうちR0はスタックポインタとして予約されているため，
+以下のように対応させる．
+なお，R7は保存する必要のないレジスタとした．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; 
+  &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// A - R1&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// B - R2&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// C - R3&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// D - R4&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// BP - R5&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// SP - R6&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// R7 - free register&lt;/span&gt;
+  &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// R0 - stack pointer&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;前述の通り，ELVM IRとEBCにはsemantic gapが存在するため，
+これを埋めるように実装を行う．&lt;/p&gt;
+
+&lt;h3 id=&quot;setcc&quot;&gt;setcc&lt;/h3&gt;
+
+&lt;p&gt;ELVM IRにおいてEQ, NE, LT, GT, LE, GEなどのsetcc命令は
+srcとdstの2つのオペランドを持ち，
+dstとsrcを比較し結果をdstに0, 1で代入するというものである．&lt;/p&gt;
+
+&lt;p&gt;一方EBCではCMP命令が存在するが，
+これはOperand1とOperand2の2つオペランドを持ち，
+これらを比較して結果をFLAGSの0-bitにあるCフラグを設定するというものである．
+ELVM IRのsetccと対応させるためには次の2つの問題がある．&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;CMP命令の結果をOperand1に代入する必要がある．&lt;/li&gt;
+  &lt;li&gt;ELVM IRにあるLT, GTに相当するものが存在しない．&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;1つ目の問題については以下のようなコードを生成することで対応させる．
+CMP命令の結果によって設定されたCフラグを元にconditional branchを行い
+それぞれ飛んだ先でdstの値を設定する．
+なお，CMP命令にはELVM IRのNEに相当するものが存在しないが，
+conditional branchの設定を変えることでこれに対応できる．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;    CMP32 dst, src
+    JMP8[cc/cs] .L1
+.L0:
+    MOVIdd dst, 0x01
+    JMP8 .L2
+.L1:
+    MOVIdd dst, 0x00
+    JMP8 .L2
+.L2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;2つ目の問題についてELVM IRでは扱う値が整数のみであるため，
+以下のようなコードで対応できる．
+まずGTであればGE，LTであればLEで比較を行い
+その結果が0であればそのまま0をdstに代入する．
+結果が1であればさらにEQで比較を行う．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;    CMP32 dst, src
+    JMP8cc .L1
+    CMPeq dst, src
+    JMP8cs .L1
+.L0:
+    MOVIdd dst, 0x01
+    JMP8 .L2
+.L1:
+    MOVIdd dst, 0x00
+    JMP8 .L2
+.L2
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;jcc&quot;&gt;jcc&lt;/h3&gt;
+
+&lt;p&gt;ELVM IRのJEQ, JNE, JLT, JGT, GLE, JGEなどのjcc命令についても
+setcc命令と同様である．
+ただし，ジャンプを行う点で大きく異なり，前述の&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;テーブルを用いる．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;に存在するため&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;の先頭アドレスを取得し
+ELVM IRのプログラムカウンタの値を添字として目的のアドレスの値を取得する．
+以下が該当部分のコードである．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;c1&quot;&gt;// MOVREL R1, rodata&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0xb9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_le&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_imm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x04&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x4e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MUL64 R7, R2&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x4c&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// ADD64 R7, R1&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x23&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x80&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVdd R7, @R7&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;putcgetc&quot;&gt;PUTC/GETC&lt;/h2&gt;
+
+&lt;p&gt;EBCは単体では外部にアクセスすることができない．
+そのため，UEFIのnativeの機能を&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;により呼び出すことで
+文字の読み書きを実現する．ここではPUTCを例に挙げる．&lt;/p&gt;
+
+&lt;p&gt;UEFIでは文字の出力はSystemTableに含まれるConOutがStdErrを利用する．
+これらはSimple Text Output Protocolであり，実際に文字の出力を行うのは
+&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;である，&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFIAPI&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_TEXT_STRING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;This&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CHAR16&lt;/span&gt;                           &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここに示すように第2引数に出力したい文字列へのポインタを渡すようになっている．
+EBCの呼出規約はCDECLであり，
+関数の引数は全てスタック経由で渡すように定められている．
+この場合，逆順に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;が先にスタックにプッシュされることとなる，
+ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;はCHAR16のポインタであることに注意したい．&lt;/p&gt;
+
+&lt;p&gt;渡される&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;はEBCのバックエンドではスタック上に確保した8-byteの領域となっている．
+以下に対応するコードを示す．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;src&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_imm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xff00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x6b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSH64 R2; String&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_reg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// MOVbw @R2, R7&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x1d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x08&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最初にR7に出力したい文字を代入し，R2に0xff00を代入する．
+R2をプッシュしスタック上に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;となる領域を確保する．
+R2にスタックポインタR0の値を代入しR7の値を確保した領域にコピーする．
+以上の操作でR2の指すスタック上の領域は次のようになる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00 00 00 00 00 00 ff xx
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでxxは出力される文字であり，ff以降の00 00は終端文字として扱われる．
+間にffを入れている理由については後述する．&lt;/p&gt;
+
+&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;を呼ぶためにConOutの&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;のアドレスを計算する．
+ここで注意したいのはSystemTableのアドレスはnativeなものであり，
+アドレスは環境依存である点である．
+EBCにはNatural Indexと呼ばれる環境依存のアドレスに対応するための仕様が存在するため
+これを用いてアドレスを計算する．&lt;/p&gt;
+
+&lt;p&gt;UEFIのイメージのエントリポイントからConOutの&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;までは
+SystemTable-&amp;gt;ConOut-&amp;gt;OutputStringとたどれるようになっている．&lt;/p&gt;
+
+&lt;p&gt;R1に&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;のアドレス，R2に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;のアドレスが代入されたので
+これらをプッシュして&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;を呼ぶ．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x60&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x07&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x28&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVqw R7, R0 (0, +40)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x72&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xf1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x41&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVn R1, @R7(.SystemTable)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x72&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x91&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x85&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x21&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVn R1, @R1(.ConOut)&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x35&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x02&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSHn R2&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x35&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x01&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSHn R1&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;emit_6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x83&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x29&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x01&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// CALLEX @R1(.OutputString)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;終端文字の扱いについて&quot;&gt;終端文字の扱いについて&lt;/h3&gt;
+
+&lt;p&gt;TianoCoreの実装では&lt;code class=&quot;highlighter-rouge&quot;&gt;CHAR_NULL&lt;/code&gt;=0x0000を終端文字としているが，
+ELVMのテストでは標準入出力を用いてバイナリの入出力を行っている．
+このため，出力したいCHAR16文字の後半を0x00としてしまうと
+期待される出力が0x00だった場合に終端文字として扱われてしまう．
+そこで出力されるCHAR16の後半を0xffで埋めることでこれを回避する．
+実際に文字を出力する際には0x00ffでマスクをかけて文字を得る．&lt;/p&gt;
+
+&lt;h2 id=&quot;テスト&quot;&gt;テスト&lt;/h2&gt;
+
+&lt;p&gt;以上のように実装したEBCバックエンドだが，
+ELVMのテストはUnix-likeな環境を想定しており，UEFI Shellではテストができない．
+そこで以前に作成したユーザ空間で動作するEBCの実装である
+&lt;a href=&quot;https://github.com/yabits/ebcvm&quot;&gt;ebcvm&lt;/a&gt;
+を用いてテストを行った．
+ebcvmについては
+&lt;a href=&quot;https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html&quot;&gt;ebcvm: A Usermode EFI Byte Code Virtual Machine&lt;/a&gt;
+で紹介している．&lt;/p&gt;
+
+&lt;p&gt;ELVMのテストで生成されたバイナリの一部はQEMU上のOVMFで実際に動作する．
+以下はCで書かれたfizzbuzzの実行結果の一部である．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\bin\&amp;gt; fizzbuzz_fast.c.eir.ebc
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+11
+Fizz
+13
+14
+FizzBuzz
+16
+17
+Fizz
+19
+Buzz
+Fizz
+22
+23
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name></name></author><summary type="html">ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．</summary></entry><entry><title type="html">Librarizing Linux kernel for Unikernels</title><link href="http://localhost:4000/2019/06/02/lkl-on-unikraft-en.html" rel="alternate" type="text/html" title="Librarizing Linux kernel for Unikernels" /><published>2019-06-02T19:35:32+09:00</published><updated>2019-06-02T19:35:32+09:00</updated><id>http://localhost:4000/2019/06/02/lkl-on-unikraft-en</id><content type="html" xml:base="http://localhost:4000/2019/06/02/lkl-on-unikraft-en.html">&lt;p&gt;I ported the Linux kernel to Unikraft as an external library.
 This makes it possible to reuse the rich functions of the Linux kernel
 for Unikernel with less functionality.
 In this blog post, I describe the overview of the library.&lt;/p&gt;
@@ -2354,547 +2665,4 @@ UEFIに対応しており、かつOSも当然のように対応している。
 
 &lt;ul&gt;
   &lt;li&gt;https://techbookfest.org/event/tbf05/circle/45190001&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">2018年10月8日に池袋サンシャインシティで開催される 技術書典5において「海洋軟件」として 「UEFI読本 基礎編 Linux編」を頒布する． 配置先は「お09」である．</summary></entry><entry><title type="html">LKL.js: Running Linux Kernel on JavaScript *Directly*</title><link href="http://localhost:4000/2018/07/25/lkl-js-en.html" rel="alternate" type="text/html" title="LKL.js: Running Linux Kernel on JavaScript *Directly*" /><published>2018-07-25T20:29:00+09:00</published><updated>2018-07-25T20:29:00+09:00</updated><id>http://localhost:4000/2018/07/25/lkl-js-en</id><content type="html" xml:base="http://localhost:4000/2018/07/25/lkl-js-en.html">&lt;p&gt;I ported Linux kernel directly on JavaScript.
-In other words, I translated the Linux kernel to JavaScript using Emscripten,
-and Unlike JSLinux, it runs without emulators.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/lkl-js-architecture.png&quot; alt=&quot;LKL.js Architecture&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;The following is the working repository.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/em-v2&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;I published a demonstration site for LKL.js.
-Please enable SharedArrayBuffer and try it out&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;https://retrage.github.io/lkl-js&quot;&gt;LKL.js Demo&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;I also published slides about LKL.js.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://speakerdeck.com/retrage/lkl-dot-js-running-linux-kernel-on-javascript-star-directly-star&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;linux-kernel-library-lkl&quot;&gt;Linux Kernel Library (LKL)&lt;/h2&gt;
-
-&lt;p&gt;We use Linux Kernel Library (LKL) which makes the Linux kernel an anykernel.
-LKL is a fork of torvalds/linux.
-It is designed to put LKL specific code only in
-&lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl&lt;/code&gt; and runs without modifications of other code.
-By this design, it makes easy to follow the mainline. (Currently v4.16)
-Since LKL is anykernel, it runs on user space of
-various OS such as Linux, FreeBSD, and Windows etc.&lt;/p&gt;
-
-&lt;h2 id=&quot;emscripten&quot;&gt;Emscripten&lt;/h2&gt;
-
-&lt;p&gt;Emscripten is LLVM based C/C++ to 
-JavaScript/WebAssembly transpiler.
-It also provides a Unix-like environment to run translated software
-on web browsers.&lt;/p&gt;
-
-&lt;h2 id=&quot;can-we-port-lkl-to-javascript-with-emscripten&quot;&gt;Can we port LKL to JavaScript with Emscripten?&lt;/h2&gt;
-
-&lt;p&gt;LKL runs on various OSes, Emscripten provides Unix-like
-environment. So can LKL be ported to JavaScript with Emscripten?&lt;/p&gt;
-
-&lt;h3 id=&quot;current-status-of-linux-kernel-build-with-clang&quot;&gt;Current Status of Linux Kernel Build with Clang&lt;/h3&gt;
-
-&lt;p&gt;First of all, the Linux kernel is deeply dependent on 
-gcc-extension, and there is a doubt that Clang can not compile it.
-Once upon the time, there was LLVMLinux project that aims to compile
-Linux kernel with Clang.
-However, through the efforts of the Google Android team, two LTS (4.4 and 4.9)
-can be built with Clang.
-Now, LKL can be built with Clang.&lt;/p&gt;
-
-&lt;h3 id=&quot;lkl-build-flow-101&quot;&gt;LKL Build Flow 101&lt;/h3&gt;
-
-&lt;p&gt;Let’s look at the build flow of LKL.
-First, when&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; tools/lkl
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;is performed, the build system determines which source code (*.c/*.S)
-to be built from the Kconfig settings and compiles them.
-Object files (*.o) generated by compiling are once archived by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar&lt;/code&gt;
-to &lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt;.
-Next, it links all &lt;code class=&quot;highlighter-rouge&quot;&gt;built-in.o&lt;/code&gt; files into &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; at once.
-For host side code, files under &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/lib&lt;/code&gt; compiled and linked
-to &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.o&lt;/code&gt;.
-Finally, link all files (&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.o&lt;/code&gt;) to &lt;code class=&quot;highlighter-rouge&quot;&gt;liblkl.so&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;This is a simple build flow of LKL.&lt;/p&gt;
-
-&lt;h2 id=&quot;porting-lkl-with-emscripten&quot;&gt;Porting LKL with Emscripten&lt;/h2&gt;
-
-&lt;p&gt;Next, we will take a look at how to port LKL with Emscripten.&lt;/p&gt;
-
-&lt;p&gt;Not limited to Emscripten, when using LLVM infrastructures,
-the compiler compiles source to target with the following flow.&lt;/p&gt;
-
-&lt;p&gt;Soruce -&amp;gt; LLVM IR -&amp;gt; Target&lt;/p&gt;
-
-&lt;p&gt;In this way, the source is once converted to LLVM IR (*.bc/*.ll)
-and then converted to the target.
-In Emscripten, the “linking” is the conversion from LLVM IR to JavaScript.
-Therefore, it is necessary to first convert all
-(including libc etc. provided by Emscripten) to LLVM IR.&lt;/p&gt;
-
-&lt;h3 id=&quot;generating-vmlinuxbc&quot;&gt;Generating vmlinux.bc&lt;/h3&gt;
-
-&lt;p&gt;The build using &lt;code class=&quot;highlighter-rouge&quot;&gt;emcc&lt;/code&gt; (An Emscripten Clang wrapper) is:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; tools/lkl &lt;span class=&quot;nv&quot;&gt;CC&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;AR&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$PWD&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/ar.py&quot;&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;V&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The two important things here are &lt;code class=&quot;highlighter-rouge&quot;&gt;$FCFLAS&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.
-I will explain each one.
-(Note that &lt;code class=&quot;highlighter-rouge&quot;&gt;C=&quot;$CC $CFLAGS&quot;&lt;/code&gt; is forced to pass &lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt;)&lt;/p&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;$CFLAGS&lt;/code&gt; is:&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s WASM=0&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s ASYNCIFY=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s EMULATE_FUNCTION_POINTER_CASTS=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s USE_PTHREADS=1&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s PTHREAD_POOL_SIZE=4&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -s TOTAL_MEMORY=1342177280&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The options are to pass to Emscripten.
-Please refer to the Emscripten manual for details.&lt;/p&gt;
-
-&lt;p&gt;Furthermore, the following definitions are specified.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DMAX_NR_ZONES=2&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DNR_PAGEFLAGS=20&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DSPINLOCK_SIZE=0&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_GETLK64=12&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLK64=13&quot;&lt;/span&gt;
-&lt;span class=&quot;nv&quot;&gt;CFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; -DF_SETLKW64=14&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;These values are originally obtained by compiling an empty file
-at the time of Linux kernel build. However, this time they can not be
-obtained directly. Therefore, we have to specify these values
-which come from when building with the x86_64 environment.&lt;/p&gt;
-
-&lt;p&gt;Next, I will explain &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;. The following is a snippet of &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;objs&quot;&lt;/span&gt;
-
-&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;os&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;path&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;exists&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;w&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.o&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;built-in&quot;&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;and&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;filename&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;aw&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;objs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;not&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;is&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;obj&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;As explained above, the build system of Linux kernel gathers object files
-by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar&lt;/code&gt; and links them to get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;To work with Emscripten we need to get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; as a LLVM bitcode.
-LLVM has a linker called &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt; that links multiple LLVM bitcode files
-to get one LLVM bitcode.
-To generate &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;, we need to use &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;,
-but there is a problem.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt; can not take archive files as arguments like &lt;code class=&quot;highlighter-rouge&quot;&gt;ld&lt;/code&gt;s.
-Therefore, we have to record object files that are originally archived.
-In this case, &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt; will record them as file paths in &lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;Next, Let’s look at the part of &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt; generation.
-I added following scripts to &lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;info CLEAN obj 
-python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/clean-obj.py&quot;&lt;/span&gt;
-
-info GEN link-vmlinux.sh
-python &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux-gen.py&quot;&lt;/span&gt;
-
-info LINK vmlinux
-bash &lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;srctree&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/link-vmlinux.sh&quot;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;clean-obj.py&lt;/code&gt; removes duplicated file paths from &lt;code class=&quot;highlighter-rouge&quot;&gt;objs&lt;/code&gt;
-which is generated by &lt;code class=&quot;highlighter-rouge&quot;&gt;ar.py&lt;/code&gt;.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;link-vmlinux-gen.py&lt;/code&gt; generates &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux-link.sh&lt;/code&gt;
-(not &lt;code class=&quot;highlighter-rouge&quot;&gt;scripts/link-vmlinux.sh&lt;/code&gt;) which performs &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-link&lt;/code&gt;.
-By performing &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux-link.sh&lt;/code&gt;, we can get &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;This is the flow of generating &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;generating-bootjs&quot;&gt;Generating boot.js&lt;/h3&gt;
-
-&lt;p&gt;Next, I will look at until JavaScript code is generated.
-As explained above, since LKL is one of Library OS,
-&lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux&lt;/code&gt; does not work on its own, it works only when it has
-a part of an application. In this case, our target is &lt;code class=&quot;highlighter-rouge&quot;&gt;tools/lkl/tests/boot&lt;/code&gt;
-which is LKL’s &lt;code class=&quot;highlighter-rouge&quot;&gt;Hello, world&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$LINK&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
-    &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/liblkl-in.o &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/lib/lkl.o
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, we have to link &lt;code class=&quot;highlighter-rouge&quot;&gt;vmlinux.bc&lt;/code&gt; (&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/lkl.o&lt;/code&gt;),
-host dependent part &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/lib/liblkl-in.o&lt;/code&gt; and
-applicatin part &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot-in.o&lt;/code&gt; and get &lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot.bc&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/libc.bc js/libc.bc
-&lt;span class=&quot;nv&quot;&gt;$CP&lt;/span&gt; ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/dlmalloc.ll js/dlmalloc.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/libc.ll js/libc.bc
-&lt;span class=&quot;nv&quot;&gt;$DIS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/pthreads.ll js/pthreads.bc
-&lt;span class=&quot;nv&quot;&gt;$PY&lt;/span&gt; rename_symbols.py &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot.ll &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;First, it disassembles all LLVM bitcode files
-(&lt;code class=&quot;highlighter-rouge&quot;&gt;$LKL/tests/boot.bc&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;libc.bc&lt;/code&gt; etc.)
-using &lt;code class=&quot;highlighter-rouge&quot;&gt;llvm-dis&lt;/code&gt;.
-Next, it applies &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt; to &lt;code class=&quot;highlighter-rouge&quot;&gt;boot.ll&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;There is a reason for performing such operations.
-This is because function names used in the Linux kernel conflict
-with function names used in libcs.
-In normal LKL, this conflict is avoided by using ELF linker tricks.
-Meanwhile, since JavaScript generated by Emscripten does not
-have a namespace, such collisions occur.
-Therefore, by rewriting the functions names that would collide
-with &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt;, it can avoid collisions.&lt;/p&gt;
-
-&lt;p&gt;In addition, &lt;code class=&quot;highlighter-rouge&quot;&gt;rename_symbols.py&lt;/code&gt; also performs operations such as
-converting inline assemblies in Linux kernel to Emscripten
-&lt;code class=&quot;highlighter-rouge&quot;&gt;emscripten_asm_const_int&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;From the &lt;code class=&quot;highlighter-rouge&quot;&gt;boot-mod.ll&lt;/code&gt;,&lt;/p&gt;
-
-&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;EMCC_DEBUG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;1 &lt;span class=&quot;nv&quot;&gt;$CC&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; js/boot.html &lt;span class=&quot;nv&quot;&gt;$LKL&lt;/span&gt;/tests/boot-mod.ll &lt;span class=&quot;nv&quot;&gt;$CFLAGS&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-v&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;generate HTML and JavaScript files.&lt;/p&gt;
-
-&lt;h2 id=&quot;adding-workarounds&quot;&gt;Adding Workarounds&lt;/h2&gt;
-
-&lt;p&gt;Although we generated the Linux kernel translated in “completely”
-JavaScript and the application &lt;code class=&quot;highlighter-rouge&quot;&gt;boot.js&lt;/code&gt;, it will not work as it is.
-This is due to the fact that the architecture of computers and
-JavaScript is very different. So we have to make some modifications.&lt;/p&gt;
-
-&lt;h3 id=&quot;replacing-inline-assemblies&quot;&gt;Replacing inline assemblies&lt;/h3&gt;
-
-&lt;p&gt;In the Linux kernel, the architecture-dependent code is basically placed
-under &lt;code class=&quot;highlighter-rouge&quot;&gt;arch/$ARCH&lt;/code&gt;, and other code are architecture independent.
-However, an empty inline assembly may be inserted so that optimization
-by the compiler prevents meaningful code from being lost at compile time.
-Here is an example, &lt;code class=&quot;highlighter-rouge&quot;&gt;set_normalized_timespec64&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;kernel/time/time.c&lt;/code&gt;:&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;set_normalized_timespec64&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;timespec64&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;time64_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;s64&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;cm&quot;&gt;/*
-		 * The following asm() prevents the compiler from
-		 * optimising this loop into a modulo operation. See
-		 * also __iter_div_u64_rem() in include/linux/time.h
-		 */&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;asm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;+rm&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-		&lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;NSEC_PER_SEC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-		&lt;span class=&quot;o&quot;&gt;--&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_sec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;n&quot;&gt;ts&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;tv_nsec&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nsec&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Such Inline assemblies cause a failure to convert from LLVM bitcode to
-JavaScript. Therefore, we have to replace inline assemblies such as
-&lt;code class=&quot;highlighter-rouge&quot;&gt;asm(&quot;&quot; : &quot;+rm&quot;(nsec))&lt;/code&gt; with &lt;code class=&quot;highlighter-rouge&quot;&gt;emcsripten_asm_const_int&lt;/code&gt;
-which calls JavaScript code from C defined in Emscripten.&lt;/p&gt;
-
-&lt;h3 id=&quot;fix-early_param&quot;&gt;Fix early_param&lt;/h3&gt;
-
-&lt;p&gt;In the Linux kernel, there is &lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;.
-This is defined in &lt;code class=&quot;highlighter-rouge&quot;&gt;include/linux/init.h&lt;/code&gt; as follows:&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-	&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#define __setup_param(str, unique_id, fn, early)			\
-	static const char __setup_str_##unique_id[] __initconst		\
-		__aligned(1) = str; 					\
-	static struct obs_kernel_param __setup_##unique_id		\
-		__used __section(.init.setup)				\
-		__attribute__((aligned((sizeof(long)))))		\
-		= { __setup_str_##unique_id, fn, early }
-&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-&lt;span class=&quot;cp&quot;&gt;#define early_param(str, fn)						\
-	__setup_param(str, fn, fn, 1)
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt; is a macro, taking &lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;fn&lt;/code&gt; as arguments,
-and &lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt; structure placed in &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;.&lt;/p&gt;
-
-&lt;p&gt;By referring to &lt;code class=&quot;highlighter-rouge&quot;&gt;arch/lkl/kernel/vmlinux.ldS&lt;/code&gt; which is generated
-in the build of LKL, we can see that &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt; is arranged
-between &lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_start&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;__setup_end&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;__setup_start = .; KEEP(*(.init.setup)) __setup_end = .;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;These symbols will be used in &lt;code class=&quot;highlighter-rouge&quot;&gt;init/main.c&lt;/code&gt; as follows.
-Here it compares one of boot parameter (&lt;code class=&quot;highlighter-rouge&quot;&gt;param&lt;/code&gt;) of Linux kernel
-with &lt;code class=&quot;highlighter-rouge&quot;&gt;str&lt;/code&gt; of &lt;code class=&quot;highlighter-rouge&quot;&gt;obs_kernel_param&lt;/code&gt; in &lt;code class=&quot;highlighter-rouge&quot;&gt;.init.setup&lt;/code&gt;.
-If it matches, it will execute &lt;code class=&quot;highlighter-rouge&quot;&gt;(*setup_func)(char*)&lt;/code&gt; with argument &lt;code class=&quot;highlighter-rouge&quot;&gt;val&lt;/code&gt;.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cm&quot;&gt;/* Check for early params. */&lt;/span&gt;
-&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;obs_kernel_param&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-	&lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_start&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__setup_end&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-		&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;parameq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
-		    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-		     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;str&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-		&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-			&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;p&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;setup_func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-				&lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-		&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;In summary, &lt;code class=&quot;highlighter-rouge&quot;&gt;do_early_param&lt;/code&gt; executes &lt;code class=&quot;highlighter-rouge&quot;&gt;setup_func&lt;/code&gt; registered by
-&lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt; by referring boot parameters.&lt;/p&gt;
-
-&lt;p&gt;However, since it uses ELF symbols, it does not work correctly
-in JavaScript. For this reason, the function which will be called here
-is hard coded.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_early_param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-				 &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unused&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;arg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* XXX: There is a lot of early_param, but hardcode in init/main.c */&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_INIT_ARGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;debug&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;quiet&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;loglevel&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;];&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;||&lt;/span&gt;
-                    &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;console&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-                     &lt;span class=&quot;n&quot;&gt;strcmp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;early_params&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;earlycon&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                        &lt;span class=&quot;k&quot;&gt;switch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* debug */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;debug_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* quiet */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;quiet_kernel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* loglevel */&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;loglevel&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                        &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Malformed early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                                &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                                &lt;span class=&quot;nl&quot;&gt;default:&lt;/span&gt;
-                                &lt;span class=&quot;n&quot;&gt;pr_warn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;Unknown early option '%s'&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;param&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-	&lt;span class=&quot;cm&quot;&gt;/* We accept everything at this stage. */&lt;/span&gt;
-	&lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;fix-initcall&quot;&gt;Fix initcall&lt;/h3&gt;
-
-&lt;p&gt;Like &lt;code class=&quot;highlighter-rouge&quot;&gt;early_param&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;initcall&lt;/code&gt; which are called in the initialization
-manages functions using ELF symbols.
-With JavaScript alone, we can not know which function should be called.
-Therefore, we have to generate inticall tables from &lt;code class=&quot;highlighter-rouge&quot;&gt;System.map&lt;/code&gt;
-generated by a normal build of LKL.&lt;/p&gt;
-
-&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;r&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[:&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot; &quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;try&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;symbol&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;append&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;except&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;ValueError&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                    &lt;span class=&quot;k&quot;&gt;pass&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;enumerate&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;/* initcall{} */&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;level&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;EM_ASM({&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;blacklist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    /* _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;(); */&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;    _&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;initcall&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;();&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;});&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;The above is the initcall table generation script.
-We hard-code the code to &lt;code class=&quot;highlighter-rouge&quot;&gt;do_initcalls&lt;/code&gt;.
-&lt;code class=&quot;highlighter-rouge&quot;&gt;EM_ASM&lt;/code&gt; is an inline assembly that directly calls the JavaScript code
-in C.&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;do_initcalls&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* XXX: initcalls are broken, so hardcode here */&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* initcall0 */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_net_ns_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-        &lt;span class=&quot;cm&quot;&gt;/* initcall1 */&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;EM_ASM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;({&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_lkl_console_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_wq_sysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;_ksysfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-&lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-        &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;demonstration-and-the-results&quot;&gt;Demonstration and the Results&lt;/h2&gt;
-
-&lt;p&gt;As described at the top, LKL.js uses pthread,
-we have to enable SharedArrayBuffer.
-Although every modern web browsers are shipped with SharedarrayBuffer,
-it is disabled by default because of Spectre mitigation in Mozilla Firefox.
-Therefore, please enable it before executing the demo.&lt;/p&gt;
-
-&lt;p&gt;The following is the result of &lt;code class=&quot;highlighter-rouge&quot;&gt;start_kernel&lt;/code&gt;.
-We can see that it shows dmesg on browsers.&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  [    0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018
-  [    0.000000] bootmem address range: 0x675000 - 0x1674000
-  [    0.000000] On node 0 totalpages: 4095
-  [    0.000000]   Normal zone: 36 pages used for memmap
-  [    0.000000]   Normal zone: 0 pages reserved
-  [    0.000000]   Normal zone: 4095 pages, LIFO batch:0
-  [    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
-  [    0.000000] pcpu-alloc: [0] 0 
-  [    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 4059
-  [    0.000000] Kernel command line: mem=16M loglevel=8
-  [    0.000000] Parameter  is obsolete, ignored
-  [    0.000000] Parameter  is obsolete, ignored
-  [    0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes)
-  [    0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.000000] Memory available: 16144k/16380k RAM
-  [    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
-  [    0.000000] NR_IRQS: 1024
-  [    0.000000] lkl: irqs initialized
-  [    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
-  [    0.000100] lkl: time and timers initialized (irq1)
-  [    0.001100] pid_max: default: 4096 minimum: 301
-  [    0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.327100] console [lkl_console0] enabled
-  [    0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
-  [    0.329700] xor: automatically using best checksumming function   8regs     
-  [    0.341199] NET: Registered protocol family 16
-  [    0.388999] clocksource: Switched to clocksource lkl
-  [    0.414100] NET: Registered protocol family 2
-  [    0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes)
-  [    0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes)
-  [    0.439600] TCP: Hash tables configured (established 1024 bind 1024)
-  [    0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes)
-  [    0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes)
-  [    0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0
-  [    0.863100] SGI XFS with ACLs, security attributes, no debug enabled
-  [    0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2
-  [    0.924599] io scheduler noop registered
-  [    0.924900] io scheduler deadline registered
-  [    0.933099] io scheduler cfq registered (default)
-  [    0.933500] io scheduler kyber registered
-  [    1.633500] NET: Registered protocol family 10
-  [    1.658400] Segment Routing with IPv6
-  [    1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
-  [    1.674200] ------------[ cut here ]------------
-  [    1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188   (null)
-  [    1.675899] Call Trace:
-  [    1.676200] 
-  [    1.676999] ---[ end trace 941dc55fe0966cff ]---
-  [    1.684299] Warning: unable to open an initial console.
-  [    1.685200] This architecture does not have kernel memory protection.
-  pthread_join((pthread_t)tid, NULL): No such process
-  lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;limitations&quot;&gt;Limitations&lt;/h2&gt;
-
-&lt;p&gt;From the above results, we confirmed that Linux kernel was booted
-directly in JavaScript.
-However, it just outputted dmesg and
-it is not suitable for practical use at all.
-This is because of the following problems:&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;It fails to create kernel threads.&lt;/li&gt;
-  &lt;li&gt;It fails to mount rootfs.&lt;/li&gt;
-  &lt;li&gt;It fails to execute init (PID 1).&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Also, support for pthreads in Emscripten is not good.
-We extracted semaphore, mutex, and thread from Little Kernel (LK)
-and add them to LKL as green threads.&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/retrage/linux/tree/retrage/fiber&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;We plan to create LKL.js using this green threads.&lt;/p&gt;
-
-&lt;h2 id=&quot;summary&quot;&gt;Summary&lt;/h2&gt;
-
-&lt;p&gt;We created a Linux kernel fully translated in JavaScript using
-LKL and Emscripten. It boots the Linux kernel and we confirmed
-that it shows dmesg.
-Although the architecture is greatly different between
-computers and JavaScript, we found that it works somewhat by adding
-some fixes and workarounds.&lt;/p&gt;
-
-&lt;h2 id=&quot;reference&quot;&gt;Reference&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/lkl/linux&lt;/li&gt;
-  &lt;li&gt;https://github.com/kripken/emscripten&lt;/li&gt;
-  &lt;li&gt;https://llvm.org/&lt;/li&gt;
-  &lt;li&gt;https://clang.llvm.org/&lt;/li&gt;
-  &lt;li&gt;https://wiki.linuxfoundation.org/llvmlinux&lt;/li&gt;
-  &lt;li&gt;https://lwn.net/Articles/734071/&lt;/li&gt;
-  &lt;li&gt;http://llvm.org/docs/CommandGuide/llvm-link.html&lt;/li&gt;
-  &lt;li&gt;https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html&lt;/li&gt;
-  &lt;li&gt;https://github.com/littlekernel/lk&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">I ported Linux kernel directly on JavaScript. In other words, I translated the Linux kernel to JavaScript using Emscripten, and Unlike JSLinux, it runs without emulators. The following is the working repository. https://github.com/retrage/linux/tree/retrage/em-v2 I published a demonstration site for LKL.js. Please enable SharedArrayBuffer and try it out LKL.js Demo I also published slides about LKL.js. https://speakerdeck.com/retrage/lkl-dot-js-running-linux-kernel-on-javascript-star-directly-star Linux Kernel Library (LKL) We use Linux Kernel Library (LKL) which makes the Linux kernel an anykernel. LKL is a fork of torvalds/linux. It is designed to put LKL specific code only in arch/lkl and runs without modifications of other code. By this design, it makes easy to follow the mainline. (Currently v4.16) Since LKL is anykernel, it runs on user space of various OS such as Linux, FreeBSD, and Windows etc. Emscripten Emscripten is LLVM based C/C++ to JavaScript/WebAssembly transpiler. It also provides a Unix-like environment to run translated software on web browsers. Can we port LKL to JavaScript with Emscripten? LKL runs on various OSes, Emscripten provides Unix-like environment. So can LKL be ported to JavaScript with Emscripten? Current Status of Linux Kernel Build with Clang First of all, the Linux kernel is deeply dependent on gcc-extension, and there is a doubt that Clang can not compile it. Once upon the time, there was LLVMLinux project that aims to compile Linux kernel with Clang. However, through the efforts of the Google Android team, two LTS (4.4 and 4.9) can be built with Clang. Now, LKL can be built with Clang. LKL Build Flow 101 Let’s look at the build flow of LKL. First, when $ make -C tools/lkl is performed, the build system determines which source code (*.c/*.S) to be built from the Kconfig settings and compiles them. Object files (*.o) generated by compiling are once archived by ar to built-in.o. Next, it links all built-in.o files into vmlinux at once. For host side code, files under tools/lkl/lib compiled and linked to liblkl.o. Finally, link all files (vmlinux and liblkl.o) to liblkl.so. This is a simple build flow of LKL. Porting LKL with Emscripten Next, we will take a look at how to port LKL with Emscripten. Not limited to Emscripten, when using LLVM infrastructures, the compiler compiles source to target with the following flow. Soruce -&amp;gt; LLVM IR -&amp;gt; Target In this way, the source is once converted to LLVM IR (*.bc/*.ll) and then converted to the target. In Emscripten, the “linking” is the conversion from LLVM IR to JavaScript. Therefore, it is necessary to first convert all (including libc etc. provided by Emscripten) to LLVM IR. Generating vmlinux.bc The build using emcc (An Emscripten Clang wrapper) is: make -C tools/lkl CC=&quot;$CC $CFLAGS&quot; AR=&quot;$PY $PWD/ar.py&quot; V=1 The two important things here are $FCFLAS and ar.py. I will explain each one. (Note that C=&quot;$CC $CFLAGS&quot; is forced to pass $CFLAGS) $CFLAGS is: CFLAGS=&quot;$CFLAGS -s WASM=0&quot; CFLAGS=&quot;$CFLAGS -s ASYNCIFY=1&quot; CFLAGS=&quot;$CFLAGS -s EMULATE_FUNCTION_POINTER_CASTS=1&quot; CFLAGS=&quot;$CFLAGS -s USE_PTHREADS=1&quot; CFLAGS=&quot;$CFLAGS -s PTHREAD_POOL_SIZE=4&quot; CFLAGS=&quot;$CFLAGS -s TOTAL_MEMORY=1342177280&quot; The options are to pass to Emscripten. Please refer to the Emscripten manual for details. Furthermore, the following definitions are specified. CFLAGS=&quot;$CFLAGS -DMAX_NR_ZONES=2&quot; CFLAGS=&quot;$CFLAGS -DNR_PAGEFLAGS=20&quot; CFLAGS=&quot;$CFLAGS -DSPINLOCK_SIZE=0&quot; CFLAGS=&quot;$CFLAGS -DF_GETLK64=12&quot; CFLAGS=&quot;$CFLAGS -DF_SETLK64=13&quot; CFLAGS=&quot;$CFLAGS -DF_SETLKW64=14&quot; These values are originally obtained by compiling an empty file at the time of Linux kernel build. However, this time they can not be obtained directly. Therefore, we have to specify these values which come from when building with the x86_64 environment. Next, I will explain ar.py. The following is a snippet of ar.py. filename = &quot;objs&quot; def main(): if not os.path.exists(filename): with open(filename, &quot;w&quot;) as fp: pass objs = [] for i, arg in enumerate(sys.argv): if &quot;.o&quot; in arg and not &quot;built-in&quot; in arg and i &amp;gt; 2: objs.append(arg) with open(filename, &quot;aw&quot;) as fp: for obj in objs: if not obj is &quot;&quot;: fp.write(obj + &quot; &quot;) return 0 As explained above, the build system of Linux kernel gathers object files by ar and links them to get vmlinux. To work with Emscripten we need to get vmlinux as a LLVM bitcode. LLVM has a linker called llvm-link that links multiple LLVM bitcode files to get one LLVM bitcode. To generate vmlinux.bc, we need to use llvm-link, but there is a problem. llvm-link can not take archive files as arguments like lds. Therefore, we have to record object files that are originally archived. In this case, ar.py will record them as file paths in objs. Next, Let’s look at the part of vmlinux.bc generation. I added following scripts to scripts/link-vmlinux.sh. info CLEAN obj python &quot;${srctree}/clean-obj.py&quot; info GEN link-vmlinux.sh python &quot;${srctree}/link-vmlinux-gen.py&quot; info LINK vmlinux bash &quot;${srctree}/link-vmlinux.sh&quot; clean-obj.py removes duplicated file paths from objs which is generated by ar.py. link-vmlinux-gen.py generates vmlinux-link.sh (not scripts/link-vmlinux.sh) which performs llvm-link. By performing vmlinux-link.sh, we can get vmlinux.bc. This is the flow of generating vmlinux.bc. Generating boot.js Next, I will look at until JavaScript code is generated. As explained above, since LKL is one of Library OS, vmlinux does not work on its own, it works only when it has a part of an application. In this case, our target is tools/lkl/tests/boot which is LKL’s Hello, world. $LINK -o $LKL/tests/boot.bc \ $LKL/tests/boot-in.o $LKL/lib/liblkl-in.o $LKL/lib/lkl.o First, we have to link vmlinux.bc ($LKL/lib/lkl.o), host dependent part $LKL/lib/liblkl-in.o and applicatin part $LKL/tests/boot-in.o and get $LKL/tests/boot.bc. $DIS -o $LKL/tests/boot.ll $LKL/tests/boot.bc $CP ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc $CP ~/.emscripten_cache/asmjs/libc.bc js/libc.bc $CP ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc $DIS -o js/dlmalloc.ll js/dlmalloc.bc $DIS -o js/libc.ll js/libc.bc $DIS -o js/pthreads.ll js/pthreads.bc $PY rename_symbols.py $LKL/tests/boot.ll $LKL/tests/boot-mod.ll First, it disassembles all LLVM bitcode files ($LKL/tests/boot.bc and libc.bc etc.) using llvm-dis. Next, it applies rename_symbols.py to boot.ll. There is a reason for performing such operations. This is because function names used in the Linux kernel conflict with function names used in libcs. In normal LKL, this conflict is avoided by using ELF linker tricks. Meanwhile, since JavaScript generated by Emscripten does not have a namespace, such collisions occur. Therefore, by rewriting the functions names that would collide with rename_symbols.py, it can avoid collisions. In addition, rename_symbols.py also performs operations such as converting inline assemblies in Linux kernel to Emscripten emscripten_asm_const_int. From the boot-mod.ll, EMCC_DEBUG=1 $CC -o js/boot.html $LKL/tests/boot-mod.ll $CFLAGS -v generate HTML and JavaScript files. Adding Workarounds Although we generated the Linux kernel translated in “completely” JavaScript and the application boot.js, it will not work as it is. This is due to the fact that the architecture of computers and JavaScript is very different. So we have to make some modifications. Replacing inline assemblies In the Linux kernel, the architecture-dependent code is basically placed under arch/$ARCH, and other code are architecture independent. However, an empty inline assembly may be inserted so that optimization by the compiler prevents meaningful code from being lost at compile time. Here is an example, set_normalized_timespec64 in kernel/time/time.c: void set_normalized_timespec64(struct timespec64 *ts, time64_t sec, s64 nsec) { while (nsec &amp;gt;= NSEC_PER_SEC) { /* * The following asm() prevents the compiler from * optimising this loop into a modulo operation. See * also __iter_div_u64_rem() in include/linux/time.h */ asm(&quot;&quot; : &quot;+rm&quot;(nsec)); nsec -= NSEC_PER_SEC; ++sec; } while (nsec &amp;lt; 0) { asm(&quot;&quot; : &quot;+rm&quot;(nsec)); nsec += NSEC_PER_SEC; --sec; } ts-&amp;gt;tv_sec = sec; ts-&amp;gt;tv_nsec = nsec; } Such Inline assemblies cause a failure to convert from LLVM bitcode to JavaScript. Therefore, we have to replace inline assemblies such as asm(&quot;&quot; : &quot;+rm&quot;(nsec)) with emcsripten_asm_const_int which calls JavaScript code from C defined in Emscripten. Fix early_param In the Linux kernel, there is early_param. This is defined in include/linux/init.h as follows: struct obs_kernel_param { const char *str; int (*setup_func)(char *); int early; }; /* snip */ #define __setup_param(str, unique_id, fn, early) \ static const char __setup_str_##unique_id[] __initconst \ __aligned(1) = str; \ static struct obs_kernel_param __setup_##unique_id \ __used __section(.init.setup) \ __attribute__((aligned((sizeof(long))))) \ = { __setup_str_##unique_id, fn, early } /* snip */ #define early_param(str, fn) \ __setup_param(str, fn, fn, 1) early_param is a macro, taking str and fn as arguments, and obs_kernel_param structure placed in .init.setup. By referring to arch/lkl/kernel/vmlinux.ldS which is generated in the build of LKL, we can see that .init.setup is arranged between __setup_start and __setup_end. __setup_start = .; KEEP(*(.init.setup)) __setup_end = .; These symbols will be used in init/main.c as follows. Here it compares one of boot parameter (param) of Linux kernel with str of obs_kernel_param in .init.setup. If it matches, it will execute (*setup_func)(char*) with argument val. /* Check for early params. */ static int __init do_early_param(char *param, char *val, const char *unused, void *arg) { const struct obs_kernel_param *p; for (p = __setup_start; p &amp;lt; __setup_end; p++) { if ((p-&amp;gt;early &amp;amp;&amp;amp; parameq(param, p-&amp;gt;str)) || (strcmp(param, &quot;console&quot;) == 0 &amp;amp;&amp;amp; strcmp(p-&amp;gt;str, &quot;earlycon&quot;) == 0) ) { if (p-&amp;gt;setup_func(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); } } /* We accept everything at this stage. */ return 0; } In summary, do_early_param executes setup_func registered by early_param by referring boot parameters. However, since it uses ELF symbols, it does not work correctly in JavaScript. For this reason, the function which will be called here is hard coded. static int __init do_early_param(char *param, char *val, const char *unused, void *arg) { /* XXX: There is a lot of early_param, but hardcode in init/main.c */ const char *early_params[MAX_INIT_ARGS+2] = { &quot;debug&quot;, &quot;quiet&quot;, &quot;loglevel&quot;, NULL, }; int i; for (i = 0; early_params[i]; i++) { if (strcmp(param, early_params[i]) == 0 || (strcmp(param, &quot;console&quot;) == 0 &amp;amp;&amp;amp; strcmp(early_params[i], &quot;earlycon&quot;) == 0) ) { switch (i) { case 0: /* debug */ if (debug_kernel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; case 1: /* quiet */ if (quiet_kernel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; case 2: /* loglevel */ if (loglevel(val) != 0) pr_warn(&quot;Malformed early option '%s'\n&quot;, param); break; default: pr_warn(&quot;Unknown early option '%s'\n&quot;, param); } } } /* We accept everything at this stage. */ return 0; } Fix initcall Like early_param, initcall which are called in the initialization manages functions using ELF symbols. With JavaScript alone, we can not know which function should be called. Therefore, we have to generate inticall tables from System.map generated by a normal build of LKL. with open(sys.argv[1], &quot;r&quot;) as fp: for line in fp: if SIG in line: symbol = line[:-1].split(&quot; &quot;)[2] try: level = int(symbol[-1]) initcall = symbol[symbol.index(SIG)+len(SIG):len(symbol)-1] initcalls[level].append(initcall) except ValueError: pass for level, row in enumerate(initcalls): print(&quot;/* initcall{} */&quot;.format(level)) print(&quot;EM_ASM({&quot;) for initcall in row: if initcall in blacklist: print(&quot; /* _&quot;+initcall+&quot;(); */&quot;) else: print(&quot; _&quot;+initcall+&quot;();&quot;) print(&quot;});&quot;) The above is the initcall table generation script. We hard-code the code to do_initcalls. EM_ASM is an inline assembly that directly calls the JavaScript code in C. static void __init do_initcalls(void) { /* XXX: initcalls are broken, so hardcode here */ /* initcall0 */ EM_ASM({ _net_ns_init(); }); /* initcall1 */ EM_ASM({ _lkl_console_init(); _wq_sysfs_init(); _ksysfs_init(); /* snip */ }); } Demonstration and the Results As described at the top, LKL.js uses pthread, we have to enable SharedArrayBuffer. Although every modern web browsers are shipped with SharedarrayBuffer, it is disabled by default because of Spectre mitigation in Mozilla Firefox. Therefore, please enable it before executing the demo. The following is the result of start_kernel. We can see that it shows dmesg on browsers. [ 0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018 [ 0.000000] bootmem address range: 0x675000 - 0x1674000 [ 0.000000] On node 0 totalpages: 4095 [ 0.000000] Normal zone: 36 pages used for memmap [ 0.000000] Normal zone: 0 pages reserved [ 0.000000] Normal zone: 4095 pages, LIFO batch:0 [ 0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768 [ 0.000000] pcpu-alloc: [0] 0 [ 0.000000] Built 1 zonelists, mobility grouping off. Total pages: 4059 [ 0.000000] Kernel command line: mem=16M loglevel=8 [ 0.000000] Parameter is obsolete, ignored [ 0.000000] Parameter is obsolete, ignored [ 0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes) [ 0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.000000] Memory available: 16144k/16380k RAM [ 0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1 [ 0.000000] NR_IRQS: 1024 [ 0.000000] lkl: irqs initialized [ 0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns [ 0.000100] lkl: time and timers initialized (irq1) [ 0.001100] pid_max: default: 4096 minimum: 301 [ 0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes) [ 0.327100] console [lkl_console0] enabled [ 0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns [ 0.329700] xor: automatically using best checksumming function 8regs [ 0.341199] NET: Registered protocol family 16 [ 0.388999] clocksource: Switched to clocksource lkl [ 0.414100] NET: Registered protocol family 2 [ 0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes) [ 0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes) [ 0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes) [ 0.439600] TCP: Hash tables configured (established 1024 bind 1024) [ 0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes) [ 0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes) [ 0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0 [ 0.863100] SGI XFS with ACLs, security attributes, no debug enabled [ 0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2 [ 0.924599] io scheduler noop registered [ 0.924900] io scheduler deadline registered [ 0.933099] io scheduler cfq registered (default) [ 0.933500] io scheduler kyber registered [ 1.633500] NET: Registered protocol family 10 [ 1.658400] Segment Routing with IPv6 [ 1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver [ 1.674200] ------------[ cut here ]------------ [ 1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188 (null) [ 1.675899] Call Trace: [ 1.676200] [ 1.676999] ---[ end trace 941dc55fe0966cff ]--- [ 1.684299] Warning: unable to open an initial console. [ 1.685200] This architecture does not have kernel memory protection. pthread_join((pthread_t)tid, NULL): No such process lkl_start_kernel(&amp;amp;lkl_host_ops, &quot;mem=16M loglevel=8&quot;) = 0 Limitations From the above results, we confirmed that Linux kernel was booted directly in JavaScript. However, it just outputted dmesg and it is not suitable for practical use at all. This is because of the following problems: It fails to create kernel threads. It fails to mount rootfs. It fails to execute init (PID 1). Also, support for pthreads in Emscripten is not good. We extracted semaphore, mutex, and thread from Little Kernel (LK) and add them to LKL as green threads. https://github.com/retrage/linux/tree/retrage/fiber We plan to create LKL.js using this green threads. Summary We created a Linux kernel fully translated in JavaScript using LKL and Emscripten. It boots the Linux kernel and we confirmed that it shows dmesg. Although the architecture is greatly different between computers and JavaScript, we found that it works somewhat by adding some fixes and workarounds. Reference https://github.com/lkl/linux https://github.com/kripken/emscripten https://llvm.org/ https://clang.llvm.org/ https://wiki.linuxfoundation.org/llvmlinux https://lwn.net/Articles/734071/ http://llvm.org/docs/CommandGuide/llvm-link.html https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html https://github.com/littlekernel/lk</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">2018年10月8日に池袋サンシャインシティで開催される 技術書典5において「海洋軟件」として 「UEFI読本 基礎編 Linux編」を頒布する． 配置先は「お09」である．</summary></entry></feed>
