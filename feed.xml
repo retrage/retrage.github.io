@@ -1,4 +1,75 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-13T17:27:21+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+09:00</published><updated>2019-07-13T17:23:26+09:00</updated><id>http://localhost:4000/2019/07/13/elvm-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-14T14:26:50+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="http://localhost:4000/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T14:24:13+09:00</published><updated>2019-07-14T14:24:13+09:00</updated><id>http://localhost:4000/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="http://localhost:4000/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
+シングルボードコンピュータである．
+Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい
+brick (文鎮化) させてしまったので
+SPI Flashを外部から書き換えることで復旧させる．&lt;/p&gt;
+
+&lt;p&gt;今回対象とするのは&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Minnowboard MAX (MAX)&lt;/li&gt;
+  &lt;li&gt;Minnowboard Turbot Dual-Core (Turbot)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;である．
+基本的にはこれらは同じ仕様であるが，
+後述するような差異がSPI Flashに存在する．&lt;/p&gt;
+
+&lt;h3 id=&quot;spi-flash-programmerを使った書き込み&quot;&gt;SPI Flash Programmerを使った書き込み&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://minnowboard.org/tutorials/updating-firmware-via-spi-flash-programmer&quot;&gt;Updating Firmware via SPI Flash Programmer&lt;/a&gt;
+を参考にする．
+このチュートリアルではDediProg SF100という
+書き込み機を用いているが
+手元にないため，他の書き込み機を利用する．&lt;/p&gt;
+
+&lt;p&gt;Minnowboardが搭載するSPI Flashには2種類存在する．
+&lt;a href=&quot;https://github.com/MinnowBoard-org/bugs-and-help/issues/98&quot;&gt;Issue #98&lt;/a&gt;
+によればMAXや一部のTurbotでは1.8VをVccとするが
+大多数のTurbotではVccが3.3Vであるとのことである．
+これらの見分け方としてある抵抗が実装されているかで
+調べることができるとされている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;抵抗R152があり，抵抗R818がない場合: 3.3V&lt;/li&gt;
+  &lt;li&gt;抵抗R152がなく，抵抗R818がある場合: 1.8V&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://minnowboard.org/minnowboard-turbot/documentation&quot;&gt;Minnowboard Turbot Domumentation&lt;/a&gt;
+によればそれぞれ次のようなSPI Flashが搭載されている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;3.3V: WINBOND W25Q64BVSSIG, MICRON N25Q064A13&lt;/li&gt;
+  &lt;li&gt;1.8V: WINBOND W25Q64FWSSIG, MICRON N25Q064A11&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;minnowboard-max&quot;&gt;Minnowboard MAX&lt;/h3&gt;
+
+&lt;p&gt;MAXは以前にcorebootのバイナリイメージを書き込んだが
+失敗したためbrickしていたものである．
+このボードでは1.8VのSPI Flashが搭載されていた．
+ここではEZP2010を用いて書き込みを行った．&lt;/p&gt;
+
+&lt;h3 id=&quot;minnowboard-turbot-dual-core&quot;&gt;Minnowboard Turbot Dual-Core&lt;/h3&gt;
+
+&lt;p&gt;Turbotに対して
+&lt;a href=&quot;https://firmware.intel.com/projects/minnowboard-max&quot;&gt;Intel Architecture Firmware Resource Center&lt;/a&gt;
+のrelease noteにあるように
+UEFI Shell経由でファームウェアを書き換えた．
+これはIntelの配布するバイナリイメージでは問題なく動作した．
+一方で手元でビルドしたファームウェアを書き込んだ場合，
+UEFI Shellに入る直前に次のようなAssertion Errorにより
+ハングするようになってしまった．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;OSIndication Variable Value 0
+
+ASSERT_EFI_ERROR (Status = Not Found)
+ASSERT [ISPDxe] c:\minnowboard2closesource\Vlv2DeviceRefCodePkg\ValleyView2Soc\NorthCluster\ISPDxe\ISPDxe.c(273): !EFI_ERROR (Status)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここに書かれているソースコードは公開されておらず，
+バイナリファイルのみが配布されている．
+このため原因の特定は容易ではない．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+09:00</published><updated>2019-07-13T17:23:26+09:00</updated><id>http://localhost:4000/2019/07/13/elvm-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
 &lt;a href=&quot;https://github.com/shinh/elvm&quot;&gt;ELVM&lt;/a&gt;
 のEFI Byte Codeバックエンドについて紹介する．
 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．&lt;/p&gt;
@@ -2642,27 +2713,4 @@ initramfsを生成する。&lt;/p&gt;
   &lt;li&gt;[2] https://wiki.archlinux.org/index.php/EFISTUB&lt;/li&gt;
   &lt;li&gt;[3] http://note.kurodigi.com/archlinux-uefi-install/&lt;/li&gt;
   &lt;li&gt;[4] https://kernhack.hatenablog.com/entry/2013/11/01/083558&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。</summary></entry><entry><title type="html">技術書典5で「UEFI読本 基礎編 Linux編」を頒布</title><link href="http://localhost:4000/2018/10/01/efi-book-ad.html" rel="alternate" type="text/html" title="技術書典5で「UEFI読本 基礎編 Linux編」を頒布" /><published>2018-10-01T03:28:10+09:00</published><updated>2018-10-01T03:28:10+09:00</updated><id>http://localhost:4000/2018/10/01/efi-book-ad</id><content type="html" xml:base="http://localhost:4000/2018/10/01/efi-book-ad.html">&lt;p&gt;2018年10月8日に池袋サンシャインシティで開催される
-技術書典5において「海洋軟件」として
-「UEFI読本 基礎編 Linux編」を頒布する．
-配置先は「お09」である．&lt;/p&gt;
-
-&lt;h2 id=&quot;uefi読本-基礎編-linux編&quot;&gt;UEFI読本 基礎編 Linux編&lt;/h2&gt;
-
-&lt;p&gt;以下，本書「はじめに」より抜粋．&lt;/p&gt;
-
-&lt;p&gt;UEFIが2005年に登場してから10年以上が経過した。
-現在のx86系CPUを搭載したコンピュータのほとんどが
-UEFIに対応しており、かつOSも当然のように対応している。
-しかし、UEFIやそこからの起動を解説をした文書は非常に少なく、
-規格書かソースコードを読み解くしかなかった。
-本書はそのような現状に応えるべく企画された。&lt;/p&gt;
-
-&lt;p&gt;本書は「UEFI読本 基礎編 Linux編」というUEFIについての解説書である。
-「基礎編」と「Linux編」の2部構成となっており、
-「基礎編」ではUEFIでのOSの起動を知るためのUEFIの基礎について解説を行い、
-「Linux編」ではLinux kernelのソースコードを実際に追跡してみていく。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://techbookfest.org/event/tbf05/circle/45190001&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">2018年10月8日に池袋サンシャインシティで開催される 技術書典5において「海洋軟件」として 「UEFI読本 基礎編 Linux編」を頒布する． 配置先は「お09」である．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。</summary></entry></feed>
