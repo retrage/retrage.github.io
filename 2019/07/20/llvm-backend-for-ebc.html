@@ -237,22 +237,22 @@ LLVMには対応するものが存在しない．
 
 <h3 id="ebc命令の定義が不明瞭">EBC命令の定義が不明瞭</h3>
 
-<p>EBCの命令の多くはOperand 1とOperand 2の2つのオペランドを持つ．
-この内Operand 1はdestinationであり，次のような形式をとる．</p>
+<p>EBCの命令ではよく次のようなオペランドが定義される．</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{@} R1 {Index16}
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{@} R {Index}
 </code></pre></div></div>
 
-<p>ここで<code class="highlighter-rouge">R1</code>はレジスタを表し，<code class="highlighter-rouge">@</code>はindirectであることを示しており，
-<code class="highlighter-rouge">Index16</code>は16-bit Natural Indexがあることを示している．
+<p>ここで<code class="highlighter-rouge">R</code>はレジスタを表し，<code class="highlighter-rouge">@</code>はindirectであることを示しており，
+<code class="highlighter-rouge">Index</code>はNatural Indexがあることを示している．
 さて，多くのEBCの命令では次のような説明があり，
 これはIndexつきのdirectなOperand 1は禁止されていることを示している．</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Specifying an index value with Operand 1 direct results in an instruction encoding exception.
 </code></pre></div></div>
 
-<p>しかし<code class="highlighter-rouge">MOV</code>命令では上記のような説明がなく，明確に可能であるとも書かれていない．
-EDK2の実装をみると<code class="highlighter-rouge">MOV</code>命令に限ってIndexつきdirectなOperand 1が可能となっている．
+<p>しかし<code class="highlighter-rouge">MOV</code>命令のOperand2も同じような定義を持つ一方で
+上記のような説明がなく，明確に可能であるとも書かれていない．
+EDK2の実装をみると<code class="highlighter-rouge">MOV</code>命令に限ってIndexつきdirectなOperand 2が可能となっている．
 このようにUEFI SepcificationにあるEBCの定義は不明瞭に場合がある．</p>
 
 <h3 id="ebc命令の定義例">EBC命令の定義例</h3>

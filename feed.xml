@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-20T09:40:00+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+09:00</published><updated>2019-07-20T09:37:42+09:00</updated><id>http://localhost:4000/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-20T13:10:08+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+09:00</published><updated>2019-07-20T09:37:42+09:00</updated><id>http://localhost:4000/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
 EBCバックエンド固有の問題などについてみていく．&lt;/p&gt;
 
 &lt;p&gt;ソースコードは以下で公開している．&lt;/p&gt;
@@ -190,22 +190,22 @@ LLVMには対応するものが存在しない．
 
 &lt;h3 id=&quot;ebc命令の定義が不明瞭&quot;&gt;EBC命令の定義が不明瞭&lt;/h3&gt;
 
-&lt;p&gt;EBCの命令の多くはOperand 1とOperand 2の2つのオペランドを持つ．
-この内Operand 1はdestinationであり，次のような形式をとる．&lt;/p&gt;
+&lt;p&gt;EBCの命令ではよく次のようなオペランドが定義される．&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{@} R1 {Index16}
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{@} R {Index}
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;R1&lt;/code&gt;はレジスタを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;@&lt;/code&gt;はindirectであることを示しており，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;Index16&lt;/code&gt;は16-bit Natural Indexがあることを示している．
+&lt;p&gt;ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;R&lt;/code&gt;はレジスタを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;@&lt;/code&gt;はindirectであることを示しており，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;Index&lt;/code&gt;はNatural Indexがあることを示している．
 さて，多くのEBCの命令では次のような説明があり，
 これはIndexつきのdirectなOperand 1は禁止されていることを示している．&lt;/p&gt;
 
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Specifying an index value with Operand 1 direct results in an instruction encoding exception.
 &lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
 
-&lt;p&gt;しかし&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令では上記のような説明がなく，明確に可能であるとも書かれていない．
-EDK2の実装をみると&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令に限ってIndexつきdirectなOperand 1が可能となっている．
+&lt;p&gt;しかし&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令のOperand2も同じような定義を持つ一方で
+上記のような説明がなく，明確に可能であるとも書かれていない．
+EDK2の実装をみると&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令に限ってIndexつきdirectなOperand 2が可能となっている．
 このようにUEFI SepcificationにあるEBCの定義は不明瞭に場合がある．&lt;/p&gt;
 
 &lt;h3 id=&quot;ebc命令の定義例&quot;&gt;EBC命令の定義例&lt;/h3&gt;
