@@ -1,4 +1,431 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-14T14:26:50+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="http://localhost:4000/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T14:24:13+09:00</published><updated>2019-07-14T14:24:13+09:00</updated><id>http://localhost:4000/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="http://localhost:4000/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-20T09:40:00+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage01</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+09:00</published><updated>2019-07-20T09:37:42+09:00</updated><id>http://localhost:4000/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
+EBCバックエンド固有の問題などについてみていく．&lt;/p&gt;
+
+&lt;p&gt;ソースコードは以下で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/yabits/llvm/tree/retrage/ebc&quot;&gt;yabits/llvm:retrage/ebc&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/yabits/clang/tree/retrage/ebc&quot;&gt;yabits/clang:retrage/ebc&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/yabits/lld/tree/retrage/ebc&quot;&gt;yabits/lld:retrage/ebc&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;動機&quot;&gt;動機&lt;/h2&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&quot;&gt;過去の記事&lt;/a&gt;[1]
+で説明したように，EBCに対応したコンパイラは
+有料のIntel C Compiler for EFI Byte Code
+のみであり，GCC/ClangではEBC対応がない．
+そこで，EBC対応のコンパイラを作成する前段階として
+ELVMのEBCバックエンドを作成した．
+詳しくは
+&lt;a href=&quot;https://retrage.github.io/2019/07/13/elvm-ebc.html&quot;&gt;ELVMのEFI Byte Codeバックエンドを作る&lt;/a&gt;[2]
+を参照したい．
+しかし，ELVMで生成されるコードは各バックエンドに最適でなく，
+生成されるバイナリサイズが大きい傾向にあるという問題がある．
+また，ELVMにはリンクという作業が存在せず，
+各コンパイル時に指定できるのは1つのファイルのみであり，
+実用に向かない．&lt;/p&gt;
+
+&lt;p&gt;そこでLLVMにEBCのバックエンドを追加する．
+開発の対象となるのはLLVM CoreとClang，LLDである．&lt;/p&gt;
+
+&lt;p&gt;LLVMにEBCのバックエンドを追加するというアイデアは新しいものではなく，
+以下のように過去にGoogle Summer of Codeのテーマとして検討されたこともある[3]．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://lists.llvm.org/pipermail/llvm-dev/2010-April/030814.html&quot;&gt;[LLVMdev] GSoC idea — C Compiler for EFI Byte Code implement in LLVM&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ebcの現状&quot;&gt;EBCの現状&lt;/h2&gt;
+
+&lt;p&gt;UEFI Specificationで定義されているEBCの仕様は
+後述するように表現が曖昧であるという問題がある．
+EBCのVMのリファレンス実装は
+TianoCore/EDK2に含まれている
+&lt;a href=&quot;https://github.com/tianocore/edk2/blob/master/MdeModulePkg/Universal/EbcDxe/EbcExecute.c&quot;&gt;MdeModulePkg/Universal/EbcDxe/EbcExecute.c&lt;/a&gt;[4]
+ため，
+実際の仕様はソースコードで確認する必要がある．&lt;/p&gt;
+
+&lt;p&gt;Intel C Compiler for EFI Byte Code以外のEBCのツールチェーンには
+&lt;a href=&quot;https://github.com/pbatard/fasmg-ebc&quot;&gt;fasmg-ebc&lt;/a&gt;][5]
+というアセンブラがあり，
+これを利用することで有効なEBCのバイナリを生成できる．
+しかしfasmg-ebcにはバグがあり
+コーナーケースなオペランドを正しくエンコードできないという問題がある．&lt;/p&gt;
+
+&lt;p&gt;EBCのアセンブリレベルデバッガはUEFI driverとして実装されている．
+&lt;a href=&quot;https://github.com/tianocore/edk2/tree/master/MdeModulePkg/Universal/EbcDxe/EbcDebugger&quot;&gt;MdeModulePkg/Universal/EbcDxe/EbcDebugger&lt;/a&gt;[6]
+これらはQEMU上のOVMFで動作するが，
+UEFIではメモリ保護がなされないためバグのあるEBCのバイナリを実行すると
+システムごと巻き込んでハングしたりリセットされたりなど
+生成したバイナリのテストが容易ではない．&lt;/p&gt;
+
+&lt;p&gt;そこで先に紹介したELVMのEBCバックエンドをテストできるだけの
+ユーザ空間で動作するEBCのVMを開発した．
+詳しくは
+&lt;a href=&quot;https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html&quot;&gt;ebcvm: A Usermode EFI Byte Code Virtual Machine&lt;/a&gt;[7]
+で紹介している．
+しかし，この実装も完全な互換性はなく，
+現状ではELVMのEBCバックエンドについてebcvmでは全てのテストが通るものの
+OVMFではいくつかのテストに失敗する．&lt;/p&gt;
+
+&lt;p&gt;以上のように正しいEBCのVMは容易に利用できず，
+また正しいEBCのバイナリも十分に得られないというのが現状である．&lt;/p&gt;
+
+&lt;h2 id=&quot;開発方針&quot;&gt;開発方針&lt;/h2&gt;
+
+&lt;p&gt;LLVMはC++とDSLで書かれた巨大なプロジェクトであり，
+その全てを把握するのは難しい．
+LLVMバックエンドの追加については
+&lt;a href=&quot;https://llvm.org/docs/WritingAnLLVMBackend.html&quot;&gt;Writing an LLVM Backend&lt;/a&gt;[8]
+が公式ドキュメントとして存在する．
+LLVMバックエンドについて書かれたドキュメントは次の2つがある．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://jonathan2251.github.io/lbd/&quot;&gt;Tutorial: Creating an LLVM Backend for the Cpu0 Architecture&lt;/a&gt;[8]&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://tatsu-zine.com/books/llvm&quot;&gt;きつねさんでもわかるLLVM&lt;/a&gt;[9]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;しかし，これらが扱っているLLVMのバージョンは前者は3.1，後者は3.2であり，
+2019年7月現在の最新版が8.0.0であることから情報が古いと言う問題がある．
+また，後述するようにこれらが対象とするCPUアーキテクチャはRISCであり，
+サポートするバイナリフォーマットもELFであるなど，
+EBCのバックエンドを作成する上で異なる点も多い．
+また，これらはLLVM Coreへのバックエンドの追加を対象としており，
+ClangやLLDの開発については言及されていない．&lt;/p&gt;
+
+&lt;p&gt;そこで今回は最近開発が進められているRISC-Vバックエンドを参考にする．
+&lt;a href=&quot;https://github.com/lowRISC/riscv-llvm&quot;&gt;lowRISC/riscv-llvm&lt;/a&gt;[10]
+には程よい粒度で綺麗にまとめられたRISC-Vバックエンドがパッチ形式で公開されている．
+開発の順番もこれに準拠し，インクリメンタルに作成していくこととする．
+目標としてはEBCの全ての命令をサポートし，
+かつ簡単なCのコードからEBCのバイナリをビルドできるようにする．&lt;/p&gt;
+
+&lt;h2 id=&quot;llvmのバックエンドの概観&quot;&gt;LLVMのバックエンドの概観&lt;/h2&gt;
+
+&lt;p&gt;LLVMのバックエンドはLLVM IRからアセンブリへの変換と
+アセンブリからオブジェクトファイルの生成を担当する．
+実際にターゲット上で実行されるバイナリはリンカによって生成されるため
+LLVM Coreの範囲外であることに注意したい．
+LLVMのバックエンドはMCLayerとCodeGenの2つの部分に分けられる．
+MCLayerではアセンブリとオブジェクトファイルの相互変換を行う．
+CodeGenではLLVM IRを入力としてアセンブリを生成する．&lt;/p&gt;
+
+&lt;h2 id=&quot;mclayerの作成&quot;&gt;MCLayerの作成&lt;/h2&gt;
+
+&lt;p&gt;最初にアセンブラやディスアセンブラを担当するMCLayerを作成する．
+具体的には以下のようなことを行う．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Tripleの追加とEBC COFFの定義&lt;/li&gt;
+  &lt;li&gt;レジスタとinstruction formatsの定義&lt;/li&gt;
+  &lt;li&gt;instructionとoperand typeの定義&lt;/li&gt;
+  &lt;li&gt;MCTargetDesc/* と InstPrinter/* の追加&lt;/li&gt;
+  &lt;li&gt;AsmParserの追加&lt;/li&gt;
+  &lt;li&gt;Disassemblerの追加&lt;/li&gt;
+  &lt;li&gt;fixupのサポート&lt;/li&gt;
+  &lt;li&gt;テストの追加&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;実装の全てを紹介することは困難なため詳しくはリポジトリを参照して欲しいが，
+ここではEBCバックエンドの固有の問題をみていく．&lt;/p&gt;
+
+&lt;h3 id=&quot;natural-indexing&quot;&gt;Natural Indexing&lt;/h3&gt;
+
+&lt;p&gt;過去の記事でも言及している通り，
+EBCはホスト(native)のアーキテクチャに依存しない
+64-bit little endianなバイトコードとその仮想マシンとなっている．
+EBCは単体では何もできないため，nativeで定義されている関数を
+EBCから呼び出すことができるようになっている．&lt;/p&gt;
+
+&lt;p&gt;native向けUEFI imageはentry pointで
+以下のような2つの引数を受け取る．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFIAPI&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_IMAGE_ENTRY_POINT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_HANDLE&lt;/span&gt;       &lt;span class=&quot;n&quot;&gt;ImageHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SYSTEM_TABLE&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SystemTable&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ImageHandle&lt;/code&gt;はロードされたUEFI imageを指し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;SystemTable&lt;/code&gt;はUEFIの用意する関数などへのポインタが
+含まれた構造体へのポインタである．&lt;/p&gt;
+
+&lt;p&gt;これらの引数がどのように渡されるかはアーキテクチャ依存であるが，
+EBCの場合はスタック経由で逆順にプッシュされた状態で渡される．&lt;/p&gt;
+
+&lt;p&gt;ではEBCから&lt;code class=&quot;highlighter-rouge&quot;&gt;SystemTable&lt;/code&gt;にアクセスすることを考えてみる．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;SystemTable&lt;/code&gt;は2番目の引数なので最初にプッシュされるため，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;ImageHanle&lt;/code&gt;分をオフセットとして計算する必要がある．
+しかし，ここで問題がある．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_HANDLE&lt;/code&gt;の大きさはアーキテクチャ依存であり，
+32-bitでは4-byte，64-bitでは8-byteとなっている．
+しかもEBCではnativeのアーキテクチャは知らされていない．
+このようにnativeでのアーキテクチャを考える必要があり，
+通常のようにオフセットが既知でないという問題がある．&lt;/p&gt;
+
+&lt;p&gt;そこでEBCではアドレスのオフセットを計算するために
+Natural Indexという仕組みを導入している．
+Natural Indexはnatural unit&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;とconstant unit&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;の2つの値をとる．
+runtimeでこれらの値を以下のように計算して実際のオフセットを計算する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    Offset = c + n * sizeof(void *)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;sizeof(void *)&lt;/code&gt;はnativeでのポインタの大きさであある．
+このように&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;でアーキテクチャ依存のオフセットを計算し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;でアーキテクチャ非依存のオフセットを加算する．&lt;/p&gt;
+
+&lt;p&gt;Natural IndexingはEBC内部で完結する操作では
+constant unitのみを使い，
+nativeとやりとりをする場合のみnatural unitを使うような使い方が考えられる．&lt;/p&gt;
+
+&lt;p&gt;Natural Indexingの仕組みはEBC固有のものであり，
+LLVMには対応するものが存在しない．
+このため1つのNatural Indexingを2つのImmediateとして扱い，
+アセンブリ時とディスアセンブル時にそれぞれ独自に
+エンコードとデコードを行うようにした．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebc命令の定義が不明瞭&quot;&gt;EBC命令の定義が不明瞭&lt;/h3&gt;
+
+&lt;p&gt;EBCの命令の多くはOperand 1とOperand 2の2つのオペランドを持つ．
+この内Operand 1はdestinationであり，次のような形式をとる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;{@} R1 {Index16}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;R1&lt;/code&gt;はレジスタを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;@&lt;/code&gt;はindirectであることを示しており，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;Index16&lt;/code&gt;は16-bit Natural Indexがあることを示している．
+さて，多くのEBCの命令では次のような説明があり，
+これはIndexつきのdirectなOperand 1は禁止されていることを示している．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Specifying an index value with Operand 1 direct results in an instruction encoding exception.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;しかし&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令では上記のような説明がなく，明確に可能であるとも書かれていない．
+EDK2の実装をみると&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;命令に限ってIndexつきdirectなOperand 1が可能となっている．
+このようにUEFI SepcificationにあるEBCの定義は不明瞭に場合がある．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebc命令の定義例&quot;&gt;EBC命令の定義例&lt;/h3&gt;
+
+&lt;p&gt;RISCアーキテクチャではエンコードされた命令の長さが固定長であることが多いが，
+EBCではx86などのCISCアーキテクチャのように可変長である．
+厄介なことににEBCでは同一のオペコードを持った命令でも長さが異なる場合がある．
+これはEBCではOptional Immediate/Indexと呼ばれるオペランドを持っているためである．
+例として以下に&lt;code class=&quot;highlighter-rouge&quot;&gt;DIV&lt;/code&gt;命令のエンコーディングを示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-div-encoding.png&quot; alt=&quot;EBCのDIV命令のエンコーディング&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;0-byte目の7-bit目のビットがセットされていれば
+後ろのOptional 16-bit Immediate/Indexが存在することを示す．
+さらにImmediate/Indexとあるように同じフィールドでも
+別のビットがセットされていればエンコードやデコードの方法が異なる．
+この場合，1-byte目の7-bit目のビットがセットされていれば
+Natural Indexとして扱い，クリアされていればImmediateとして扱う必要がある．&lt;/p&gt;
+
+&lt;p&gt;また，
+表からわかるようにビットの立て方によって計算が32-bit/64-bitに変わり，
+Operand 2やOperand 1がdirect/indirectに変わる．
+以上のように一つの命令であっても取りうるビットや命令長が異なる．&lt;/p&gt;
+
+&lt;p&gt;以上を踏まえてEBCの命令をLLVMで定義する．
+LLVMでは基本的にTableGenと呼ばれるDSLを用いて命令を記述する．
+TableGenはC++のようなクラスの概念があり，
+複数の命令で共通する部分がある場合などにクラスを定義して
+実際の命令の定義でインスタンス化を行う方法をとることができる．
+EBCでの&lt;code class=&quot;highlighter-rouge&quot;&gt;DIV&lt;/code&gt;の定義は次の通りである．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;defm DIV    : EBCALU&amp;lt;0b010000, &quot;div&quot;&amp;gt;;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;defm&lt;/code&gt;は後述するmulticlassをインスタンス化するものである．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EBCALU&lt;/code&gt;は他の計算操作と共通のmulticlassであり
+1番目の引数がオペコード，2番目の引数がニーモニックである．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EBCALU&lt;/code&gt;は次のような定義である．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;multiclass EBCALU&amp;lt;bits&amp;lt;6&amp;gt; opcode, string opcodestr&amp;gt; {
+  foreach hasImmIdx = [0b0, 0b1] in {
+    foreach is64Bit = [0b0, 0b1] in {
+      foreach Op1Indirect = [0b0, 0b1] in {
+        foreach Op2Indirect = [0b0, 0b1] in
+        def !if(is64Bit, &quot;64&quot;, &quot;32&quot;)
+          # !if(Op1Indirect, &quot;Op1I&quot;, &quot;Op1D&quot;)
+          # !if(Op2Indirect, &quot;Op2I&quot;, &quot;Op2D&quot;)
+          # !cond(!eq(hasImmIdx, 0) : &quot;&quot;,
+                  !eq(!and(hasImmIdx, Op2Indirect), 0) : &quot;Imm&quot;,
+                  !eq(!and(hasImmIdx, Op2Indirect), 1) : &quot;Idx&quot;)
+          : EBCALUBase&amp;lt;opcode, hasImmIdx, is64Bit, Op1Indirect, Op2Indirect,
+            (outs GPR:$dst), (ins GPR:$op1, GPR:$op2),
+            (ins imm16:$imm), (ins idxn16:$idxn, idxc16:$idxc),
+            opcodestr, &quot;$op1&quot;, &quot;$op2&quot;, &quot;$imm&quot;, &quot;(${idxn},${idxc})&quot;&amp;gt;;
+      }
+    }
+  }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;multiclassは複数のclassをまとめて定義するものである．
+ここでは&lt;code class=&quot;highlighter-rouge&quot;&gt;hasImmIdx&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;is64Bit&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;Op1Indirect&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;Op2Indirect&lt;/code&gt;をパラメータとして
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EBCALUBase&lt;/code&gt;を継承したclassを定義する．
+詳細には解説しないが，&lt;code class=&quot;highlighter-rouge&quot;&gt;EBCALUBase&lt;/code&gt;は次のような定義となっている．
+命令の大きさを示す&lt;code class=&quot;highlighter-rouge&quot;&gt;CodeSize&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;hasImmIdx&lt;/code&gt;によって定められている．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;class EBCALUBase&amp;lt;bits&amp;lt;6&amp;gt; opcode, bit hasImmIdx, bit is64Bit,
+          bit Op1Indirect, bit Op2Indirect,
+          dag outs, dag ins, dag immins, dag idxins,
+          string opcodestr, string op1str, string op2str,
+          string immstr, string idxstr&amp;gt;
+      : EBCInst2Op&amp;lt;opcode, hasImmIdx, is64Bit, Op1Indirect, Op2Indirect, outs,
+        !cond(!eq(hasImmIdx, 0) : ins,
+              !eq(!and(hasImmIdx, Op2Indirect), 0) : !con(ins, immins),
+              !eq(!and(hasImmIdx, Op2Indirect), 1) : !con(ins, idxins)),
+        opcodestr # !if(is64Bit, &quot;64&quot;, &quot;32&quot;),
+        !if(Op1Indirect, &quot;@&quot;, &quot;&quot;) # op1str # &quot;, &quot;
+      # !if(Op2Indirect, &quot;@&quot;, &quot;&quot;) # op2str # !if(hasImmIdx, &quot; &quot;, &quot;&quot;)
+      # !cond(!eq(hasImmIdx, 0) : &quot;&quot;,
+              !eq(!and(hasImmIdx, Op2Indirect), 0) : immstr,
+              !eq(!and(hasImmIdx, Op2Indirect), 1) : idxstr),
+        []&amp;gt; {
+  bits&amp;lt;3&amp;gt; dst;
+  let CodeSize = !if(hasImmIdx, 4, 2);
+  let mayLoad = !if(Op2Indirect, 1, 0);
+  let mayStore = !if(Op1Indirect, 1, 0);
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;以上のように，EBCの命令をLLVMのTableGenで表現するのは複雑であることがわかる．
+しかし，EBCでnativeの関数を呼び出す場合，
+後述のCodeGenでは取り扱えないのでinline assemblyをサポートしなければならず，
+全てのEBCの命令をサポートする必要がある．
+このため，CodeGenでは使われない命令でも正しく定義する必要がある．&lt;/p&gt;
+
+&lt;h3 id=&quot;ディスアセンブラの実装&quot;&gt;ディスアセンブラの実装&lt;/h3&gt;
+
+&lt;p&gt;LLVMでは命令をTableGenで記述するとアセンブラだけでなくディスアセンブラも生成してくれるが，
+先のmulticlassを使った命令の定義ではNatural IndexingなどEBC固有の命令も含まれているため，
+TableGenの生成するディスアセンブラでは全てを正しくディスアセンブルできない．
+このため，EBCバックエンドでは
+オペコードのデコードにはTablgeGenで生成されるデコーダを利用し，
+かつOptional Immediate/Indexが存在するかどうかを調べるため
+TableGenで生成されるデコーダとは別に再度オペコードをデコードし，
+フラグの有無を調べた上でOptional Immediate/Indexをデコードするように実装している．&lt;/p&gt;
+
+&lt;h3 id=&quot;fixupの実装&quot;&gt;fixupの実装&lt;/h3&gt;
+
+&lt;p&gt;アセンブラはアセンブリをエンコードするだけでなくシンボルの参照を解決するという役割も担っている．
+実際にはこの役割は参照するシンボルがどこにあるかによって誰が解決するかが異なってくるが，
+参照するシンボルが同一オブジェクトファイル内にある場合はアセンブラが担当することとなる．
+LLVMのMCLayerではアセンブラによるシンボル参照の解決をfixupという．
+EBCのバイナリは通常のUEFIのapplicationやdriverのように再配置可能である必要があるため，
+シンボル参照は相対的ものでなければならない．
+しかし，EBCでは相対アドレスのオフセットが命令ごとに微妙に異なっているという問題がある．&lt;/p&gt;
+
+&lt;h2 id=&quot;codegenの実装&quot;&gt;CodeGenの実装&lt;/h2&gt;
+
+&lt;p&gt;次にLLVM IRからアセンブリへの変換を行うCodeGenについてみていく．
+CodeGenではDAGで表現されたコードをターゲットのコードに置き換えていく．
+簡単なノードの置き換えで変換できる場合にはTableGenでパターンを書くことで
+ターゲットのコードへの変換を記述できる．
+一方で関数呼出などの一般にターゲットに依存する部分については
+C++で記述する必要がある．&lt;/p&gt;
+
+&lt;p&gt;CodeGenで実装するものは以下の通りである．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ALU operantions&lt;/li&gt;
+  &lt;li&gt;Materializing constants&lt;/li&gt;
+  &lt;li&gt;Memory operation&lt;/li&gt;
+  &lt;li&gt;Global address operation&lt;/li&gt;
+  &lt;li&gt;Conditional branches&lt;/li&gt;
+  &lt;li&gt;Function calls&lt;/li&gt;
+  &lt;li&gt;SELECT/SELECT_CC&lt;/li&gt;
+  &lt;li&gt;FrameIndex lowering&lt;/li&gt;
+  &lt;li&gt;Prologue/Epilogue insertion&lt;/li&gt;
+  &lt;li&gt;dynamic_stackalloc, stacksave, stackrestore&lt;/li&gt;
+  &lt;li&gt;Inline assembly&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;基本的に実装を頑張るしかないのだが，
+Global address operationでの問題を取り上げる．&lt;/p&gt;
+
+&lt;h3 id=&quot;アドレス計算の仕組みが十分でない&quot;&gt;アドレス計算の仕組みが十分でない&lt;/h3&gt;
+
+&lt;p&gt;EBCのバイナリは他のUEFI application/driver同様に
+relocatableである必要がある．
+これはUEFIでは対象がどこにロードされるかをUEFI側で決定するためである．
+このため，EBCでのアドレスの表現が相対アドレスでの表現でなければならない．&lt;/p&gt;
+
+&lt;p&gt;EBCには相対アドレスから値を取得する&lt;code class=&quot;highlighter-rouge&quot;&gt;MOVREL&lt;/code&gt;命令がある．
+これは以下のような操作を行う．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    Op1 = [IP + SizeOfThisInstruction + Offset]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;図で表すと次のようになる．
+
+&lt;img src=&quot;/img/ebc-movrel.png&quot; alt=&quot;MOVREL命令の概略図&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;さて，Global Addressを扱いたい場合，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;MOVREL&lt;/code&gt;のように相対アドレスの計算を行うが
+値の取得まではしない，という命令が欲しくなる．
+つまり次のような操作が求められている．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    Op1 = IP + SizeOfThisInstruction + Offset
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;EBCにはこの操作に相当する1命令は存在しない．
+このため，STORESP+MOVI+ADDの3つの命令を組み合わせることで
+これを実現する．
+具体的には次のような表現になる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  STORESP R1, IP
+  MOVI R2, .Target
+  ADD R1, R2
+  ...
+
+.Target:
+  ...
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;STORESP&lt;/code&gt;命令で次の命令を指すIPの値をR1に取得する．
+次にMOVIで埋め込まれている&lt;code class=&quot;highlighter-rouge&quot;&gt;.Target:&lt;/code&gt;へのオフセットをR2に代入する．
+最後にR1とR2を足し合わせることで現在ロードされているアドレスでの
+&lt;code class=&quot;highlighter-rouge&quot;&gt;.Target:&lt;/code&gt;の絶対アドレスが計算できる．&lt;/p&gt;
+
+&lt;h2 id=&quot;clangとlld&quot;&gt;ClangとLLD&lt;/h2&gt;
+
+&lt;p&gt;ClangではTripleとTargetInfoの追加，EBC specific driverを追加した．
+このdriverのコードの多くはMSVC driverに由来する．
+LLDではEBCをtargetに加え，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;SectionChunk::applyRelEBC()&lt;/code&gt;という
+別オブジェクトファイルのシンボル参照を解決する部分を加えるなどを行った．
+なお，UEFIではDLLのサポートやPDBのサポートもないため
+これらの実装は行っていない．&lt;/p&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;本記事ではLLVMのEBCバックエンドについて簡単に紹介した．
+EBCはあまり洗練された設計になっておらず，
+扱いにくいというのが正直な感想である．
+UEFIも2.8になりEBC自体がOptionalの扱いとなったため，
+今後EBCはより一層使われなくなるものと考えられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&lt;/li&gt;
+  &lt;li&gt;[2] https://retrage.github.io/2019/07/13/elvm-ebc.html&lt;/li&gt;
+  &lt;li&gt;[3] https://lists.llvm.org/pipermail/llvm-dev/2010-April/030814.html&lt;/li&gt;
+  &lt;li&gt;[4] https://github.com/tianocore/edk2/blob/master/MdeModulePkg/Universal/EbcDxe/EbcExecute.c&lt;/li&gt;
+  &lt;li&gt;[5] https://github.com/pbatard/fasmg-ebc&lt;/li&gt;
+  &lt;li&gt;[6] https://github.com/tianocore/edk2/tree/master/MdeModulePkg/Universal/EbcDxe/EbcDebugger&lt;/li&gt;
+  &lt;li&gt;[7] https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html&lt;/li&gt;
+  &lt;li&gt;[8] https://llvm.org/docs/WritingAnLLVMBackend.html&lt;/li&gt;
+  &lt;li&gt;[9] https://tatsu-zine.com/books/llvm&lt;/li&gt;
+  &lt;li&gt;[10] https://github.com/lowRISC/riscv-llvm&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と EBCバックエンド固有の問題などについてみていく．</summary></entry><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="http://localhost:4000/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T14:24:13+09:00</published><updated>2019-07-14T14:24:13+09:00</updated><id>http://localhost:4000/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="http://localhost:4000/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
 シングルボードコンピュータである．
 Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい
 brick (文鎮化) させてしまったので
@@ -2510,207 +2937,4 @@ exception ENCODE: MOV
   &lt;li&gt;[8] http://opensecuritytraining.info/IntroBIOS_files/Day1_06_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20PCI%20XROMs.pdf&lt;/li&gt;
   &lt;li&gt;[9] https://github.com/retrage/peheader&lt;/li&gt;
   &lt;li&gt;[10] https://speakerdeck.com/retrage/efi-byte-code-virtual-machine-for-fun-and-profit&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において 発表した内容[10]をまとめたものである． ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．</summary></entry><entry><title type="html">EFI stubなArch Linuxのインストール</title><link href="http://localhost:4000/2018/10/13/efi-stub-install.html" rel="alternate" type="text/html" title="EFI stubなArch Linuxのインストール" /><published>2018-10-13T00:20:31+09:00</published><updated>2018-10-13T00:20:31+09:00</updated><id>http://localhost:4000/2018/10/13/efi-stub-install</id><content type="html" xml:base="http://localhost:4000/2018/10/13/efi-stub-install.html">&lt;p&gt;QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。
-ここでのホストはUbuntu 16.04.4 TLSとする。
-なお[1][2][3][4]を参考にした。&lt;/p&gt;
-
-&lt;h2 id=&quot;ovmfのダウンロードとarch-linuxのインストールディスクのダウンロード&quot;&gt;OVMFのダウンロードとArch Linuxのインストールディスクのダウンロード&lt;/h2&gt;
-
-&lt;p&gt;最初にOVMFをダウンロードして解凍する。
-OVMFはTianoCoreをベースにした仮想マシン向けのUEFI実装である。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wget https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm
-$ rpm2cpio edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm | cpio -idmv
-$ cp usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd .
-$ cp usr/share/edk2.git/ovmf-x64/OVMF_VARS-pure-efi.fd .
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Arch Linuxのインストールディスクをダウンロードする。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ wget http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/iso/2018.05.01/archlinux-2018.05.01-x86_64.iso
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;インストール先のディスクイメージを作成する。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ qemu-img create -f raw arch-amd64.img 32G
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;仮想マシンの起動と設定&quot;&gt;仮想マシンの起動と設定&lt;/h2&gt;
-
-&lt;p&gt;インストールディスクから起動する。
-これ以降は仮想マシンでの操作となる。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user -cdrom archlinux-2018.05.01-x86_64.iso -boot d
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;キーボードレイアウトを設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# loadkeys jp106
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;gdisk&lt;/code&gt;でパーティションを作成。
-ここでは/dev/sda1を512MBのEFIパーティション、
-/dev/sda2を残りのすべての容量としたLinuxパーティションとした。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# gdisk /dev/sda
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Command (? for help):o
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Command (? for help):n
-Permission number: 1
-First sector     : 
-Last sector      : +512M
-Hex code or GUID : ef00
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Command (? for help):n
-Permission number: 2
-First sector     : 
-Last sector      :  
-Hex code or GUID : 8300
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最後に書き込みを行う。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Command (? for help):w
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;各パーティションをフォーマット&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# mkfs.vfat -F32 /dev/sda1
-# mkfs.ext4 /dev/sda2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;それぞれをマウント。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# mount /dev/sda2
-# mkdir -p /mnt/boot
-# mount /dev/sda1 /mnt/boot
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ダウンロードのミラーサイトを設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# nano /etc/pacman.d/mirrorlist
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;システムのインストール。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# pacstrap -i /mnt base base-devel
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;fstabの生成。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# genfstab -U -p /mnt &amp;gt;&amp;gt; /mnt/etc/fstab
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;localeの設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# locale-gen
-# echo LANG=en_US.UTF-8 &amp;gt; /etc/locale.conf
-# export LANG=en_US.UTF-8
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;キーボードマップの設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# echo KEYMAP=jp106 &amp;gt; /etc/vconsole.conf
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;localtimeの設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# rm /etc/localtime
-# ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# hwclock -u -w
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ホスト名の設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# echo &quot;arch-vm&quot; &amp;gt; /etc/hostname
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;DHCPクライアントの設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# systemctl enable dhcpcd.service
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;パスワードの設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# passwd
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;GRUB2の代わりに&lt;code class=&quot;highlighter-rouge&quot;&gt;efibootmgr&lt;/code&gt;でEFI Variableを設定。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# efibootmgr -d /dev/sda -p 1 -c -L &quot;Arch Linux&quot; -l /vmlinuz-linux -u &quot;root=dev/sda2 rw initrd=initramfs-linux.img&quot;
-# efibootmgr -v
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;exitしてhalt。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# exit
-# halt
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;以下で正しく起動することを確認。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;efi-stubなlinux-kernelのビルド&quot;&gt;EFI stubなLinux kernelのビルド&lt;/h2&gt;
-
-&lt;p&gt;先の説明でインストールしたArch LinuxはEFI stubとなっている。
-ここでは、ホストでLinux kernelをビルドしそれを仮想マシンにインストールしてみる。&lt;/p&gt;
-
-&lt;h3 id=&quot;linuxカーネルのビルド&quot;&gt;Linuxカーネルのビルド&lt;/h3&gt;
-
-&lt;p&gt;カーネルをダウンロードする。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ git clone https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux.git --branch v4.17 --depth 1
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ホストのconfigをコピーして多少の修正を行い、ホスト上でビルドする。
-&lt;code class=&quot;highlighter-rouge&quot;&gt;make menuconfig&lt;/code&gt;で&lt;code class=&quot;highlighter-rouge&quot;&gt;CONFIG_EFI_STUB=y&lt;/code&gt;となっていることを確認する。
-&lt;code class=&quot;highlighter-rouge&quot;&gt;make&lt;/code&gt;するときのjob数はホストのCPUのコア数に応じて変更する。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ cp /boot/config-4.15.0-33-generic .config
-$ make menuconfig
-$ make -j9
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;linux-kernelの仮想マシンへのインストール&quot;&gt;Linux kernelの仮想マシンへのインストール&lt;/h3&gt;
-
-&lt;p&gt;仮想マシンのディスクイメージをマウントする。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# /sbin/kpartx -av arch-amd64.img
-# mount /dev/mapper/loop0p2 /mnt
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ホストでビルドしたカーネルを仮想マシンにインストールする。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# make INSTALL_MOD_PATH=/mnt modules_install
-# mkdir -p /mnt/var/tmp
-# cp System.map /mnt/var/tmp
-# cp arch/x86_64/boot/bzImage /mnt/var/tmp
-# umount /mnt
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最後に仮想マシン上でホストでビルドしたbzImageとSystem.mapをコピーし、
-initramfsを生成する。&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# cp -f /var/tmp/bzImage /boot/vmlinuz-linux
-# cp -f /var/tmp/System.map /boot/System.map
-# mkinitcpio -c /etc/mkinitcpio.conf -g /boot/initramfs-linux.img
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最後に再起動し、ビルドしたバージョンのカーネルであることを確認する。&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;[1] https://wiki.archlinux.org/index.php/Installation_guide&lt;/li&gt;
-  &lt;li&gt;[2] https://wiki.archlinux.org/index.php/EFISTUB&lt;/li&gt;
-  &lt;li&gt;[3] http://note.kurodigi.com/archlinux-uefi-install/&lt;/li&gt;
-  &lt;li&gt;[4] https://kernhack.hatenablog.com/entry/2013/11/01/083558&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2][3][4]を参考にした。</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において 発表した内容[10]をまとめたものである． ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．</summary></entry></feed>
