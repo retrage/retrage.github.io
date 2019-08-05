@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-07-24T06:55:38+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+09:00</published><updated>2019-07-20T09:37:42+09:00</updated><id>http://localhost:4000/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="http://localhost:4000/feed.xml" rel="self" type="application/atom+xml" /><link href="http://localhost:4000/" rel="alternate" type="text/html" /><updated>2019-08-05T15:08:41+09:00</updated><id>http://localhost:4000/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+09:00</published><updated>2019-07-20T09:37:42+09:00</updated><id>http://localhost:4000/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
 EBCバックエンド固有の問題などについてみていく．&lt;/p&gt;
 
 &lt;p&gt;ソースコードは以下で公開している．&lt;/p&gt;
@@ -496,7 +496,19 @@ ASSERT [ISPDxe] c:\minnowboard2closesource\Vlv2DeviceRefCodePkg\ValleyView2Soc\N
 
 &lt;p&gt;ここに書かれているソースコードは公開されておらず，
 バイナリファイルのみが配布されている．
-このため原因の特定は容易ではない．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+09:00</published><updated>2019-07-13T17:23:26+09:00</updated><id>http://localhost:4000/2019/07/13/elvm-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
+このため原因の特定は容易ではない．&lt;/p&gt;
+
+&lt;h3 id=&quot;20190805-追記&quot;&gt;2019/08/05 追記&lt;/h3&gt;
+
+&lt;p&gt;以上の記事について公開していたところ，
+Brian Delgadoさんから助言をいただき
+Assertion Errorについて解決できたので追記する．
+問題はファームウェアのビルドに使うiaslである．
+新しいiaslでは上記の問題が発生するため，
+&lt;a href=&quot;https://acpica.org/node/124&quot;&gt;VERSION 20160527&lt;/a&gt;
+を利用してビルドする．
+手元ではこれでDebug, Relaseどちらも動作することを確認した．
+Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="http://localhost:4000/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+09:00</published><updated>2019-07-13T17:23:26+09:00</updated><id>http://localhost:4000/2019/07/13/elvm-ebc</id><content type="html" xml:base="http://localhost:4000/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
 &lt;a href=&quot;https://github.com/shinh/elvm&quot;&gt;ELVM&lt;/a&gt;
 のEFI Byte Codeバックエンドについて紹介する．
 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．&lt;/p&gt;

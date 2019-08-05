@@ -15,7 +15,7 @@
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2019-07-14T14:24:13+09:00" />
 <script type="application/ld+json">
-{"datePublished":"2019-07-14T14:24:13+09:00","dateModified":"2019-07-14T14:24:13+09:00","url":"http://localhost:4000/2019/07/14/bricked-minnowboard.html","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2019/07/14/bricked-minnowboard.html"},"description":"MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．","@type":"BlogPosting","headline":"文鎮化したMinnowboardを復旧させる","@context":"https://schema.org"}</script>
+{"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2019/07/14/bricked-minnowboard.html"},"url":"http://localhost:4000/2019/07/14/bricked-minnowboard.html","headline":"文鎮化したMinnowboardを復旧させる","description":"MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．","dateModified":"2019-07-14T14:24:13+09:00","datePublished":"2019-07-14T14:24:13+09:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 <link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
@@ -117,6 +117,18 @@ ASSERT [ISPDxe] c:\minnowboard2closesource\Vlv2DeviceRefCodePkg\ValleyView2Soc\N
 <p>ここに書かれているソースコードは公開されておらず，
 バイナリファイルのみが配布されている．
 このため原因の特定は容易ではない．</p>
+
+<h3 id="20190805-追記">2019/08/05 追記</h3>
+
+<p>以上の記事について公開していたところ，
+Brian Delgadoさんから助言をいただき
+Assertion Errorについて解決できたので追記する．
+問題はファームウェアのビルドに使うiaslである．
+新しいiaslでは上記の問題が発生するため，
+<a href="https://acpica.org/node/124">VERSION 20160527</a>
+を利用してビルドする．
+手元ではこれでDebug, Relaseどちらも動作することを確認した．
+Brian Delgadoさん，情報をどうもありがとうございました．</p>
 
   </div><a class="u-url" href="/2019/07/14/bricked-minnowboard.html" hidden></a>
 </article>
