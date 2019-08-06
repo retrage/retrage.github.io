@@ -9,15 +9,15 @@
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="Brainfuckとは&gt;&lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．" />
 <meta property="og:description" content="Brainfuckとは&gt;&lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．" />
-<link rel="canonical" href="http://localhost:4000/2018/06/18/brainfuck-performance.html" />
-<meta property="og:url" content="http://localhost:4000/2018/06/18/brainfuck-performance.html" />
+<link rel="canonical" href="https://retrage.github.io/2018/06/18/brainfuck-performance.html" />
+<meta property="og:url" content="https://retrage.github.io/2018/06/18/brainfuck-performance.html" />
 <meta property="og:site_name" content="retrage.github.io" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2018-06-18T22:37:02+09:00" />
 <script type="application/ld+json">
-{"mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/2018/06/18/brainfuck-performance.html"},"url":"http://localhost:4000/2018/06/18/brainfuck-performance.html","headline":"RustでBrainfuck処理系を高速化して遊んでみる","description":"Brainfuckとは&gt;&lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．","dateModified":"2018-06-18T22:37:02+09:00","datePublished":"2018-06-18T22:37:02+09:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"mainEntityOfPage":{"@type":"WebPage","@id":"https://retrage.github.io/2018/06/18/brainfuck-performance.html"},"url":"https://retrage.github.io/2018/06/18/brainfuck-performance.html","headline":"RustでBrainfuck処理系を高速化して遊んでみる","description":"Brainfuckとは&gt;&lt;+-.,[]の8つの命令からなるプログラミング言語である． 実装が簡単であるために，すでに多くの言語によって実装がなされている． ここでは， Adventures in JIT compilation: Part 1 - an interpreter を参考にC++の実装をRustに移植し，そのパフォーマンスを計測し，比較をして遊んでみる．","dateModified":"2018-06-18T22:37:02+09:00","datePublished":"2018-06-18T22:37:02+09:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
-<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="retrage.github.io" /></head>
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://retrage.github.io/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
 
   <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
