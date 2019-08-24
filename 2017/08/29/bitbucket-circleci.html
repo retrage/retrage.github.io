@@ -13,9 +13,9 @@
 <meta property="og:url" content="https://retrage.github.io/2017/08/29/bitbucket-circleci.html" />
 <meta property="og:site_name" content="retrage.github.io" />
 <meta property="og:type" content="article" />
-<meta property="article:published_time" content="2017-08-29T11:10:58+09:00" />
+<meta property="article:published_time" content="2017-08-29T02:10:58+00:00" />
 <script type="application/ld+json">
-{"mainEntityOfPage":{"@type":"WebPage","@id":"https://retrage.github.io/2017/08/29/bitbucket-circleci.html"},"url":"https://retrage.github.io/2017/08/29/bitbucket-circleci.html","headline":"BitbucketとCircle CIでLatexする","description":"前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．","dateModified":"2017-08-29T11:10:58+09:00","datePublished":"2017-08-29T11:10:58+09:00","@type":"BlogPosting","@context":"https://schema.org"}</script>
+{"description":"前回からだいぶ空いてしまったが，小ネタを投下する． 以前に， Jenkins+Bitbucket(Git)でLaTeX という記事を書いた． ここでは，CIを用いてlatexdiffによる差分Latexの生成， コンパイル，Downloadsへのアップロード を行うようなものを作ってみた．","@type":"BlogPosting","url":"https://retrage.github.io/2017/08/29/bitbucket-circleci.html","headline":"BitbucketとCircle CIでLatexする","dateModified":"2017-08-29T02:10:58+00:00","datePublished":"2017-08-29T02:10:58+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://retrage.github.io/2017/08/29/bitbucket-circleci.html"},"@context":"https://schema.org"}</script>
 <!-- End Jekyll SEO tag -->
 <link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://retrage.github.io/feed.xml" title="retrage.github.io" /></head>
 <body><header class="site-header" role="banner">
@@ -40,7 +40,7 @@
   <header class="post-header">
     <h1 class="post-title p-name" itemprop="name headline">BitbucketとCircle CIでLatexする</h1>
     <p class="post-meta">
-      <time class="dt-published" datetime="2017-08-29T11:10:58+09:00" itemprop="datePublished">Aug 29, 2017
+      <time class="dt-published" datetime="2017-08-29T02:10:58+00:00" itemprop="datePublished">Aug 29, 2017
       </time></p>
   </header>
 
@@ -72,7 +72,7 @@ Circle CIでは任意のDockerイメージが利用できる．
 
 <h2 id="準備">準備</h2>
 
-<p>先のDockerイメージは小さくて良いのだが，いくつかこの後必要となる
+<p>先のDockerイメージは小さくて良いのだが，いくつかこの後必要となる
 ものがないので，それらをインストールする．</p>
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>apk add --update git patch curl
 apk add --update ca-certificates openssl &amp;&amp; update-ca-certificates
