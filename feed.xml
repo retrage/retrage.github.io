@@ -1,4 +1,218 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2019-08-24T09:07:40+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+00:00</published><updated>2019-07-20T09:37:42+00:00</updated><id>https://retrage.github.io/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2019-11-06T02:38:01+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">OVMFのデバッグ</title><link href="https://retrage.github.io/2019/11/05/debugging-ovmf.html" rel="alternate" type="text/html" title="OVMFのデバッグ" /><published>2019-11-05T14:16:39+00:00</published><updated>2019-11-05T14:16:39+00:00</updated><id>https://retrage.github.io/2019/11/05/debugging-ovmf</id><content type="html" xml:base="https://retrage.github.io/2019/11/05/debugging-ovmf.html">&lt;p&gt;ここではgdbを用いたOVMFのデバッグ方法について説明する．
+すでにOVMFのデバッグについて書かれた記事[1]が存在するが，
+ここでは特別なツールなどは使わずに通常のgdbでOVMFをデバッグする．&lt;/p&gt;
+
+&lt;h2 id=&quot;uefiにおけるコードの配置&quot;&gt;UEFIにおけるコードの配置&lt;/h2&gt;
+
+&lt;p&gt;UEFIでは(少なくともx64では)フラットな単一のメモリ空間が用意され，
+ファームウェア本体もUEFI Applicationも同一の空間内にメモリ保護なしに
+配置される，このため，複雑なことは一切せずにシンボル情報とベースアドレスさえ
+分かっていればどのようなUEFIのコードであっても通常のデバッガでソースコードレベルデバッグが
+可能となっている．
+また，OVMFでは各機能がモジュール化されており，
+ロードされる際には通常のUEFI ImageであるPEとしてロードされる．
+これはおそらく多くの人がデバッグしたいであろうBootServicesでも同様である．
+BootServicesは&lt;code class=&quot;highlighter-rouge&quot;&gt;DxeCore.efi&lt;/code&gt;として存在し，以下のように起動中にロードされる．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Notify: PPI Guid: EE16160A-E8BE-47A6-820A-C6900DB0250A, Peim notify entry point: 836CA9
+PlatformPei: ClearCacheOnMpServicesAvailable
+DiscoverPeimsAndOrderWithApriori(): Found 0x0 PEI FFS files in the 1th FV
+DXE IPL Entry
+Loading PEIM D6A2CB7F-6A18-4E2F-B43B-9920A733700A
+Loading PEIM at 0x00007EA8000 EntryPoint=0x00007EAB0BC DxeCore.efi
+Loading DXE CORE at 0x00007EA8000 EntryPoint=0x00007EAB0BC
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;edk2におけるuefi-imageのデバッグシンボル&quot;&gt;EDK2におけるUEFI Imageのデバッグシンボル&lt;/h2&gt;
+
+&lt;p&gt;OVMFを含むEDK2ではデバッグビルド(&lt;code class=&quot;highlighter-rouge&quot;&gt;-b DEBUG&lt;/code&gt;)を行うと
+実行ファイル&lt;code class=&quot;highlighter-rouge&quot;&gt;*.efi&lt;/code&gt;とデバッグシンボル情報&lt;code class=&quot;highlighter-rouge&quot;&gt;*.debug&lt;/code&gt;が生成される．
+このとき，使うツールチェーンによって生成されるデバッグシンボル情報の形式が異なる点に
+注意する必要がある．
+おそらくLinuxなどでビルドする場合に最も用いられるであろうgccではmingw32ではなく
+通常のELFを出力するgccでコンパイルがなされ，
+用意されたリンカスクリプトを元にリンクを行ったあと，
+UEFI Imageの実行形式であるPEへと変換がなされる．
+このため，gcc(&lt;code class=&quot;highlighter-rouge&quot;&gt;GCC5&lt;/code&gt;など)ではデバッグ情報はELFのものとなっており，
+これは通常のgdbで解釈可能なものとなっている．
+一方，Visual Studioや最近追加されたclang/lldでのビルド(&lt;code class=&quot;highlighter-rouge&quot;&gt;CLANG9&lt;/code&gt;)[2]
+ではELFではなくPE/COFFを直接生成するため，デバッグ情報はpdbとなっているはずである(未確認)．&lt;/p&gt;
+
+&lt;p&gt;以上をまとめると次のようになる．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;OVMFのコードはフラットな単一のメモリ空間に配置される&lt;/li&gt;
+  &lt;li&gt;gccでのビルドされたEDK2のUEFI Imageは(ELFターゲットな)gdbでデバッグ可能&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;以下では実際に特別なパッケージやデバッガを使わずにOVMF本体をデバッグしていく．&lt;/p&gt;
+
+&lt;h2 id=&quot;edk2のビルド&quot;&gt;EDK2のビルド&lt;/h2&gt;
+
+&lt;p&gt;何十回もやっているであろう作業なので説明は割愛．
+普通にgccでデバッグビルドでビルドする．&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git clone git@github.com:tianocore/edk2.git
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;edk2
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git submodule update &lt;span class=&quot;nt&quot;&gt;--init&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;--recursive&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make &lt;span class=&quot;nt&quot;&gt;-C&lt;/span&gt; BaseTools
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;source&lt;/span&gt; ./edksetup.sh
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;build &lt;span class=&quot;nt&quot;&gt;-p&lt;/span&gt; OvmfPkg/OvmfPkgX64.dsc &lt;span class=&quot;nt&quot;&gt;-b&lt;/span&gt; DEBUG &lt;span class=&quot;nt&quot;&gt;-a&lt;/span&gt; X64 &lt;span class=&quot;nt&quot;&gt;-t&lt;/span&gt; GCC5
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;デバッグをしやすくするために以下のようなMakefileを作成する．
+ここで注意したいのは0x402でdebugconを接続しておき，
+OVMFからのデバッグ情報(&lt;code class=&quot;highlighter-rouge&quot;&gt;debug.log&lt;/code&gt;)を記録しておくことである[4]．&lt;/p&gt;
+
+&lt;div class=&quot;language-makefile highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/usr/bin/env make
+&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;SHELL&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;/bin/bash
+
+&lt;span class=&quot;nv&quot;&gt;LOG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;debug.log
+&lt;span class=&quot;nv&quot;&gt;OVMFBASE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;edk2/Build/OvmfX64/DEBUG_GCC5/
+&lt;span class=&quot;nv&quot;&gt;OVMFCODE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$(OVMFBASE)&lt;/span&gt;/FV/OVMF_CODE.fd
+&lt;span class=&quot;nv&quot;&gt;OVMFVARS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$(OVMFBASE)&lt;/span&gt;/FV/OVMF_VARS.fd
+&lt;span class=&quot;nv&quot;&gt;QEMU&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;qemu-system-x86_64
+&lt;span class=&quot;nv&quot;&gt;QEMUFLAGS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nt&quot;&gt;-drive&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;format&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;raw,file&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;fat:rw:image &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-drive&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;pflash,format&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;raw,readonly,file&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$(OVMFCODE)&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-drive&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;pflash,format&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;raw,file&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$(OVMFVARS)&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-debugcon&lt;/span&gt; file:&lt;span class=&quot;nv&quot;&gt;$(LOG)&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-global&lt;/span&gt; isa-debugcon.iobase&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;0x402 &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-serial&lt;/span&gt; stdio &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-nographic&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+		  &lt;span class=&quot;nt&quot;&gt;-nodefaults&lt;/span&gt;
+
+&lt;span class=&quot;nl&quot;&gt;run&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;nv&quot;&gt;$(QEMU)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$(QEMUFLAGS)&lt;/span&gt;
+
+&lt;span class=&quot;nl&quot;&gt;debug&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt;
+	&lt;span class=&quot;nv&quot;&gt;$(QEMU)&lt;/span&gt; &lt;span class=&quot;nv&quot;&gt;$(QEMUFLAGS)&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-s&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-S&lt;/span&gt;
+
+&lt;span class=&quot;nl&quot;&gt;.PHONY&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;run debug&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;実際にデバッグを行う前に&lt;code class=&quot;highlighter-rouge&quot;&gt;debug.log&lt;/code&gt;を取得するため
+普通に実行する．&lt;code class=&quot;highlighter-rouge&quot;&gt;startup.nsh&lt;/code&gt;などを用意しておくと便利かもしれない．&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make run
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;これで&lt;code class=&quot;highlighter-rouge&quot;&gt;debug.log&lt;/code&gt;が取得できたこれには以下のようにどのUEFI Imageが
+どこにロードされるかが記載されている．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Loading PEIM at 0x00007EA8000 EntryPoint=0x00007EAB0BC DxeCore.efi
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;*.efi&lt;/code&gt;のPEバイナリからテキスト領域(&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;)のRVAを取得する．
+これはELFであれば&lt;code class=&quot;highlighter-rouge&quot;&gt;readelf&lt;/code&gt;などでできるが，
+今回は手前味噌ではあるが，
+私が過去に作った&lt;a href=&quot;https://github.com/retrage/peinfo&quot;&gt;retrage/peinfo&lt;/a&gt;[3]
+を用いる．&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;git clone git@github.com:retrage/peinfo.git
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;peinfo
+&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;peinfoでは以下のような情報が取得できる．
+ここではVirtualAddressさえ取得できればよい．
+なお，この値はRVAである点に注意する必要がある．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Name: .text
+VirtualSize: 0x000204c0
+VirtualAddress: 0x00000240
+SizeOfRawData: 0x000204c0
+PointerToRawData: 0x00000240
+PointerToRelocations: 0x00000000
+PointerToLinenumbers: 0x00000000
+NumberOfRelocations: 0x0000
+NumberOfLinenumbers: 0x0000
+Characteristics: 0x60000020
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;debug.log&lt;/code&gt;とpeinfoを用いて以下のようなスクリプトを実行する．
+これはシンボル情報を追加する&lt;code class=&quot;highlighter-rouge&quot;&gt;add-symbol-file&lt;/code&gt;を出力していくもので，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;debug.log&lt;/code&gt;で得られた各UEFI Imageのベースアドレスとpeinfoで得られたVirualAddressを
+加算してそのUEFI Imageのテキスト領域がロードされるアドレスを計算するものである．&lt;/p&gt;
+
+&lt;div class=&quot;language-bash highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c&quot;&gt;#!/bin/bash&lt;/span&gt;
+
+&lt;span class=&quot;nv&quot;&gt;LOG&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;debug.log&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;BUILD&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;edk2/Build/OvmfX64/DEBUG_GCC5/X64&quot;&lt;/span&gt;
+&lt;span class=&quot;nv&quot;&gt;PEINFO&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;peinfo/peinfo&quot;&lt;/span&gt;
+
+&lt;span class=&quot;nb&quot;&gt;cat&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;LOG&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;grep &lt;/span&gt;Loading | &lt;span class=&quot;nb&quot;&gt;grep&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-i&lt;/span&gt; efi | &lt;span class=&quot;k&quot;&gt;while &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;read &lt;/span&gt;LINE&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do
+  &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;BASE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;LINE&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;cut&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-d&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot; &quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-f4&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;NAME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;LINE&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;cut&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-d&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot; &quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-f6&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;tr&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-d&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;[:cntrl:]&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;ADDR&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;PEINFO&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;BUILD&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;/&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;NAME&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+        | &lt;span class=&quot;nb&quot;&gt;grep&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-A&lt;/span&gt; 5 text | &lt;span class=&quot;nb&quot;&gt;grep &lt;/span&gt;VirtualAddress | &lt;span class=&quot;nb&quot;&gt;cut&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-d&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot; &quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-f2&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;TEXT&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;python &lt;span class=&quot;nt&quot;&gt;-c&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;print(hex(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;BASE&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; + &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;ADDR&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;))&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;nv&quot;&gt;SYMS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;NAME&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt; | &lt;span class=&quot;nb&quot;&gt;sed&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-e&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;s/&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\.&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;efi/&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\.&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;debug/g&quot;&lt;/span&gt;&lt;span class=&quot;sb&quot;&gt;`&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;echo&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&quot;add-symbol-file &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;BUILD&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;SYMS&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt; &lt;/span&gt;&lt;span class=&quot;k&quot;&gt;${&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;TEXT&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;}&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&quot;&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;done&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;bash gen_symbol_offsets.sh &lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; gdbscript
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;以上のようにして生成されたgdb scriptは以下のようになっている．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-gdb&quot;&gt;add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PcdPeim.debug 0x82c380
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/ReportStatusCodeRouterPei.debug 0x831080
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/StatusCodeHandlerPei.debug 0x833100
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PlatformPei.debug 0x835100
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PeiCore.debug 0x7ee8240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DxeIpl.debug 0x7ee3240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/S3Resume2Pei.debug 0x7edf240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/CpuMpPei.debug 0x7ed6240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DxeCore.debug 0x7ea8240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DevicePathDxe.debug 0x7b8f240
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以上で準備は完了である．通常のデバッグ時同様にデバッグ可能である．&lt;/p&gt;
+
+&lt;div class=&quot;language-shell highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;make debug
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここでは&lt;code class=&quot;highlighter-rouge&quot;&gt;BootServices-&amp;gt;HandleProtocol()&lt;/code&gt;にブレークポイントを置いてみる．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-gdb&quot;&gt;(gdb) source gdbscript
+(gdb) b CoreHandleProtocol
+(gdb) target remote localhost:1234
+(gdb) c
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以下のようにブレークポイントで止まり，ソースコードレベルデバッグが可能になっていることがわかる．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-gdb&quot;&gt;   ┌──/home/akira/src/ovmf-debug/edk2/MdeModulePkg/Core/Dxe/Hand/Handle.c──────┐
+   │933     CoreHandleProtocol (                                               │
+   │934       IN EFI_HANDLE       UserHandle,                                  │
+   │935       IN EFI_GUID         *Protocol,                                   │
+   │936       OUT VOID            **Interface                                  │
+   │937       )                                                                │
+B+&amp;gt;│938     {                                                                  │
+   │939       return CoreOpenProtocol (                                        │
+   │940               UserHandle,                                              │
+   │941               Protocol,                                                │
+   │942               Interface,                                               │
+   │943               gDxeCoreImageHandle,                                     │
+   │944               NULL,                                                    │
+   │945               EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL                     │
+   └───────────────────────────────────────────────────────────────────────────┘
+remote Thread 1 In: CoreHandleProtocol                      L938  PC: 0x7eb6ad4 
+
+
+
+(gdb) 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://jp3bgy.github.io/blog/uefi/2018/12/24/How-to-Source-Debug-OVMF.html&lt;/li&gt;
+  &lt;li&gt;[2] https://github.com/tianocore/edk2/commit/15330934dc860c20b2143c802f3b4285e89021e3&lt;/li&gt;
+  &lt;li&gt;[3] https://github.com/retrage/peinfo&lt;/li&gt;
+  &lt;li&gt;[4] https://github.com/tianocore/tianocore.github.io/wiki/How-to-debug-OVMF-with-QEMU-using-GDB&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここではgdbを用いたOVMFのデバッグ方法について説明する． すでにOVMFのデバッグについて書かれた記事[1]が存在するが， ここでは特別なツールなどは使わずに通常のgdbでOVMFをデバッグする．</summary></entry><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+00:00</published><updated>2019-07-20T09:37:42+00:00</updated><id>https://retrage.github.io/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
 EBCバックエンド固有の問題などについてみていく．&lt;/p&gt;
 
 &lt;p&gt;ソースコードは以下で公開している．&lt;/p&gt;
@@ -2519,434 +2733,4 @@ R1, R2, R3などを利用せざるを得ない場合があり，
   &lt;li&gt;[5] https://github.com/google/googletest&lt;/li&gt;
   &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase&lt;/li&gt;
   &lt;li&gt;[7] https://github.com/rui314/8cc&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は 自作OS Advent Calendar 2018 の19日目の記事として書かれた． ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．</summary></entry><entry><title type="html">EFI Byte Code解説</title><link href="https://retrage.github.io/2018/11/11/efi-byte-code-myth.html" rel="alternate" type="text/html" title="EFI Byte Code解説" /><published>2018-11-11T22:30:22+00:00</published><updated>2018-11-11T22:30:22+00:00</updated><id>https://retrage.github.io/2018/11/11/efi-byte-code-myth</id><content type="html" xml:base="https://retrage.github.io/2018/11/11/efi-byte-code-myth.html">&lt;p&gt;本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
-発表した内容[10]をまとめたものである．
-ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．&lt;/p&gt;
-
-&lt;h2 id=&quot;efi-byte-codeとは&quot;&gt;EFI Byte Codeとは&lt;/h2&gt;
-
-&lt;p&gt;UEFI Specification v2.7によれば，
-EFI Byte Code (EBC)について&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;platform- and processor-independent mechanisms for loading and executing EFI device drivers&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;とある．
-つまり，OSなどのplatform非依存かつ，processor非依存な
-EFI device driverを読み込み，実行するための仕組み，ということである．&lt;/p&gt;
-
-&lt;p&gt;EBCはPCI Express (PCIe)のOptionROM (OROM)に利用されることが想定されて設計されている．
-OROMはPCIeデバイスの内部に存在する記憶領域であり[8]，
-UEFI向けのデバイスドライバなどが置かれている．
-UEFIはOROMから実行ファイルを読み出し，メモリ上に配置して実行する．
-このとき用いられる実行ファイルに含まれるコードは，native codeかEBCのいずれかである．
-OROMのにあるUEFI向けデバイスドライバにEBCが利用される理由の一つとして，
-複数のアーキテクチャへの対応が挙げられる．
-しかし，実際にはx64マシンがほとんどであるためにEBCではなくx64 native codeの
-UEFI device driverが内蔵されているという話もある．(未確認)&lt;/p&gt;
-
-&lt;h2 id=&quot;ebc向けのドキュメントとツール&quot;&gt;EBC向けのドキュメントとツール&lt;/h2&gt;
-
-&lt;p&gt;EBCはマイナーなため，EBCについての情報はあまり存在しない．
-強いて挙げるとすれば，以下のものがある．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;UEFI Specification[2]&lt;/li&gt;
-  &lt;li&gt;TianoCore/EDK2 source code[3]&lt;/li&gt;
-  &lt;li&gt;いくつかのブログ記事[4][5]&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;このうち最も詳しいのがUEFI Specificationである．&lt;/p&gt;
-
-&lt;p&gt;また，EBC関連のツールとしては以下のようなものがある．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Intel C Compiler for EFI Byte Code[6]&lt;/li&gt;
-  &lt;li&gt;fasmg-ebc[7]&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;Intel C Compiler for EFI Byte Codeは$995で有料であるため，
-簡単に入手することができない．(そもそも個人向けに販売しているのか怪しい)
-fasmg-ebcはオープンソースなFlat Assembler (fasm)をベースにしたEBCのアセンブラである．
-fasmg-ebcは部分的に後述するEBCからのnative codeの呼び出しに対応している．&lt;/p&gt;
-
-&lt;p&gt;なお，一般的なGCC/ClangなどではEBC対応がなされていない．
-また，EBCの逆アセンブラも存在しない．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebc-vmの構成&quot;&gt;EBC VMの構成&lt;/h2&gt;
-
-&lt;p&gt;EBCのVMは64-bit little endianとなっている．
-EBCのVMのレジスタの構成を以下に示す．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebc-registers.png&quot; alt=&quot;EBC VM Registers&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;IP (Instruction Pointer)，FLAGS，R0からR7までの
-合計10の64-bit長のレジスタを持っている．
-FLAGSは比較演算の結果の入るCフラグとsingle-stepを示すSフラグの2つがある．
-汎用レジスタであるR0-R7では，
-R0はスタックポインタを保持し，
-R7は関数からの返り値が代入される．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebcのバイナリ形式と関数呼び出し規約&quot;&gt;EBCのバイナリ形式と関数呼び出し規約&lt;/h2&gt;
-
-&lt;p&gt;EBCではWindowsやUEFIで利用されているPortable Executable (PE)のPE32+を採用している．
-また，UEFI側が自由にメモリ上に配置できるように，relocatable imageなっている．
-面白いことに，PEヘッダにあるFileHeader-&amp;gt;Machineは&lt;code class=&quot;highlighter-rouge&quot;&gt;0x0ebc&lt;/code&gt;となっている．
-以下のfasmg-ebcで作成したEBCバイナリのヘッダ情報を
-自作のpeheader[9]の出力として以下に示す．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Machine: ebc
-Number of Section: 2
-Time Stamp: 1541744287
-Size of Optional Header: 240
-32-bit Architecture
-This file is DLL.
-PE+
-AddressOfEntryPoint: 1000
-ImageBase: 400000
-SectionAlignment: 1000
-FileAlignment: 200
-SizeOfImage: 3000
-SizeOfHeaders: 200
-Section 0
-	Name: .text
-	VirtualSize: 1c
-	VirtualAddress: 1000
-	SizeOfRawData: 200
-	PointerToRawData: 200
-	PointerToRelocations: 0
-	PointerToLinenumbers: 0
-	NumberOfRelocations: 0
-	NumberOfLinenumbers: 0
-	Characteristics: 60000020 r-x exec
-Section 1
-	Name: .data
-	VirtualSize: 26
-	VirtualAddress: 2000
-	SizeOfRawData: 200
-	PointerToRawData: 400
-	PointerToRelocations: 0
-	PointerToLinenumbers: 0
-	NumberOfRelocations: 0
-	NumberOfLinenumbers: 0
-	Characteristics: c0000040 rw- inited
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;EBCの関数呼び出し規約はCDECLを採用している．
-これはx64 UEFIのnative codeではMicrosoft x64 Calling Conventionを
-採用している点で大きく異なる．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;func(arg0, arg1, arg2)&lt;/code&gt;のような関数があった場合，
-以下の図に示すように引数を逆順にスタックにプッシュし，
-最後に呼び出し元のアドレスをプッシュして&lt;code class=&quot;highlighter-rouge&quot;&gt;func&lt;/code&gt;が実行される．
-なお，スタックにプッシュされた引数については呼び出し元が責任を持つ．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebc-stack.png&quot; alt=&quot;EBC Stack Example&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;一般にUEFIでは起動時に，UEFI本体より&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_HANDLE ImageHandle,
-IN EFI_SYSTEM_TABLE *SystemTable
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;の2つの引数が渡される．
-EBCのVMでも同様にこれらの値が渡されることとなっており，
-VMの起動時にはあたかもNative codeから起動されたかのように
-これらの引数と呼び出し元のアドレスがEBC上のスタックにプッシュされた状態になる．&lt;/p&gt;
-
-&lt;h2 id=&quot;natural-indexing&quot;&gt;Natural Indexing&lt;/h2&gt;
-
-&lt;p&gt;32-bitと64-bitの複数のアーキテクチャに対応するため，
-EBCではNatural Indexingという仕組みを持っている．
-これはあるアドレスに対するオフセットの値である符号付整数について，
-アーキテクチャによって異なる値となるように設計されたオフセットの表し方である．
-Natural Indexingは以下の図に示すようにエンコードされる．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing.png&quot; alt=&quot;EBC Natural Indexing&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;ここで，Nはエンコード後の値の長さ(16, 32, 64-bitのいずれか)である．
-MSBであるN bit目&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;は符号を表し，0であれば正，1であれば負を表す．
-次にN-1からN-3bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;は後述する&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;の長さを表す．
-ただし，&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;はデコード時に&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;A = w * N / 8
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;より&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;が計算される．
-次にN-4から&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt; bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;はConstant unitsを表し，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;-1から0 bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;はNatural unitsを表す．
-以上で得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;を用いて次のようにデコードされたオフセットが表される．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Offset = (c + n * sizeof(VOID *)) * b
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;ここで，&lt;code class=&quot;highlighter-rouge&quot;&gt;sizeof(VOID *)&lt;/code&gt;はアーキテクチャ依存であり，
-32-bitであれば4となり，64-bitであれば8となる．&lt;/p&gt;
-
-&lt;h2 id=&quot;natural-indexingの例&quot;&gt;Natural Indexingの例&lt;/h2&gt;
-
-&lt;p&gt;では実際にエンコードされたNatural Indexを計算してみる．
-値はUEFI Specificationに挙げられている例と同一である．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;0xa048&lt;/code&gt;という16-bitのIndexを考える．
-これは2進数で表すを以下のようになる．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing-example.png&quot; alt=&quot;EBC Natural Indexing Example&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;先の説明を当てはめると&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;N = 16
-b = 1,
-w = 2, A = 2 * 16 / 8 = 4
-c = 4
-n = 8
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;となる．
-32-bit，64-bitそれぞれのアーキテクチャではデコードされた値は&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;32-bit: Offset = (4 + 8 * 4) * -1 = -36
-64-bit: Offset = (4 + 8 * 8) * -1 = -68
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;となり，確かに同じNatural Indexでも異なる値にデコードされることがわかる．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebcの命令セット&quot;&gt;EBCの命令セット&lt;/h2&gt;
-
-&lt;p&gt;EBCの命令セットは可変長なCISC-likeな命令となっている．
-全体では56種類の命令が存在する．
-以下にEBCの命令の一覧を示す．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;BREAK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x00 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;JMP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x01 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;JMP8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x02 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CALL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x03 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;RET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x04 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x05 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x06 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x07 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x08 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x09 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0a */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NEG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0b */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;ADD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0c */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;SUB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0d */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MUL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0e */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MULU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x0f */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;DIV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x10 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;DIVU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x11 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x12 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MODU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x13 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;AND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x14 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;OR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;      &lt;span class=&quot;cm&quot;&gt;/* 0x15 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;XOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x16 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;SHL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x17 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;SHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x18 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;ASHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x19 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;EXTNDB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1a */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;EXTNDW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1b */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;EXTNDD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1c */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVbw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1d */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVww&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1e */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVdw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1f */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVqw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x20 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVbd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x21 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x22 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVdd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x23 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVqd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x24 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVsnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x25 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVsnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x26 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x27 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVqq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x28 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;LOADSP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x29 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;STORESP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2a */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x2b */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;POP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x2c */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPIeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x2d */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPIlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2e */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPIgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2f */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPIulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x30 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;CMPIugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x31 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x32 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x33 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x34 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;PUSHn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x35 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;POPn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x36 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x37 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVIn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x38 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;MOVREL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x39 */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3a */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3b */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3c */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3d */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3e */&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3f */&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;ebcの命令のoperand&quot;&gt;EBCの命令のOperand&lt;/h3&gt;
-
-&lt;p&gt;EBCの命令は基本的に以下のような形式をとる．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;INSTRUCTION Operand1, Operand2
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;各Operandは
-Direct, Indirect, Indirect with Index，Immediate
-の4種類の形式をとる．&lt;/p&gt;
-
-&lt;p&gt;Directは&lt;code class=&quot;highlighter-rouge&quot;&gt;R2&lt;/code&gt;などと表し，Operandで指定されているレジスタの値を指す．
-Indirectは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R2&lt;/code&gt;などと表し，
-Operandで指定されているレジスタの値のアドレスにあるメモリ上の値を指す．
-Indirect with Indexでは
-Operandで指定されているレジスタの値と
-他にNatural Indexingによって指定されているオフセットの値を
-足した値のアドレスにあるメモリ上の値を指す．
-これは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R1(+n, +c)&lt;/code&gt;の形式で表される．
-Immediateは即値であり，指定された値そのままを指し，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;0x1234&lt;/code&gt;の形式で表される．&lt;/p&gt;
-
-&lt;h3 id=&quot;ebc命令の例-xor&quot;&gt;EBC命令の例: XOR&lt;/h3&gt;
-
-&lt;p&gt;EBCの命令&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;は以下の形式で表される．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;XOR[32|64] {@}R1, {@}R2 {Index16|Immed16}
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;XORは次のようにエンコードされる．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebc-xor-encoding.png&quot; alt=&quot;EBC XOR Encoding&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;Byte0-Bit7ではOperand2のImmediate/Indexの存在を表す．
-もし1であればByte2からByte3には16-bitのImmediate/Indexの値が存在する．
-Byte0-Bit6では操作が32/64-bitのどちらかであることを示す．
-Byte0-Bit0からBit5はOpecodeを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;0x16&lt;/code&gt;となっている．
-Byte1-Bit7ではOperand2がDirectとIndirectのどちらであることを示す．
-Byte1-Bit4からBit6ではOperand2のレジスタを表す．
-Byte1-Bit3ではOperand1がDirectとIndirectのどちらであることを示す．
-Byte1-Bit0からBit2ではOperand1のレジスタを表す．&lt;/p&gt;
-
-&lt;h2 id=&quot;native-codeの呼び出し&quot;&gt;Native codeの呼び出し&lt;/h2&gt;
-
-&lt;p&gt;EBCには&lt;code class=&quot;highlighter-rouge&quot;&gt;CALL&lt;/code&gt;という命令があるが，
-これはEBCの呼び出しとnative codeの呼び出し(&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;)の2種類がサポートされている．
-EBCは&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;をサポートするための命令をいくつか持っている．
-以下にその命令を列挙する．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MOVn, MOVIn, MOVsn, POPn, PUSHn
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;は各アーキテクチャ依存の処理を行うため，
-あるいはUEFIの容易するランタイムを呼び出すために用いられる．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebc-vmの例外&quot;&gt;EBC VMの例外&lt;/h2&gt;
-
-&lt;p&gt;EBCのVMはEBCを実行した場合に発生する例外をハンドルできる必要がある．
-EBCの実行により発生する可能性のある例外を以下に示す．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Divide By 0
-Debug Break
-Invalid Opcode
-Stack Fault
-Alignment
-Instruction Encoding
-Bad Break
-Undefined
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;各例外の詳細はUEFI Specificationを参考にしてほしい．&lt;/p&gt;
-
-&lt;p&gt;EBCのVMはEFI Debug Support Protocolをサポートする必要があり，
-このProtocol経由でデバッガをVMにattachすることができる．
-もしデバッガがattachされている場合，
-例外はデバッガによって捕捉される．
-もし，デバッガがattachされていない場合は以下のいずれかの動作となるが，
-どの動作になるかは実装依存となっている．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;エラーメッセージを表示しシステムを停止&lt;/li&gt;
-  &lt;li&gt;システムをハング&lt;/li&gt;
-  &lt;li&gt;例外を無視し，処理を続行&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;ebcアセンブリの例&quot;&gt;EBCアセンブリの例&lt;/h2&gt;
-
-&lt;p&gt;以下にfasmg-ebcよりEBCアセンブリによるHello, worldの例を示す．&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;section '.text' code executable readable
-EfiMain:
-  MOVn   R1, @R0(EFI_MAIN_PARAMETERS.SystemTable)
-  MOVn   R1, @R1(EFI_SYSTEM_TABLE.ConOut)
-  MOVREL R2, Hello
-  PUSHn  R2 ; Push Pointer to Hello
-  PUSHn  R1 ; Push Pointer to SystemTable-&amp;gt;ConOut
-  CALLEX @R1(SIMPLE_TEXT_OUTPUT_INTERFACE.OutputString)
-  MOV R0, R0(+2,0)
-  RET 
-
-section '.data' data readable writeable
-  Hello:    du &quot;Hello EBC World!&quot;, 0x0D, 0x0A, 0x00
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;このアセンブリではエントリポイントは&lt;code class=&quot;highlighter-rouge&quot;&gt;EfiMain&lt;/code&gt;である．
-最初にR0レジスタにあるスタックポインタの値から
-SystemTableへのアドレスをR1に代入する．
-次にR1の値からConOutへのアドレスのR1に代入する．
-R2に文字列&lt;code class=&quot;highlighter-rouge&quot;&gt;Hello&lt;/code&gt;へのアドレスを代入する．
-次にこれらのR2，R1の順にレジスタの値をスタックにプッシュする．
-これはSimple Text Output ProtocolのOutputStringの
-引数，&lt;/p&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *This,
-IN CHAR16 *String
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;に相当する．
-最後に&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLEX&lt;/code&gt;によりConOut-&amp;gt;OutputStringを呼び出している．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebcvm-ユーザ空間で動作するebc-vm&quot;&gt;ebcvm: ユーザ空間で動作するEBC VM&lt;/h2&gt;
-
-&lt;p&gt;EBCの仕様の概要は以上のようなものとなっている．
-EBCはUEFIの規格で定められているものの，
-少なくともオープンソースで用いられている事例が全く存在しない．
-また，EBCのVMはOVMFなどで実装されているが，
-ユーザ空間で簡単に利用することが難しい．
-そこで，UEFI SpecificationにあるEBCの仕様と
-fasmg-ebcの生成するEBCバイナリのみを元にしてEBCのVMを作成することにした．
-ebcvmのソースコードは以下GitHub上で公開している．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/yabits/ebcvm&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;ebcvmは現在以下ものをサポートしている．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;EBCの全ての命令&lt;/li&gt;
-  &lt;li&gt;いくつかのnative code実行のエミュレーション&lt;/li&gt;
-  &lt;li&gt;簡単なデバッガ&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;ebcvmの概観&quot;&gt;ebcvmの概観&lt;/h3&gt;
-
-&lt;p&gt;ebcvmは以下の図のような構成となっている．&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/img/ebcvm-architecture.png&quot; alt=&quot;ebcvm Architecture&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;最初にVMが起動し，レジスタの初期化とメモリの初期化がなされる．
-LoaderがEBCバイナリを読み込みメモリ上に展開する．
-また，UEFIのランタイムもメモリ上に配置される．
-初期化が完了すると，Decoderがバイトコードをデコードし，
-Executorがデコードされた命令を実行する．
-VMはEXCALLが発行されるとこれをトラップし，
-EFI Native Codeに処理を渡す．
-EFI Native CodeはエミュレートされてVMに処理が戻され，
-処理が続行される．
-VMはまた例外をトラップし，Simple debuggerがattachされていれば
-これに処理を受け渡す．&lt;/p&gt;
-
-&lt;h3 id=&quot;ebcvmの実行例&quot;&gt;ebcvmの実行例&lt;/h3&gt;
-
-&lt;p&gt;先に示したEBCによるHello, worldの例のバイナリを
-ebcvmにより実行した例を以下に示す．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./ebcvm sample/print.efi 
-Hello EBC World!
-exception ENCODE: MOV
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;のエンコードで例外が発行されているものの，
-確かに実行できていることがわかる．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;[1] https://uefi.org/&lt;/li&gt;
-  &lt;li&gt;[2] https://uefi.org/specifications&lt;/li&gt;
-  &lt;li&gt;[3] https://github.com/tianocore/edk2&lt;/li&gt;
-  &lt;li&gt;[4] http://vzimmer.blogspot.com/2015/08/efi-byte-code.html&lt;/li&gt;
-  &lt;li&gt;[5] https://habr.com/post/201954/&lt;/li&gt;
-  &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase/?_ga=2.177917472.440178022.1541746062-392223130.1541746062&lt;/li&gt;
-  &lt;li&gt;[7] https://github.com/pbatard/fasmg-ebc&lt;/li&gt;
-  &lt;li&gt;[8] http://opensecuritytraining.info/IntroBIOS_files/Day1_06_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20PCI%20XROMs.pdf&lt;/li&gt;
-  &lt;li&gt;[9] https://github.com/retrage/peheader&lt;/li&gt;
-  &lt;li&gt;[10] https://speakerdeck.com/retrage/efi-byte-code-virtual-machine-for-fun-and-profit&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において 発表した内容[10]をまとめたものである． ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は 自作OS Advent Calendar 2018 の19日目の記事として書かれた． ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．</summary></entry></feed>
