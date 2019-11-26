@@ -1,4 +1,831 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2019-11-26T00:45:12+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">OVMFのデバッグ</title><link href="https://retrage.github.io/2019/11/05/debugging-ovmf.html" rel="alternate" type="text/html" title="OVMFのデバッグ" /><published>2019-11-05T14:16:39+00:00</published><updated>2019-11-05T14:16:39+00:00</updated><id>https://retrage.github.io/2019/11/05/debugging-ovmf</id><content type="html" xml:base="https://retrage.github.io/2019/11/05/debugging-ovmf.html">&lt;p&gt;ここではgdbを用いたOVMFのデバッグ方法について説明する．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2019-11-26T16:51:26+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">EFI_STATUSの値</title><link href="https://retrage.github.io/2019/11/26/efi-status-code.html" rel="alternate" type="text/html" title="EFI_STATUSの値" /><published>2019-11-26T00:40:56+00:00</published><updated>2019-11-26T00:40:56+00:00</updated><id>https://retrage.github.io/2019/11/26/efi-status-code</id><content type="html" xml:base="https://retrage.github.io/2019/11/26/efi-status-code.html">&lt;p&gt;毎回&lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_STATUS&lt;/code&gt;の値を調べるのが手間なのでここでまとめておく．&lt;/p&gt;
+
+&lt;h2 id=&quot;tldr&quot;&gt;TL;DR&lt;/h2&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;EFI_STATUS&lt;/th&gt;
+      &lt;th&gt;Value (64-bit)&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_SUCCESS&lt;/td&gt;
+      &lt;td&gt;0x0&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_LOAD_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000001&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_INVALID_PARAMETER&lt;/td&gt;
+      &lt;td&gt;0x8000000000000002&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_UNSUPPORTED&lt;/td&gt;
+      &lt;td&gt;0x8000000000000003&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_BAD_BUFFER_SIZE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000004&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_BUFFER_TOO_SMALL&lt;/td&gt;
+      &lt;td&gt;0x8000000000000005&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NOT_READY&lt;/td&gt;
+      &lt;td&gt;0x8000000000000006&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_DEVICE_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000007&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WRITE_PROTECTED&lt;/td&gt;
+      &lt;td&gt;0x8000000000000008&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_OUT_OF_RESOURCES&lt;/td&gt;
+      &lt;td&gt;0x8000000000000009&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_VOLUME_CORRUPTED&lt;/td&gt;
+      &lt;td&gt;0x800000000000000a&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_VOLUME_FULL&lt;/td&gt;
+      &lt;td&gt;0x800000000000000b&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NO_MEDIA&lt;/td&gt;
+      &lt;td&gt;0x800000000000000c&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_MEDIA_CHANGED&lt;/td&gt;
+      &lt;td&gt;0x800000000000000d&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NOT_FOUND&lt;/td&gt;
+      &lt;td&gt;0x800000000000000e&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_ACCESS_DENIED&lt;/td&gt;
+      &lt;td&gt;0x800000000000000f&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NO_RESPONSE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000010&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NO_MAPPING&lt;/td&gt;
+      &lt;td&gt;0x8000000000000011&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_TIMEOUT&lt;/td&gt;
+      &lt;td&gt;0x8000000000000012&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NOT_STARTED&lt;/td&gt;
+      &lt;td&gt;0x8000000000000013&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_ALREADY_STARTED&lt;/td&gt;
+      &lt;td&gt;0x8000000000000014&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_ABORTED&lt;/td&gt;
+      &lt;td&gt;0x8000000000000015&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_ICMP_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000016&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_TFTP_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000017&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_PROTOCOL_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000018&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_INCOMPATIBLE_VERSION&lt;/td&gt;
+      &lt;td&gt;0x8000000000000019&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_SECURITY_VIOLATION&lt;/td&gt;
+      &lt;td&gt;0x800000000000001a&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_CRC_ERROR&lt;/td&gt;
+      &lt;td&gt;0x800000000000001b&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_END_OF_MEDIA&lt;/td&gt;
+      &lt;td&gt;0x800000000000001c&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_END_OF_FILE&lt;/td&gt;
+      &lt;td&gt;0x800000000000001f&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_INVALID_LANGUAGE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000020&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_COMPROMISED_DATA&lt;/td&gt;
+      &lt;td&gt;0x8000000000000021&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_HTTP_ERROR&lt;/td&gt;
+      &lt;td&gt;0x8000000000000023&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_NETWORK_UNREACHABLE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000064&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_HOST_UNREACHABLE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000065&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_PROTOCOL_UNREACHABLE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000066&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_PORT_UNREACHABLE&lt;/td&gt;
+      &lt;td&gt;0x8000000000000067&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_CONNECTION_FIN&lt;/td&gt;
+      &lt;td&gt;0x8000000000000068&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_CONNECTION_RESET&lt;/td&gt;
+      &lt;td&gt;0x8000000000000069&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_CONNECTION_REFUSED&lt;/td&gt;
+      &lt;td&gt;0x800000000000006a&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_UNKNOWN_GLYPH&lt;/td&gt;
+      &lt;td&gt;0x1&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_DELETE_FAILURE&lt;/td&gt;
+      &lt;td&gt;0x2&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_WRITE_FAILURE&lt;/td&gt;
+      &lt;td&gt;0x3&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_BUFFER_TOO_SMALL&lt;/td&gt;
+      &lt;td&gt;0x4&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_STALE_DATA&lt;/td&gt;
+      &lt;td&gt;0x5&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;EFI_WARN_FILE_SYSTEM&lt;/td&gt;
+      &lt;td&gt;0x6&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h2 id=&quot;edk2での定義&quot;&gt;EDK2での定義&lt;/h2&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/Uefi/UefiBaseType.h:24&quot;&gt;///
+/// Function return status for EFI API.
+///
+typedef RETURN_STATUS             EFI_STATUS;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/Base.h:959&quot;&gt;//
+// Status codes common to all execution phases
+//
+typedef UINTN RETURN_STATUS;
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;なので&lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_STATUS&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;UINTN&lt;/code&gt;である．
+x64では&lt;code class=&quot;highlighter-rouge&quot;&gt;UINTN&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;UINT64&lt;/code&gt;となっている．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/Uefi/UefiBaseType.h:109&quot;&gt;///
+/// Enumeration of EFI_STATUS.
+///@{
+#define EFI_SUCCESS               RETURN_SUCCESS
+#define EFI_LOAD_ERROR            RETURN_LOAD_ERROR
+#define EFI_INVALID_PARAMETER     RETURN_INVALID_PARAMETER
+#define EFI_UNSUPPORTED           RETURN_UNSUPPORTED
+#define EFI_BAD_BUFFER_SIZE       RETURN_BAD_BUFFER_SIZE
+#define EFI_BUFFER_TOO_SMALL      RETURN_BUFFER_TOO_SMALL
+#define EFI_NOT_READY             RETURN_NOT_READY
+#define EFI_DEVICE_ERROR          RETURN_DEVICE_ERROR
+#define EFI_WRITE_PROTECTED       RETURN_WRITE_PROTECTED
+#define EFI_OUT_OF_RESOURCES      RETURN_OUT_OF_RESOURCES
+#define EFI_VOLUME_CORRUPTED      RETURN_VOLUME_CORRUPTED
+#define EFI_VOLUME_FULL           RETURN_VOLUME_FULL
+#define EFI_NO_MEDIA              RETURN_NO_MEDIA
+#define EFI_MEDIA_CHANGED         RETURN_MEDIA_CHANGED
+#define EFI_NOT_FOUND             RETURN_NOT_FOUND
+#define EFI_ACCESS_DENIED         RETURN_ACCESS_DENIED
+#define EFI_NO_RESPONSE           RETURN_NO_RESPONSE
+#define EFI_NO_MAPPING            RETURN_NO_MAPPING
+#define EFI_TIMEOUT               RETURN_TIMEOUT
+#define EFI_NOT_STARTED           RETURN_NOT_STARTED
+#define EFI_ALREADY_STARTED       RETURN_ALREADY_STARTED
+#define EFI_ABORTED               RETURN_ABORTED
+#define EFI_ICMP_ERROR            RETURN_ICMP_ERROR
+#define EFI_TFTP_ERROR            RETURN_TFTP_ERROR
+#define EFI_PROTOCOL_ERROR        RETURN_PROTOCOL_ERROR
+#define EFI_INCOMPATIBLE_VERSION  RETURN_INCOMPATIBLE_VERSION
+#define EFI_SECURITY_VIOLATION    RETURN_SECURITY_VIOLATION
+#define EFI_CRC_ERROR             RETURN_CRC_ERROR
+#define EFI_END_OF_MEDIA          RETURN_END_OF_MEDIA
+#define EFI_END_OF_FILE           RETURN_END_OF_FILE
+#define EFI_INVALID_LANGUAGE      RETURN_INVALID_LANGUAGE
+#define EFI_COMPROMISED_DATA      RETURN_COMPROMISED_DATA
+#define EFI_HTTP_ERROR            RETURN_HTTP_ERROR
+
+#define EFI_WARN_UNKNOWN_GLYPH    RETURN_WARN_UNKNOWN_GLYPH
+#define EFI_WARN_DELETE_FAILURE   RETURN_WARN_DELETE_FAILURE
+#define EFI_WARN_WRITE_FAILURE    RETURN_WARN_WRITE_FAILURE
+#define EFI_WARN_BUFFER_TOO_SMALL RETURN_WARN_BUFFER_TOO_SMALL
+#define EFI_WARN_STALE_DATA       RETURN_WARN_STALE_DATA
+#define EFI_WARN_FILE_SYSTEM      RETURN_WARN_FILE_SYSTEM
+///@}
+
+///
+/// Define macro to encode the status code.
+///
+#define EFIERR(_a)                ENCODE_ERROR(_a)
+
+#define EFI_ERROR(A)              RETURN_ERROR(A)
+
+///
+/// ICMP error definitions
+///@{
+#define EFI_NETWORK_UNREACHABLE   EFIERR(100)
+#define EFI_HOST_UNREACHABLE      EFIERR(101)
+#define EFI_PROTOCOL_UNREACHABLE  EFIERR(102)
+#define EFI_PORT_UNREACHABLE      EFIERR(103)
+///@}
+
+///
+/// Tcp connection status definitions
+///@{
+#define EFI_CONNECTION_FIN        EFIERR(104)
+#define EFI_CONNECTION_RESET      EFIERR(105)
+#define EFI_CONNECTION_REFUSED    EFIERR(106)
+///@}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#define RETURN_SUCCESS               0
+#define RETURN_LOAD_ERROR            ENCODE_ERROR (1)
+#define RETURN_INVALID_PARAMETER     ENCODE_ERROR (2)
+#define RETURN_UNSUPPORTED           ENCODE_ERROR (3)
+#define RETURN_BAD_BUFFER_SIZE       ENCODE_ERROR (4)
+#define RETURN_BUFFER_TOO_SMALL      ENCODE_ERROR (5)
+#define RETURN_NOT_READY             ENCODE_ERROR (6)
+#define RETURN_DEVICE_ERROR          ENCODE_ERROR (7)
+#define RETURN_WRITE_PROTECTED       ENCODE_ERROR (8)
+#define RETURN_OUT_OF_RESOURCES      ENCODE_ERROR (9)
+#define RETURN_VOLUME_CORRUPTED      ENCODE_ERROR (10)
+#define RETURN_VOLUME_FULL           ENCODE_ERROR (11)
+#define RETURN_NO_MEDIA              ENCODE_ERROR (12)
+#define RETURN_MEDIA_CHANGED         ENCODE_ERROR (13)
+#define RETURN_NOT_FOUND             ENCODE_ERROR (14)
+#define RETURN_ACCESS_DENIED         ENCODE_ERROR (15)
+#define RETURN_NO_RESPONSE           ENCODE_ERROR (16)
+#define RETURN_NO_MAPPING            ENCODE_ERROR (17)
+#define RETURN_TIMEOUT               ENCODE_ERROR (18)
+#define RETURN_NOT_STARTED           ENCODE_ERROR (19)
+#define RETURN_ALREADY_STARTED       ENCODE_ERROR (20)
+#define RETURN_ABORTED               ENCODE_ERROR (21)
+#define RETURN_ICMP_ERROR            ENCODE_ERROR (22)
+#define RETURN_TFTP_ERROR            ENCODE_ERROR (23)
+#define RETURN_PROTOCOL_ERROR        ENCODE_ERROR (24)
+#define RETURN_INCOMPATIBLE_VERSION  ENCODE_ERROR (25)
+#define RETURN_SECURITY_VIOLATION    ENCODE_ERROR (26)
+#define RETURN_CRC_ERROR             ENCODE_ERROR (27)
+#define RETURN_END_OF_MEDIA          ENCODE_ERROR (28)
+#define RETURN_END_OF_FILE           ENCODE_ERROR (31)
+#define RETURN_INVALID_LANGUAGE      ENCODE_ERROR (32)
+#define RETURN_COMPROMISED_DATA      ENCODE_ERROR (33)
+#define RETURN_HTTP_ERROR            ENCODE_ERROR (35)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#define RETURN_WARN_UNKNOWN_GLYPH    ENCODE_WARNING (1)
+#define RETURN_WARN_DELETE_FAILURE   ENCODE_WARNING (2)
+#define RETURN_WARN_WRITE_FAILURE    ENCODE_WARNING (3)
+#define RETURN_WARN_BUFFER_TOO_SMALL ENCODE_WARNING (4)
+#define RETURN_WARN_STALE_DATA       ENCODE_WARNING (5)
+#define RETURN_WARN_FILE_SYSTEM      ENCODE_WARNING (6)
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/Base.h:973&quot;&gt;#define ENCODE_ERROR(StatusCode)     ((RETURN_STATUS)(MAX_BIT | (StatusCode)))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/Base.h:984&quot;&gt;#define ENCODE_WARNING(StatusCode)   ((RETURN_STATUS)(StatusCode))
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;MAX_BIT&lt;/code&gt;はx64では次のようになっている．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c:MdePkg/Include/X64/ProcessorBind.h:246&quot;&gt;#define MAX_BIT     0x8000000000000000ULL
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;以上をまとめるとx64では&lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_STATUS&lt;/code&gt;の値は最初に示した表のようになる．
+以下は表の生成に利用したスクリプトである．&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;c1&quot;&gt;#!/usr/bin/env python
+&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;sys&lt;/span&gt;
+
+&lt;span class=&quot;n&quot;&gt;MAX_BIT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x8000000000000000&lt;/span&gt;
+&lt;span class=&quot;c1&quot;&gt;# MAX_BIT = 0x80000000
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;print_row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;status_padding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;val_padding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;print&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'| '&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;' '&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_padding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;' | '&lt;/span&gt; \
+            &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;' '&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_padding&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;' |'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;def&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;efi_status_path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;efi_to_return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_status_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'r'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; 
+            &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;efi_to_return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;return_status_path&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;argv&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;return_to_val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;dict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;with&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;return_status_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'r'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; 
+        &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; 
+            &lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;_&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;strip&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;split&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;return_to_val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; 
+
+    &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;map&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_to_return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;keys&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()))&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;hex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;MAX_BIT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;print_row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'EFI_STATUS'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'Value (64-bit)'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;print_row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'-'&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'-'&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;in&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_to_return&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;items&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;():&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startswith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'EFIERR'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;return_to_val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;return_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startswith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'ENCODE_ERROR'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;ow&quot;&gt;or&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startswith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'EFIERR'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_BIT&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'('&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;')'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;elif&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;startswith&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'ENCODE_WARNING'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;):&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'('&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;+&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;')'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)])&lt;/span&gt;
+        &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;val&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;v&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;# 0 is expected
+&lt;/span&gt;        &lt;span class=&quot;n&quot;&gt;print_row&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;hex&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;val&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;val_width&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;
+
+&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__name__&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;'__main__'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;sys&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;exit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;main&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name></name></author><summary type="html">毎回EFI_STATUSの値を調べるのが手間なのでここでまとめておく．</summary></entry><entry><title type="html">EFI Byte Code解説</title><link href="https://retrage.github.io/2019/11/11/efi-byte-code-myth.html" rel="alternate" type="text/html" title="EFI Byte Code解説" /><published>2019-11-11T13:30:22+00:00</published><updated>2019-11-11T13:30:22+00:00</updated><id>https://retrage.github.io/2019/11/11/efi-byte-code-myth</id><content type="html" xml:base="https://retrage.github.io/2019/11/11/efi-byte-code-myth.html">&lt;p&gt;本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において
+発表した内容[10]をまとめたものである．
+ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．&lt;/p&gt;
+
+&lt;h2 id=&quot;efi-byte-codeとは&quot;&gt;EFI Byte Codeとは&lt;/h2&gt;
+
+&lt;p&gt;UEFI Specification v2.7によれば，
+EFI Byte Code (EBC)について&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;platform- and processor-independent mechanisms for loading and executing EFI device drivers&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;とある．
+つまり，OSなどのplatform非依存かつ，processor非依存な
+EFI device driverを読み込み，実行するための仕組み，ということである．&lt;/p&gt;
+
+&lt;p&gt;EBCはPCI Express (PCIe)のOptionROM (OROM)に利用されることが想定されて設計されている．
+OROMはPCIeデバイスの内部に存在する記憶領域であり[8]，
+UEFI向けのデバイスドライバなどが置かれている．
+UEFIはOROMから実行ファイルを読み出し，メモリ上に配置して実行する．
+このとき用いられる実行ファイルに含まれるコードは，native codeかEBCのいずれかである．
+OROMのにあるUEFI向けデバイスドライバにEBCが利用される理由の一つとして，
+複数のアーキテクチャへの対応が挙げられる．
+しかし，実際にはx64マシンがほとんどであるためにEBCではなくx64 native codeの
+UEFI device driverが内蔵されているという話もある．(未確認)&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc向けのドキュメントとツール&quot;&gt;EBC向けのドキュメントとツール&lt;/h2&gt;
+
+&lt;p&gt;EBCはマイナーなため，EBCについての情報はあまり存在しない．
+強いて挙げるとすれば，以下のものがある．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;UEFI Specification[2]&lt;/li&gt;
+  &lt;li&gt;TianoCore/EDK2 source code[3]&lt;/li&gt;
+  &lt;li&gt;いくつかのブログ記事[4][5]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;このうち最も詳しいのがUEFI Specificationである．&lt;/p&gt;
+
+&lt;p&gt;また，EBC関連のツールとしては以下のようなものがある．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Intel C Compiler for EFI Byte Code[6]&lt;/li&gt;
+  &lt;li&gt;fasmg-ebc[7]&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Intel C Compiler for EFI Byte Codeは$995で有料であるため，
+簡単に入手することができない．(そもそも個人向けに販売しているのか怪しい)
+fasmg-ebcはオープンソースなFlat Assembler (fasm)をベースにしたEBCのアセンブラである．
+fasmg-ebcは部分的に後述するEBCからのnative codeの呼び出しに対応している．&lt;/p&gt;
+
+&lt;p&gt;なお，一般的なGCC/ClangなどではEBC対応がなされていない．
+また，EBCの逆アセンブラも存在しない．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc-vmの構成&quot;&gt;EBC VMの構成&lt;/h2&gt;
+
+&lt;p&gt;EBCのVMは64-bit little endianとなっている．
+EBCのVMのレジスタの構成を以下に示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-registers.png&quot; alt=&quot;EBC VM Registers&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;IP (Instruction Pointer)，FLAGS，R0からR7までの
+合計10の64-bit長のレジスタを持っている．
+FLAGSは比較演算の結果の入るCフラグとsingle-stepを示すSフラグの2つがある．
+汎用レジスタであるR0-R7では，
+R0はスタックポインタを保持し，
+R7は関数からの返り値が代入される．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcのバイナリ形式と関数呼び出し規約&quot;&gt;EBCのバイナリ形式と関数呼び出し規約&lt;/h2&gt;
+
+&lt;p&gt;EBCではWindowsやUEFIで利用されているPortable Executable (PE)のPE32+を採用している．
+また，UEFI側が自由にメモリ上に配置できるように，relocatable imageなっている．
+面白いことに，PEヘッダにあるFileHeader-&amp;gt;Machineは&lt;code class=&quot;highlighter-rouge&quot;&gt;0x0ebc&lt;/code&gt;となっている．
+以下のfasmg-ebcで作成したEBCバイナリのヘッダ情報を
+自作のpeheader[9]の出力として以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Machine: ebc
+Number of Section: 2
+Time Stamp: 1541744287
+Size of Optional Header: 240
+32-bit Architecture
+This file is DLL.
+PE+
+AddressOfEntryPoint: 1000
+ImageBase: 400000
+SectionAlignment: 1000
+FileAlignment: 200
+SizeOfImage: 3000
+SizeOfHeaders: 200
+Section 0
+	Name: .text
+	VirtualSize: 1c
+	VirtualAddress: 1000
+	SizeOfRawData: 200
+	PointerToRawData: 200
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: 60000020 r-x exec
+Section 1
+	Name: .data
+	VirtualSize: 26
+	VirtualAddress: 2000
+	SizeOfRawData: 200
+	PointerToRawData: 400
+	PointerToRelocations: 0
+	PointerToLinenumbers: 0
+	NumberOfRelocations: 0
+	NumberOfLinenumbers: 0
+	Characteristics: c0000040 rw- inited
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;EBCの関数呼び出し規約はCDECLを採用している．
+これはx64 UEFIのnative codeではMicrosoft x64 Calling Conventionを
+採用している点で大きく異なる．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;func(arg0, arg1, arg2)&lt;/code&gt;のような関数があった場合，
+以下の図に示すように引数を逆順にスタックにプッシュし，
+最後に呼び出し元のアドレスをプッシュして&lt;code class=&quot;highlighter-rouge&quot;&gt;func&lt;/code&gt;が実行される．
+なお，スタックにプッシュされた引数については呼び出し元が責任を持つ．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-stack.png&quot; alt=&quot;EBC Stack Example&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;一般にUEFIでは起動時に，UEFI本体より&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_HANDLE ImageHandle,
+IN EFI_SYSTEM_TABLE *SystemTable
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;の2つの引数が渡される．
+EBCのVMでも同様にこれらの値が渡されることとなっており，
+VMの起動時にはあたかもNative codeから起動されたかのように
+これらの引数と呼び出し元のアドレスがEBC上のスタックにプッシュされた状態になる．&lt;/p&gt;
+
+&lt;h2 id=&quot;natural-indexing&quot;&gt;Natural Indexing&lt;/h2&gt;
+
+&lt;p&gt;32-bitと64-bitの複数のアーキテクチャに対応するため，
+EBCではNatural Indexingという仕組みを持っている．
+これはあるアドレスに対するオフセットの値である符号付整数について，
+アーキテクチャによって異なる値となるように設計されたオフセットの表し方である．
+Natural Indexingは以下の図に示すようにエンコードされる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing.png&quot; alt=&quot;EBC Natural Indexing&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;ここで，Nはエンコード後の値の長さ(16, 32, 64-bitのいずれか)である．
+MSBであるN bit目&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;は符号を表し，0であれば正，1であれば負を表す．
+次にN-1からN-3bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;は後述する&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;の長さを表す．
+ただし，&lt;code class=&quot;highlighter-rouge&quot;&gt;w&lt;/code&gt;はデコード時に&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;A = w * N / 8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;より&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;が計算される．
+次にN-4から&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt; bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;はConstant unitsを表し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;A&lt;/code&gt;-1から0 bitまで&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;はNatural unitsを表す．
+以上で得られた&lt;code class=&quot;highlighter-rouge&quot;&gt;b&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;c&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;n&lt;/code&gt;を用いて次のようにデコードされたオフセットが表される．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Offset = (c + n * sizeof(VOID *)) * b
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;ここで，&lt;code class=&quot;highlighter-rouge&quot;&gt;sizeof(VOID *)&lt;/code&gt;はアーキテクチャ依存であり，
+32-bitであれば4となり，64-bitであれば8となる．&lt;/p&gt;
+
+&lt;h2 id=&quot;natural-indexingの例&quot;&gt;Natural Indexingの例&lt;/h2&gt;
+
+&lt;p&gt;では実際にエンコードされたNatural Indexを計算してみる．
+値はUEFI Specificationに挙げられている例と同一である．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;0xa048&lt;/code&gt;という16-bitのIndexを考える．
+これは2進数で表すを以下のようになる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-natural-indexing-example.png&quot; alt=&quot;EBC Natural Indexing Example&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;先の説明を当てはめると&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;N = 16
+b = 1,
+w = 2, A = 2 * 16 / 8 = 4
+c = 4
+n = 8
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;となる．
+32-bit，64-bitそれぞれのアーキテクチャではデコードされた値は&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;32-bit: Offset = (4 + 8 * 4) * -1 = -36
+64-bit: Offset = (4 + 8 * 8) * -1 = -68
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;となり，確かに同じNatural Indexでも異なる値にデコードされることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcの命令セット&quot;&gt;EBCの命令セット&lt;/h2&gt;
+
+&lt;p&gt;EBCの命令セットは可変長なCISC-likeな命令となっている．
+全体では56種類の命令が存在する．
+以下にEBCの命令の一覧を示す．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;opcode&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;BREAK&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x00 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;JMP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x01 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;JMP8&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x02 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CALL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x03 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;RET&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x04 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x05 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x06 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x07 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x08 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x09 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NEG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ADD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SUB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MUL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x0e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MULU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x0f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;DIV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x10 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;DIVU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x11 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x12 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MODU&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x13 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;AND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x14 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;OR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;      &lt;span class=&quot;cm&quot;&gt;/* 0x15 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;XOR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x16 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SHL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x17 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;SHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x18 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ASHR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x19 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDB&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDW&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;EXTNDD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x1c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVbw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVww&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVdw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x1f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x20 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVbd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x21 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVwd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x22 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVdd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x23 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x24 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVsnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x25 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVsnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x26 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x27 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVqq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x28 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;LOADSP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x29 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;STORESP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;PUSH&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x2b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;POP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x2c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIeq&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x2d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIlte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIgte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;cm&quot;&gt;/* 0x2f */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIulte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x30 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;CMPIugte&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;cm&quot;&gt;/* 0x31 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVnw&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x32 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVnd&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x33 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x34 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;PUSHn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x35 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;POPn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x36 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVI&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;    &lt;span class=&quot;cm&quot;&gt;/* 0x37 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVIn&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;   &lt;span class=&quot;cm&quot;&gt;/* 0x38 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;MOVREL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;  &lt;span class=&quot;cm&quot;&gt;/* 0x39 */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3a */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3b */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3c */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3d */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3e */&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;NOP&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;     &lt;span class=&quot;cm&quot;&gt;/* 0x3f */&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;ebcの命令のoperand&quot;&gt;EBCの命令のOperand&lt;/h3&gt;
+
+&lt;p&gt;EBCの命令は基本的に以下のような形式をとる．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;INSTRUCTION Operand1, Operand2
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;各Operandは
+Direct, Indirect, Indirect with Index，Immediate
+の4種類の形式をとる．&lt;/p&gt;
+
+&lt;p&gt;Directは&lt;code class=&quot;highlighter-rouge&quot;&gt;R2&lt;/code&gt;などと表し，Operandで指定されているレジスタの値を指す．
+Indirectは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R2&lt;/code&gt;などと表し，
+Operandで指定されているレジスタの値のアドレスにあるメモリ上の値を指す．
+Indirect with Indexでは
+Operandで指定されているレジスタの値と
+他にNatural Indexingによって指定されているオフセットの値を
+足した値のアドレスにあるメモリ上の値を指す．
+これは&lt;code class=&quot;highlighter-rouge&quot;&gt;@R1(+n, +c)&lt;/code&gt;の形式で表される．
+Immediateは即値であり，指定された値そのままを指し，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;0x1234&lt;/code&gt;の形式で表される．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebc命令の例-xor&quot;&gt;EBC命令の例: XOR&lt;/h3&gt;
+
+&lt;p&gt;EBCの命令&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;は以下の形式で表される．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;XOR[32|64] {@}R1, {@}R2 {Index16|Immed16}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;XORは次のようにエンコードされる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebc-xor-encoding.png&quot; alt=&quot;EBC XOR Encoding&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Byte0-Bit7ではOperand2のImmediate/Indexの存在を表す．
+もし1であればByte2からByte3には16-bitのImmediate/Indexの値が存在する．
+Byte0-Bit6では操作が32/64-bitのどちらかであることを示す．
+Byte0-Bit0からBit5はOpecodeを表し，&lt;code class=&quot;highlighter-rouge&quot;&gt;XOR&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;0x16&lt;/code&gt;となっている．
+Byte1-Bit7ではOperand2がDirectとIndirectのどちらであることを示す．
+Byte1-Bit4からBit6ではOperand2のレジスタを表す．
+Byte1-Bit3ではOperand1がDirectとIndirectのどちらであることを示す．
+Byte1-Bit0からBit2ではOperand1のレジスタを表す．&lt;/p&gt;
+
+&lt;h2 id=&quot;native-codeの呼び出し&quot;&gt;Native codeの呼び出し&lt;/h2&gt;
+
+&lt;p&gt;EBCには&lt;code class=&quot;highlighter-rouge&quot;&gt;CALL&lt;/code&gt;という命令があるが，
+これはEBCの呼び出しとnative codeの呼び出し(&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;)の2種類がサポートされている．
+EBCは&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;をサポートするための命令をいくつか持っている．
+以下にその命令を列挙する．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;MOVn, MOVIn, MOVsn, POPn, PUSHn
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;EXCALL&lt;/code&gt;は各アーキテクチャ依存の処理を行うため，
+あるいはUEFIの容易するランタイムを呼び出すために用いられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebc-vmの例外&quot;&gt;EBC VMの例外&lt;/h2&gt;
+
+&lt;p&gt;EBCのVMはEBCを実行した場合に発生する例外をハンドルできる必要がある．
+EBCの実行により発生する可能性のある例外を以下に示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Divide By 0
+Debug Break
+Invalid Opcode
+Stack Fault
+Alignment
+Instruction Encoding
+Bad Break
+Undefined
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;各例外の詳細はUEFI Specificationを参考にしてほしい．&lt;/p&gt;
+
+&lt;p&gt;EBCのVMはEFI Debug Support Protocolをサポートする必要があり，
+このProtocol経由でデバッガをVMにattachすることができる．
+もしデバッガがattachされている場合，
+例外はデバッガによって捕捉される．
+もし，デバッガがattachされていない場合は以下のいずれかの動作となるが，
+どの動作になるかは実装依存となっている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;エラーメッセージを表示しシステムを停止&lt;/li&gt;
+  &lt;li&gt;システムをハング&lt;/li&gt;
+  &lt;li&gt;例外を無視し，処理を続行&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ebcアセンブリの例&quot;&gt;EBCアセンブリの例&lt;/h2&gt;
+
+&lt;p&gt;以下にfasmg-ebcよりEBCアセンブリによるHello, worldの例を示す．&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;section '.text' code executable readable
+EfiMain:
+  MOVn   R1, @R0(EFI_MAIN_PARAMETERS.SystemTable)
+  MOVn   R1, @R1(EFI_SYSTEM_TABLE.ConOut)
+  MOVREL R2, Hello
+  PUSHn  R2 ; Push Pointer to Hello
+  PUSHn  R1 ; Push Pointer to SystemTable-&amp;gt;ConOut
+  CALLEX @R1(SIMPLE_TEXT_OUTPUT_INTERFACE.OutputString)
+  MOV R0, R0(+2,0)
+  RET 
+
+section '.data' data readable writeable
+  Hello:    du &quot;Hello EBC World!&quot;, 0x0D, 0x0A, 0x00
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;このアセンブリではエントリポイントは&lt;code class=&quot;highlighter-rouge&quot;&gt;EfiMain&lt;/code&gt;である．
+最初にR0レジスタにあるスタックポインタの値から
+SystemTableへのアドレスをR1に代入する．
+次にR1の値からConOutへのアドレスのR1に代入する．
+R2に文字列&lt;code class=&quot;highlighter-rouge&quot;&gt;Hello&lt;/code&gt;へのアドレスを代入する．
+次にこれらのR2，R1の順にレジスタの値をスタックにプッシュする．
+これはSimple Text Output ProtocolのOutputStringの
+引数，&lt;/p&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *This,
+IN CHAR16 *String
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;に相当する．
+最後に&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLEX&lt;/code&gt;によりConOut-&amp;gt;OutputStringを呼び出している．&lt;/p&gt;
+
+&lt;h2 id=&quot;ebcvm-ユーザ空間で動作するebc-vm&quot;&gt;ebcvm: ユーザ空間で動作するEBC VM&lt;/h2&gt;
+
+&lt;p&gt;EBCの仕様の概要は以上のようなものとなっている．
+EBCはUEFIの規格で定められているものの，
+少なくともオープンソースで用いられている事例が全く存在しない．
+また，EBCのVMはOVMFなどで実装されているが，
+ユーザ空間で簡単に利用することが難しい．
+そこで，UEFI SpecificationにあるEBCの仕様と
+fasmg-ebcの生成するEBCバイナリのみを元にしてEBCのVMを作成することにした．
+ebcvmのソースコードは以下GitHub上で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/ebcvm&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;ebcvmは現在以下ものをサポートしている．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;EBCの全ての命令&lt;/li&gt;
+  &lt;li&gt;いくつかのnative code実行のエミュレーション&lt;/li&gt;
+  &lt;li&gt;簡単なデバッガ&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;ebcvmの概観&quot;&gt;ebcvmの概観&lt;/h3&gt;
+
+&lt;p&gt;ebcvmは以下の図のような構成となっている．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ebcvm-architecture.png&quot; alt=&quot;ebcvm Architecture&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;最初にVMが起動し，レジスタの初期化とメモリの初期化がなされる．
+LoaderがEBCバイナリを読み込みメモリ上に展開する．
+また，UEFIのランタイムもメモリ上に配置される．
+初期化が完了すると，Decoderがバイトコードをデコードし，
+Executorがデコードされた命令を実行する．
+VMはEXCALLが発行されるとこれをトラップし，
+EFI Native Codeに処理を渡す．
+EFI Native CodeはエミュレートされてVMに処理が戻され，
+処理が続行される．
+VMはまた例外をトラップし，Simple debuggerがattachされていれば
+これに処理を受け渡す．&lt;/p&gt;
+
+&lt;h3 id=&quot;ebcvmの実行例&quot;&gt;ebcvmの実行例&lt;/h3&gt;
+
+&lt;p&gt;先に示したEBCによるHello, worldの例のバイナリを
+ebcvmにより実行した例を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ ./ebcvm sample/print.efi 
+Hello EBC World!
+exception ENCODE: MOV
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;MOV&lt;/code&gt;のエンコードで例外が発行されているものの，
+確かに実行できていることがわかる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://uefi.org/&lt;/li&gt;
+  &lt;li&gt;[2] https://uefi.org/specifications&lt;/li&gt;
+  &lt;li&gt;[3] https://github.com/tianocore/edk2&lt;/li&gt;
+  &lt;li&gt;[4] http://vzimmer.blogspot.com/2015/08/efi-byte-code.html&lt;/li&gt;
+  &lt;li&gt;[5] https://habr.com/post/201954/&lt;/li&gt;
+  &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase/?_ga=2.177917472.440178022.1541746062-392223130.1541746062&lt;/li&gt;
+  &lt;li&gt;[7] https://github.com/pbatard/fasmg-ebc&lt;/li&gt;
+  &lt;li&gt;[8] http://opensecuritytraining.info/IntroBIOS_files/Day1_06_Advanced%20x86%20-%20BIOS%20and%20SMM%20Internals%20-%20PCI%20XROMs.pdf&lt;/li&gt;
+  &lt;li&gt;[9] https://github.com/retrage/peheader&lt;/li&gt;
+  &lt;li&gt;[10] https://speakerdeck.com/retrage/efi-byte-code-virtual-machine-for-fun-and-profit&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">本記事は2018年11月10日に開催されたkernelvm 北陸 Part4において 発表した内容[10]をまとめたものである． ここではUEFIの持つ独自のbyte codeであるEFI Byte CodeとそのVMについてみていく．</summary></entry><entry><title type="html">OVMFのデバッグ</title><link href="https://retrage.github.io/2019/11/05/debugging-ovmf.html" rel="alternate" type="text/html" title="OVMFのデバッグ" /><published>2019-11-05T05:16:39+00:00</published><updated>2019-11-05T05:16:39+00:00</updated><id>https://retrage.github.io/2019/11/05/debugging-ovmf</id><content type="html" xml:base="https://retrage.github.io/2019/11/05/debugging-ovmf.html">&lt;p&gt;ここではgdbを用いたOVMFのデバッグ方法について説明する．
 すでにOVMFのデバッグについて書かれた記事[1]が存在するが，
 ここでは特別なツールなどは使わずに通常のgdbでOVMFをデバッグする．&lt;/p&gt;
 
@@ -212,7 +1039,7 @@ remote Thread 1 In: CoreHandleProtocol                      L938  PC: 0x7eb6ad4
   &lt;li&gt;[2] https://github.com/tianocore/edk2/commit/15330934dc860c20b2143c802f3b4285e89021e3&lt;/li&gt;
   &lt;li&gt;[3] https://github.com/retrage/peinfo&lt;/li&gt;
   &lt;li&gt;[4] https://github.com/tianocore/tianocore.github.io/wiki/How-to-debug-OVMF-with-QEMU-using-GDB&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここではgdbを用いたOVMFのデバッグ方法について説明する． すでにOVMFのデバッグについて書かれた記事[1]が存在するが， ここでは特別なツールなどは使わずに通常のgdbでOVMFをデバッグする．</summary></entry><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T09:37:42+00:00</published><updated>2019-07-20T09:37:42+00:00</updated><id>https://retrage.github.io/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここではgdbを用いたOVMFのデバッグ方法について説明する． すでにOVMFのデバッグについて書かれた記事[1]が存在するが， ここでは特別なツールなどは使わずに通常のgdbでOVMFをデバッグする．</summary></entry><entry><title type="html">LLVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html" rel="alternate" type="text/html" title="LLVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-20T00:37:42+00:00</published><updated>2019-07-20T00:37:42+00:00</updated><id>https://retrage.github.io/2019/07/20/llvm-backend-for-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html">&lt;p&gt;ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と
 EBCバックエンド固有の問題などについてみていく．&lt;/p&gt;
 
 &lt;p&gt;ソースコードは以下で公開している．&lt;/p&gt;
@@ -639,7 +1466,7 @@ UEFIも2.8になりEBC自体がOptionalの扱いとなったため，
   &lt;li&gt;[8] https://llvm.org/docs/WritingAnLLVMBackend.html&lt;/li&gt;
   &lt;li&gt;[9] https://tatsu-zine.com/books/llvm&lt;/li&gt;
   &lt;li&gt;[10] https://github.com/lowRISC/riscv-llvm&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と EBCバックエンド固有の問題などについてみていく．</summary></entry><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="https://retrage.github.io/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T14:24:13+00:00</published><updated>2019-07-14T14:24:13+00:00</updated><id>https://retrage.github.io/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="https://retrage.github.io/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と EBCバックエンド固有の問題などについてみていく．</summary></entry><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="https://retrage.github.io/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T05:24:13+00:00</published><updated>2019-07-14T05:24:13+00:00</updated><id>https://retrage.github.io/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="https://retrage.github.io/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
 シングルボードコンピュータである．
 Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい
 brick (文鎮化) させてしまったので
@@ -722,7 +1549,7 @@ Assertion Errorについて解決できたので追記する．
 &lt;a href=&quot;https://acpica.org/node/124&quot;&gt;VERSION 20160527&lt;/a&gt;
 を利用してビルドする．
 手元ではこれでDebug, Relaseどちらも動作することを確認した．
-Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T17:23:26+00:00</published><updated>2019-07-13T17:23:26+00:00</updated><id>https://retrage.github.io/2019/07/13/elvm-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
+Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T08:23:26+00:00</published><updated>2019-07-13T08:23:26+00:00</updated><id>https://retrage.github.io/2019/07/13/elvm-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
 &lt;a href=&quot;https://github.com/shinh/elvm&quot;&gt;ELVM&lt;/a&gt;
 のEFI Byte Codeバックエンドについて紹介する．
 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．&lt;/p&gt;
@@ -1033,7 +1860,7 @@ Buzz
 Fizz
 22
 23
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name></name></author><summary type="html">ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．</summary></entry><entry><title type="html">Librarizing Linux kernel for Unikernels</title><link href="https://retrage.github.io/2019/06/02/lkl-on-unikraft-en.html" rel="alternate" type="text/html" title="Librarizing Linux kernel for Unikernels" /><published>2019-06-02T19:35:32+00:00</published><updated>2019-06-02T19:35:32+00:00</updated><id>https://retrage.github.io/2019/06/02/lkl-on-unikraft-en</id><content type="html" xml:base="https://retrage.github.io/2019/06/02/lkl-on-unikraft-en.html">&lt;p&gt;I ported the Linux kernel to Unikraft as an external library.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name></name></author><summary type="html">ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．</summary></entry><entry><title type="html">Librarizing Linux kernel for Unikernels</title><link href="https://retrage.github.io/2019/06/02/lkl-on-unikraft-en.html" rel="alternate" type="text/html" title="Librarizing Linux kernel for Unikernels" /><published>2019-06-02T10:35:32+00:00</published><updated>2019-06-02T10:35:32+00:00</updated><id>https://retrage.github.io/2019/06/02/lkl-on-unikraft-en</id><content type="html" xml:base="https://retrage.github.io/2019/06/02/lkl-on-unikraft-en.html">&lt;p&gt;I ported the Linux kernel to Unikraft as an external library.
 This makes it possible to reuse the rich functions of the Linux kernel
 for Unikernel with less functionality.
 In this blog post, I describe the overview of the library.&lt;/p&gt;
@@ -1530,7 +2357,7 @@ The size of the final image tends to be large if LKL is integrated.&lt;/p&gt;
   &lt;li&gt;&lt;a href=&quot;https://xenproject.org/developers/teams/unikraft/&quot;&gt;Unikraft - Xen Project&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://www.usenix.org/sites/default/files/conference/protected-files/lisa18_slides_kuenzer.pdf&quot;&gt;Unikraft: Unikernels Made Easy&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;http://www.unikraft.org/&quot;&gt;Unikraft’s Documentation&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">I ported the Linux kernel to Unikraft as an external library. This makes it possible to reuse the rich functions of the Linux kernel for Unikernel with less functionality. In this blog post, I describe the overview of the library.</summary></entry><entry><title type="html">Linux kernelをUnikernelのライブラリ化する</title><link href="https://retrage.github.io/2019/05/30/lkl-on-unikraft.html" rel="alternate" type="text/html" title="Linux kernelをUnikernelのライブラリ化する" /><published>2019-05-30T23:26:23+00:00</published><updated>2019-05-30T23:26:23+00:00</updated><id>https://retrage.github.io/2019/05/30/lkl-on-unikraft</id><content type="html" xml:base="https://retrage.github.io/2019/05/30/lkl-on-unikraft.html">&lt;p&gt;Linux kernelをUnikraftのライブラリ化した．
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">I ported the Linux kernel to Unikraft as an external library. This makes it possible to reuse the rich functions of the Linux kernel for Unikernel with less functionality. In this blog post, I describe the overview of the library.</summary></entry><entry><title type="html">Linux kernelをUnikernelのライブラリ化する</title><link href="https://retrage.github.io/2019/05/30/lkl-on-unikraft.html" rel="alternate" type="text/html" title="Linux kernelをUnikernelのライブラリ化する" /><published>2019-05-30T14:26:23+00:00</published><updated>2019-05-30T14:26:23+00:00</updated><id>https://retrage.github.io/2019/05/30/lkl-on-unikraft</id><content type="html" xml:base="https://retrage.github.io/2019/05/30/lkl-on-unikraft.html">&lt;p&gt;Linux kernelをUnikraftのライブラリ化した．
 これにより機能の少ないUnikernelの資源として
 Linux kernelの持つ機能を利用することが可能となる．&lt;/p&gt;
 
@@ -2057,7 +2884,7 @@ LKLを取り込んだ場合にイメージサイズが大きくなりがちで�
   &lt;li&gt;&lt;a href=&quot;https://xenproject.org/developers/teams/unikraft/&quot;&gt;Unikraft - Xen Project&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://www.usenix.org/sites/default/files/conference/protected-files/lisa18_slides_kuenzer.pdf&quot;&gt;Unikraft: Unikernels Made Easy&lt;/a&gt;&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;http://www.unikraft.org/&quot;&gt;Unikraft’s Documentation&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">Linux kernelをUnikraftのライブラリ化した． これにより機能の少ないUnikernelの資源として Linux kernelの持つ機能を利用することが可能となる．</summary></entry><entry><title type="html">正規表現からLLVM IRを生成する</title><link href="https://retrage.github.io/2019/05/12/regex-to-llvm-ir.html" rel="alternate" type="text/html" title="正規表現からLLVM IRを生成する" /><published>2019-05-12T17:47:26+00:00</published><updated>2019-05-12T17:47:26+00:00</updated><id>https://retrage.github.io/2019/05/12/regex-to-llvm-ir</id><content type="html" xml:base="https://retrage.github.io/2019/05/12/regex-to-llvm-ir.html">&lt;h1 id=&quot;正規表現からllvm-irを生成する&quot;&gt;正規表現からLLVM IRを生成する&lt;/h1&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">Linux kernelをUnikraftのライブラリ化した． これにより機能の少ないUnikernelの資源として Linux kernelの持つ機能を利用することが可能となる．</summary></entry><entry><title type="html">正規表現からLLVM IRを生成する</title><link href="https://retrage.github.io/2019/05/12/regex-to-llvm-ir.html" rel="alternate" type="text/html" title="正規表現からLLVM IRを生成する" /><published>2019-05-12T08:47:26+00:00</published><updated>2019-05-12T08:47:26+00:00</updated><id>https://retrage.github.io/2019/05/12/regex-to-llvm-ir</id><content type="html" xml:base="https://retrage.github.io/2019/05/12/regex-to-llvm-ir.html">&lt;h1 id=&quot;正規表現からllvm-irを生成する&quot;&gt;正規表現からLLVM IRを生成する&lt;/h1&gt;
 
 &lt;p&gt;正規表現は文字列マッチングなどに広く用いられている形式言語であるが，
 等価な決定性有限オートマトン(DFA)に変換できることが知られている．
@@ -2139,7 +2966,7 @@ attributes #0 = { norecurse nounwind readonly }
 &lt;ul&gt;
   &lt;li&gt;https://github.com/google/redgrep&lt;/li&gt;
   &lt;li&gt;https://github.com/retrage/redgrep&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">正規表現からLLVM IRを生成する</summary></entry><entry><title type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</title><link href="https://retrage.github.io/2019/04/13/efi-book2-ad.html" rel="alternate" type="text/html" title="技術書典6で新刊「UEFI読本 GRUB編」を頒布" /><published>2019-04-13T12:18:33+00:00</published><updated>2019-04-13T12:18:33+00:00</updated><id>https://retrage.github.io/2019/04/13/efi-book2-ad</id><content type="html" xml:base="https://retrage.github.io/2019/04/13/efi-book2-ad.html">&lt;h1 id=&quot;技術書典6で新刊uefi読本-grub編を頒布&quot;&gt;技術書典6で新刊「UEFI読本 GRUB編」を頒布&lt;/h1&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">正規表現からLLVM IRを生成する</summary></entry><entry><title type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</title><link href="https://retrage.github.io/2019/04/13/efi-book2-ad.html" rel="alternate" type="text/html" title="技術書典6で新刊「UEFI読本 GRUB編」を頒布" /><published>2019-04-13T03:18:33+00:00</published><updated>2019-04-13T03:18:33+00:00</updated><id>https://retrage.github.io/2019/04/13/efi-book2-ad</id><content type="html" xml:base="https://retrage.github.io/2019/04/13/efi-book2-ad.html">&lt;h1 id=&quot;技術書典6で新刊uefi読本-grub編を頒布&quot;&gt;技術書典6で新刊「UEFI読本 GRUB編」を頒布&lt;/h1&gt;
 
 &lt;p&gt;2019年4月14日に池袋サンシャインシティで開催される
 技術書典6において「海洋軟件」として
@@ -2178,559 +3005,4 @@ UEFIに対応しており、かつOSも当然のように対応している。
 
 &lt;ul&gt;
   &lt;li&gt;https://techbookfest.org/event/tbf06/circle/65580001&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</summary></entry><entry><title type="html">LinuxにおけるEFI Variableをみてみる</title><link href="https://retrage.github.io/2018/12/20/linux-efivars.html" rel="alternate" type="text/html" title="LinuxにおけるEFI Variableをみてみる" /><published>2018-12-20T10:09:49+00:00</published><updated>2018-12-20T10:09:49+00:00</updated><id>https://retrage.github.io/2018/12/20/linux-efivars</id><content type="html" xml:base="https://retrage.github.io/2018/12/20/linux-efivars.html">&lt;h1 id=&quot;linuxにおけるefi-variableをみてみる&quot;&gt;LinuxにおけるEFI Variableをみてみる&lt;/h1&gt;
-
-&lt;p&gt;この記事は
-&lt;a href=&quot;https://qiita.com/advent-calendar/2018/linux&quot;&gt;Linux Advent Calendar 2018&lt;/a&gt;
-の20日目の記事として書かれた．
-ここではLinux kerenlにおけるEFI Variableのコードをみていく．&lt;/p&gt;
-
-&lt;h2 id=&quot;efi-variableとは&quot;&gt;EFI Variableとは&lt;/h2&gt;
-
-&lt;p&gt;UEFIでは，EFI varibale(EFI変数)というものが存在する．
-これは不揮発性メモリ(NVRAM)に値が書き込まれるため，
-電源を切っても値が失われることなく保存される．
-EFI Variableは起動時の起動の順番などが保存される．&lt;/p&gt;
-
-&lt;p&gt;UEFIにはEFI Variablesへの読み書きを行うための機能が
-Runtime Servicesに存在する．
-このため後述するように，OSの起動後もEFI Variableが
-Runtime Servicesを通して利用可能となっている．
-関連する関数は具体的には以下の4つである．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GetVariables&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GetNextVariablesName&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;SetVariables&lt;/code&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;QueryVairableInfo&lt;/code&gt;&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;EFI Variableはkey-valueの形式になっており，
-文字列keyを入力として，&lt;code class=&quot;highlighter-rouge&quot;&gt;GetVariables&lt;/code&gt;/&lt;code class=&quot;highlighter-rouge&quot;&gt;SetVariables&lt;/code&gt;により
-valueの読み/書きができる．
-Valueを得るために必要なkeyは&lt;code class=&quot;highlighter-rouge&quot;&gt;GetNextVariableName&lt;/code&gt;
-により得ることができる．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;QueryVairbaleInfo&lt;/code&gt;ではEFI Variable全体のについての情報を得ることができる．&lt;/p&gt;
-
-&lt;h2 id=&quot;linux-kernelにおけるefi-variable&quot;&gt;Linux kernelにおけるEFI Variable&lt;/h2&gt;
-
-&lt;p&gt;Linux kernelでは，EFI Variableは
-擬似ファイルシステムとして表現され，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;/sys/firmware/efi/efivars&lt;/code&gt;にマウントされる．
-(なお，過去には&lt;code class=&quot;highlighter-rouge&quot;&gt;sysfs&lt;/code&gt;経由でのサポートだったようだが，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;sysfs&lt;/code&gt;の制限のため，別実装となったようである)&lt;/p&gt;
-
-&lt;p&gt;ここで実際の&lt;code class=&quot;highlighter-rouge&quot;&gt;efivars&lt;/code&gt;を例示してみる．&lt;/p&gt;
-
-&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;ls&lt;/span&gt; /sys/firmware/efi/efivars
-&lt;span class=&quot;c&quot;&gt;# snip&lt;/span&gt;
-Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c
-Boot0001-8be4df61-93ca-11d2-aa0d-00e098032b8c
-Boot0002-8be4df61-93ca-11d2-aa0d-00e098032b8c
-Boot0003-8be4df61-93ca-11d2-aa0d-00e098032b8c
-&lt;span class=&quot;c&quot;&gt;# snip&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-sh highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nv&quot;&gt;$ &lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;cat&lt;/span&gt; /sys/firmware/efi/efivars/Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c
-bubuntu??H??yC??Y??ä?4&lt;span class=&quot;se&quot;&gt;\E&lt;/span&gt;FI&lt;span class=&quot;se&quot;&gt;\U&lt;/span&gt;BUNTU&lt;span class=&quot;se&quot;&gt;\S&lt;/span&gt;HIMX64.EFI?%
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;このように，0000には現在起動しているUbuntuについてのパスが保存されていることがわかる．&lt;/p&gt;
-
-&lt;h2 id=&quot;efivarsの実装&quot;&gt;efivarsの実装&lt;/h2&gt;
-
-&lt;p&gt;ではここから実際にefivarsの実装をみていく．
-トップダウンに&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;の実装から
-どのようにEFI Variableがファイルにマップされるかを見て，
-次にRuntime Servicesがどのように呼ばれるかを見ていく．
-参照するLnux kernelはmainlineのv4.20-rc2(ccda4af0f4b92f7b4c308d3acc262f4a7e3affad)
-である．&lt;/p&gt;
-
-&lt;h3 id=&quot;efivarfsの初期化&quot;&gt;efivarfsの初期化&lt;/h3&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;の実装は&lt;code class=&quot;highlighter-rouge&quot;&gt;fs/efivarfs/&lt;/code&gt;にある．
-最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;fs/efivarfs/super.c&lt;/code&gt;をみる．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__init&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivarfs_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_enabled&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_RUNTIME_SERVICES&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENODEV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_kobject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;())&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENODEV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;register_filesystem&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Linux kernel初期化時に&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;の初期化が
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_init&lt;/code&gt;により行われて&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;がマウントされる．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file_system_type&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; 
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;owner&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;THIS_MODULE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;    &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;efivarfs&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;mount&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_mount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;kill_sb&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_kill_sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;efivarfs_mount&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file_system_type&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fs_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dev_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;   
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mount_single&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;fs_type&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;flags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_fill_super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;辿っていくと，&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_fill_super&lt;/code&gt;が
-&lt;code class=&quot;highlighter-rouge&quot;&gt;mount_single&lt;/code&gt;により実行される．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivarfs_fill_super&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;super_block&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;silent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;   
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;efivarfs_sb&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_maxbytes&lt;/span&gt;          &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MAX_LFS_FILESIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_blocksize&lt;/span&gt;         &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PAGE_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_blocksize_bits&lt;/span&gt;    &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PAGE_SHIFT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_magic&lt;/span&gt;             &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFIVARFS_MAGIC&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_op&lt;/span&gt;                &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_d_op&lt;/span&gt;      &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_d_ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_time_gran&lt;/span&gt;         &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_get_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S_IFDIR&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;mo&quot;&gt;0755&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENOMEM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;i_op&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_dir_inode_operations&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;d_make_root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; 
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENOMEM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;INIT_LIST_HEAD&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    
-    &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;__efivar_entry_iter&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_destroy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ここでファイルシステムの中身を作成している．
-最初に&lt;code class=&quot;highlighter-rouge&quot;&gt;/sys/firmware/efi/efivar&lt;/code&gt;が作成され，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efivar_init&lt;/code&gt;により&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_list&lt;/code&gt;に
-EFI Variableのエントリが追加される．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cm&quot;&gt;/**
- * efivar_init - build the initial list of EFI variables
- * @func: callback function to invoke for every variable
- * @data: function-specific data to pass to @func
- * @atomic: do we need to execute the @func-loop atomically?
- * @duplicates: error if we encounter duplicates on @head?
- * @head: initialised head of variable list
- *
- * Get every EFI variable from the firmware and invoke @func. @func
- * should call efivar_entry_add() to build the list of variables.
- *
- * Returns 0 on success, or a kernel error code on failure.
- */&lt;/span&gt;
-&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivar_init&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_char16_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_guid_t&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;duplicates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;list_head&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;head&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_operations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__efivars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1024&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; 
-    &lt;span class=&quot;n&quot;&gt;efi_char16_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_status_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_guid_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;vendor_guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1024&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-        &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_next_variable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                        &lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                        &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vendor_guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;switch&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;case&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;duplicates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;up&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-            &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;var_name_strnsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                                   &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-            &lt;span class=&quot;cm&quot;&gt;/*
-             * Some firmware implementations return the
-             * same variable name on multiple calls to
-             * get_next_variable(). Terminate the loop
-             * immediately as there is no guarantee that
-             * we'll ever see a different variable name,
-             * and may end up looping here forever.
-             */&lt;/span&gt;
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;duplicates&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;variable_is_present&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vendor_guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                        &lt;span class=&quot;n&quot;&gt;head&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;dup_variable_bug&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vendor_guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                         &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_NOT_FOUND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;variable_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;vendor_guid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                       &lt;span class=&quot;n&quot;&gt;variable_name_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_NOT_FOUND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-            &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;duplicates&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;down_interruptible&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-                    &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EINTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                    &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;free&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-                &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-            &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-            &lt;span class=&quot;k&quot;&gt;break&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efivar_init&lt;/code&gt;では，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;ops-&amp;gt;get_next_variable&lt;/code&gt;により
-実際にRuntimeServices-&amp;gt;GetNextVariableが呼ばれ，
-EFI Variableが読み出される．
-なお，コメントにあるように，いくつかのUEFI Firmwareの実装では
-複数のGetNextVariableの呼び出しにより同じEFI Variableが得られてしまう
-というバグがあるため，重複があった場合，&lt;code class=&quot;highlighter-rouge&quot;&gt;dup_variable_bug&lt;/code&gt;により
-これを処理し，do-whileを抜けるようになっているようである．&lt;/p&gt;
-
-&lt;p&gt;さて，問題がない場合は，引数として渡される&lt;code class=&quot;highlighter-rouge&quot;&gt;func&lt;/code&gt;を呼び出す．
-これは&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_callback&lt;/code&gt;となっている．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivarfs_callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_char16_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name16&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_guid_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;vendor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                 &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;super_block&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;super_block&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;s_root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;len&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENOMEM&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;is_removable&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_get_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;sb&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;d_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;S_IFREG&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;|&lt;/span&gt; &lt;span class=&quot;mo&quot;&gt;0644&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                   &lt;span class=&quot;n&quot;&gt;is_removable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;!&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fail_name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_alloc_dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;root&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IS_ERR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PTR_ERR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fail_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-
-    &lt;span class=&quot;n&quot;&gt;efivar_entry_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry_add&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivarfs_list&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;fail_inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_callback&lt;/code&gt;では，
-得られたEFI Variableに対応するファイルを作成して追加する．&lt;/p&gt;
-
-&lt;p&gt;以上が&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;の初期化の流れとなっている．&lt;/p&gt;
-
-&lt;h2 id=&quot;efivarfsのreadwrite&quot;&gt;efivarfsのread/write&lt;/h2&gt;
-
-&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs&lt;/code&gt;でのread/write時の動作をみてみる．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file_operations&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_file_operations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;open&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;simple_open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;read&lt;/span&gt;   &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_file_read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;write&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_file_write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;llseek&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;no_llseek&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;unlocked_ioctl&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivarfs_file_ioctl&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;より，&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_file_read&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_file_write&lt;/code&gt;に集約されている．&lt;/p&gt;
-
-&lt;h3 id=&quot;read時&quot;&gt;read時&lt;/h3&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;ssize_t&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivarfs_file_read&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__user&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userbuf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;loff_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ppos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;private_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;datasize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;ssize_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry_get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;datasize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivar_entry_get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-             &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_operations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__efivars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_status_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;down_interruptible&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EINTR&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_variable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VariableName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                   &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VendorGuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                   &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;up&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_status_to_err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;このように，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_file_read&lt;/code&gt;-&amp;gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efivar_entry_get&lt;/code&gt;-&amp;gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;get_variable&lt;/code&gt;
-によりread時にRuntimeServices-&amp;gt;GetVariableを呼び出していることがわかる．&lt;/p&gt;
-
-&lt;h3 id=&quot;write時&quot;&gt;write時&lt;/h3&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;ssize_t&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivarfs_file_write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__user&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;userbuf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;size_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;loff_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ppos&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;private_data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_mapping&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;host&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;datasize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;count&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;ssize_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bytes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;set&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;bytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry_set_get_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;datasize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                      &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;bytes&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ENOENT&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;drop_nlink&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;d_delete&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;dput&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;f_path&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;dentry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;inode_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;i_size_write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;datasize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;inode_unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inode&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;efivar_entry_set_get_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                  &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bool&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;struct&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efivar_operations&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__efivars&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_char16_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VariableName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_guid_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vendor&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VendorGuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_status_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;cm&quot;&gt;/* snip */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;set_variable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;vendor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attributes&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;err&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_status_to_err&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;goto&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;out&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;size&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;cm&quot;&gt;/*
-     * Writing to the variable may have caused a change in size (which
-     * could either be an append or an overwrite), or the variable to be
-     * deleted. Perform a GetVariable() so we can tell what actually
-     * happened.
-     */&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ops&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;get_variable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VariableName&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                   &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;var&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VendorGuid&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                   &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_NOT_FOUND&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;efivar_entry_list_del_unlock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt;
-        &lt;span class=&quot;n&quot;&gt;up&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efivars_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;write時も同様にして
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efivarfs_file_write&lt;/code&gt;-&amp;gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;efivar_entry_set_get_size&lt;/code&gt;-&amp;gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;set_variable&lt;/code&gt;
-により与えられたデータをEFI Variableとして書き込んでいる．
-コメントにあるように，RuntimeServices-&amp;gt;GetVariableを実行し，
-データの追加や上書き，削除のどれがなされたかを&lt;code class=&quot;highlighter-rouge&quot;&gt;size&lt;/code&gt;により判定する．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efivar_entry_set_get_size&lt;/code&gt;の返り値&lt;code class=&quot;highlighter-rouge&quot;&gt;bytes&lt;/code&gt;により，
-ファイルを削除するか，サイズを変更するなどの操作を行う．&lt;/p&gt;
-
-&lt;h3 id=&quot;runtime-servicesの呼び出しに関するtips&quot;&gt;Runtime Servicesの呼び出しに関するTips&lt;/h3&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_status_t&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;virt_efi_get_variable&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_char16_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                      &lt;span class=&quot;n&quot;&gt;efi_guid_t&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vendor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                      &lt;span class=&quot;n&quot;&gt;u32&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                      &lt;span class=&quot;kt&quot;&gt;unsigned&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;long&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                      &lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;efi_status_t&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;down_interruptible&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_runtime_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
-        &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_ABORTED&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;efi_queue_work&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GET_VARIABLE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;vendor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;data_size&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-                &lt;span class=&quot;n&quot;&gt;data&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;up&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;efi_runtime_lock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Linux kernelにおいて，
-UEFI Runtime Servicesを呼び出す場合には，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;efi_runtime_lock&lt;/code&gt;セマフォをdownしてから
-実行すべきUEFIサービスを&lt;code class=&quot;highlighter-rouge&quot;&gt;efi_queue_work&lt;/code&gt;キューに挿入して
-実行させ，最後にセマフォをupさせている．
-(例外もあり，nonblockingな呼び出しも存在する)&lt;/p&gt;
-
-&lt;p&gt;OSを自作する際にも参考にしたい工夫である．&lt;/p&gt;</content><author><name></name></author><summary type="html">LinuxにおけるEFI Variableをみてみる</summary></entry><entry><title type="html">ebcvm: A Usermode EFI Byte Code Virtual Machine</title><link href="https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html" rel="alternate" type="text/html" title="ebcvm: A Usermode EFI Byte Code Virtual Machine" /><published>2018-12-19T00:00:00+00:00</published><updated>2018-12-19T00:00:00+00:00</updated><id>https://retrage.github.io/2018/12/19/introduction-to-ebcvm</id><content type="html" xml:base="https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html">&lt;p&gt;この記事は
-&lt;a href=&quot;https://adventar.org/calendars/2915&quot;&gt;自作OS Advent Calendar 2018&lt;/a&gt;
-の19日目の記事として書かれた．
-ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである
-ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．&lt;/p&gt;
-
-&lt;h2 id=&quot;efi-byte-codeについて&quot;&gt;EFI Byte Codeについて&lt;/h2&gt;
-
-&lt;p&gt;すでにEFI Bye Codeを解説した記事を書いている[3]ため．
-そちらを参考にしていただきたい．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebcvmの概要&quot;&gt;ebcvmの概要&lt;/h2&gt;
-
-&lt;p&gt;ebcvmは*nix向けに開発したEFI Byte Code Virtual Machine実装である．
-TianoCore/EDK2にはEBCのVMの実装が既に存在する[4]が，
-ここではそちらの実装を使わずにUEFI Specificationとオンラインで公開されている
-ごく少数の EBCバイナリを参考に実装を行なった．
-ebcvmの開発のモチベーションとしては(ほとんど)規格書のみで実装できるか
-ということに興味があったため，という側面が強い．&lt;/p&gt;
-
-&lt;p&gt;ebcvmの概略図を以下に示す．
-&lt;img src=&quot;/img/ebcvm-architecture.png&quot; alt=&quot;ebcvm-architecture&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;この図から分かるように，ebcvmは以下の部分で構成される．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Virtual Machine
-    &lt;ul&gt;
-      &lt;li&gt;Memory&lt;/li&gt;
-      &lt;li&gt;Registers&lt;/li&gt;
-      &lt;li&gt;Decoder&lt;/li&gt;
-      &lt;li&gt;Executor&lt;/li&gt;
-    &lt;/ul&gt;
-  &lt;/li&gt;
-  &lt;li&gt;EFI Native Code Emulator&lt;/li&gt;
-  &lt;li&gt;Loader&lt;/li&gt;
-  &lt;li&gt;Debugger&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;ebcvmでは規格書に記載されている全ての命令が実装されている．&lt;/p&gt;
-
-&lt;p&gt;EBCではほぼ全ての操作がVM内部で閉じている．
-しかし，例外としてEFIのNative Codeの呼び出しが可能となっている．
-(仕様上，EBCからNative, NativeからEBCどちらも可能となっている．)
-このため，EBCからSystemTable以下にあるBootServicesやRuntimeServicesへの
-アクセスが可能となっている．
-特に，文字の入出力についてはConIn, ConOut, StdErrを使わざるを得ないので，
-ebcvmでもNative Codeの呼び出しに対応する必要がある．
-このため，EFIの用意するNative CodeのEmulationを行なっている．
-現状，ebcvmでは以下のごく一部のNative Codeのみ対応している．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;BootServices-&amp;gt;AllocatePool&lt;/li&gt;
-  &lt;li&gt;ConIn-&amp;gt;ReadKeyStroke&lt;/li&gt;
-  &lt;li&gt;ConOut-&amp;gt;OutputString&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;UEFIではFirmware側が動的にApplicationをメモリ上に配置できるように
-UEFI Application/Driverはrelocatableなものとなっている．
-EBCのバイナリでもこれは同様である．
-そのため，ebcvmのローダもrelocationに対応しており，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;--reloc=1&lt;/code&gt;のオプションを実行時に渡すことで
-relocationが行われるようになっている．&lt;/p&gt;
-
-&lt;p&gt;EBCは現状GNU binutils, GCC, LLVM/Clangなど一般的なコンパイラでは
-対応されていない．
-このため，デバッグを容易にするためにebcvmでは
-簡単なデバッガを実装している．
-以下に主なebcvmのデバッガの機能を示す．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;continue - continue program&lt;/li&gt;
-  &lt;li&gt;reg - show registers&lt;/li&gt;
-  &lt;li&gt;examine - show memory&lt;/li&gt;
-  &lt;li&gt;disassemble - disassemble memory&lt;/li&gt;
-  &lt;li&gt;memmap - show memory map&lt;/li&gt;
-  &lt;li&gt;backtrace - show backtrace&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;ebcvmのテスト&quot;&gt;ebcvmのテスト&lt;/h3&gt;
-
-&lt;p&gt;ebcvmはCで書かれているが，
-できるだけ正確にEBCの動作を再現できるように
-DecoderとExecutorについてはテストコードを書いている．
-冪等性を確保した設計にし，テストを容易にすることが重要である．
-初期の段階ではC++では一般的なGoogle Test[5]の導入も考えたが，
-依存するライブラリはできるだけ少なくしたかったため，
-Cでベタ書きしたテストケースと
-&lt;code class=&quot;highlighter-rouge&quot;&gt;test.sh&lt;/code&gt;というテストを行うシェルスクリプトを置くことで
-テストを行えるようにした．&lt;/p&gt;
-
-&lt;p&gt;Decoderでは実装が405行に対してテストコードが2277行，
-Executorでは実装が1221行に対してテストコードが8490行
-となっている．&lt;/p&gt;
-
-&lt;h2 id=&quot;elvmのebcバックエンド&quot;&gt;ELVMのEBCバックエンド&lt;/h2&gt;
-
-&lt;p&gt;先のEBC解説記事でも言及したように，
-EBCにはIntel C Compiler for EFI Byte Code[6]以外に
-利用可能なコンパイラが存在しない．
-そこで，自由なEBCの開発を行えるようにするため，
-ELVMのEBCバックエンドを開発した．．
-LEVMはShinichiro Hamaji(@shinh)さんによって開発された
-EsoLangVM Compiler Infrastructureである．
-ELVMでは内部で使われるELVM IR(EIR)の命令の種類が少ないため，
-LLVMと比較して簡単にバックエンドを追加することができる．
-ELVMのEBCバックエンドを追加することにより，
-Cコンパイラである8cc[7]から出力されるEIRからEBCバイナリが生成可能となる．
-これにより(バイナリが非効率などの問題があるにせよ)
-自由なEBC向けCコンパイラを入手することができるようになる．&lt;/p&gt;
-
-&lt;h3 id=&quot;デザイン&quot;&gt;デザイン&lt;/h3&gt;
-
-&lt;p&gt;EBCバックエンドのデザインはx86-linuxバックエンドを参考にしている．
-EBCバックエンドでは外部のEBCアセンブラを使わずに
-直接PEバイナリを出力している．
-EBCバックエンドでは，最初にEIR内部のprogram couner(pc)と
-バイナリ内部でのアドレスの対応表&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;を作成する．
-これによって得られた値を元に各セクションのアドレス，サイズを決定し，
-それらの値を埋め込んだPEヘッダを出力する．
-次に&lt;code class=&quot;highlighter-rouge&quot;&gt;init_state_ebc&lt;/code&gt;が実行される．
-ここでは主に&lt;code class=&quot;highlighter-rouge&quot;&gt;BootServices-&amp;gt;AllocatePool&lt;/code&gt;により
-メモリ領域を確保し，その領域を初期化する．
-EBCバックエンドでは&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;の2つのセクションが作成される．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;には実際のEBCのコード，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;には&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;の対応表が書き込まれる．
-以上の流れでEBCバイナリが直接出力される．&lt;/p&gt;
-
-&lt;p&gt;ELVMではA, B, C, D, BP, SPのレジスタが定義されている．
-EBCではR0からR7までの64-bit幅のレジスタが用意されており，
-このうちR0はスタックポインタとして予約されている．
-そのため，EBCバックエンドではR1-R6をそれぞれA-SPに割り当てており，
-残りのR7を自由なレジスタとして利用している．
-実際の実装では，Native Code呼び出しなどで
-R1, R2, R3などを利用せざるを得ない場合があり，
-この場合はレジスタの値をスタックにPUSHしておくことで
-実行に影響しないようにしている．&lt;/p&gt;
-
-&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;[1] https://github.com/yabits/ebcvm&lt;/li&gt;
-  &lt;li&gt;[2] https://github.com/retrage/elvm/tree/retrage/ebc-v2&lt;/li&gt;
-  &lt;li&gt;[3] https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&lt;/li&gt;
-  &lt;li&gt;[4] https://github.com/tianocore/edk2/tree/master/MdeModulePkg/Universal/EbcDxe&lt;/li&gt;
-  &lt;li&gt;[5] https://github.com/google/googletest&lt;/li&gt;
-  &lt;li&gt;[6] https://software.intel.com/en-us/articles/intel-c-compiler-for-efi-byte-code-purchase&lt;/li&gt;
-  &lt;li&gt;[7] https://github.com/rui314/8cc&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">この記事は 自作OS Advent Calendar 2018 の19日目の記事として書かれた． ここでは，フルスクラッチで開発したEFI Byte Code Virtual Machineである ebcvm[1]と開発したのELVMのEBCバックエンド[2]について紹介する．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</summary></entry></feed>
