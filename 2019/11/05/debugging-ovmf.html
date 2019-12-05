@@ -252,6 +252,32 @@ remote Thread 1 In: CoreHandleProtocol                      L938  PC: 0x7eb6ad4
 (gdb) 
 </code></pre>
 
+<h3 id="20191205追記">2019/12/05追記</h3>
+
+<p>tnishinagaさんから上記のスクリプトを改良して
+複数パスに対応したスクリプトを教えていただきました．
+ありがとうございます．</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">#!/bin/bash</span>
+
+<span class="nv">LOG</span><span class="o">=</span><span class="s2">"debug.log"</span>
+<span class="nv">BUILD</span><span class="o">=</span><span class="s2">"./Build"</span>
+<span class="nv">SEARCHPATHS</span><span class="o">=</span><span class="s2">"./Build/OvmfX64/DEBUG_GCC5/X64/ ./Build/Edk2SamplePkgX64/DEBUG_GCC5/X64/"</span>
+<span class="nv">PEINFO</span><span class="o">=</span><span class="s2">"peinfo/peinfo"</span>
+
+<span class="nb">cat</span> <span class="k">${</span><span class="nv">LOG</span><span class="k">}</span> | <span class="nb">grep </span>Loading | <span class="nb">grep</span> <span class="nt">-i</span> efi | <span class="k">while </span><span class="nb">read </span>LINE<span class="p">;</span> <span class="k">do
+  </span><span class="nv">BASE</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span><span class="nb">echo</span> <span class="k">${</span><span class="nv">LINE</span><span class="k">}</span> | <span class="nb">cut</span> <span class="nt">-d</span> <span class="s2">" "</span> <span class="nt">-f4</span><span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">NAME</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span><span class="nb">echo</span> <span class="k">${</span><span class="nv">LINE</span><span class="k">}</span> | <span class="nb">cut</span> <span class="nt">-d</span> <span class="s2">" "</span> <span class="nt">-f6</span> | <span class="nb">tr</span> <span class="nt">-d</span> <span class="s2">"[:cntrl:]"</span><span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">EFIFILE</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span>find <span class="k">${</span><span class="nv">SEARCHPATHS</span><span class="k">}</span> <span class="nt">-name</span> <span class="k">${</span><span class="nv">NAME</span><span class="k">}</span> <span class="nt">-maxdepth</span> 1 <span class="nt">-type</span> f<span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">ADDR</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span><span class="k">${</span><span class="nv">PEINFO</span><span class="k">}</span> <span class="k">${</span><span class="nv">EFIFILE</span><span class="k">}</span> <span class="se">\</span>
+        | <span class="nb">grep</span> <span class="nt">-A</span> 5 text | <span class="nb">grep </span>VirtualAddress | <span class="nb">cut</span> <span class="nt">-d</span> <span class="s2">" "</span> <span class="nt">-f2</span><span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">TEXT</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span>python <span class="nt">-c</span> <span class="s2">"print(hex(</span><span class="k">${</span><span class="nv">BASE</span><span class="k">}</span><span class="s2"> + </span><span class="k">${</span><span class="nv">ADDR</span><span class="k">}</span><span class="s2">))"</span><span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">SYMS</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span><span class="nb">echo</span> <span class="k">${</span><span class="nv">NAME</span><span class="k">}</span> | <span class="nb">sed</span> <span class="nt">-e</span> <span class="s2">"s/</span><span class="se">\.</span><span class="s2">efi/</span><span class="se">\.</span><span class="s2">debug/g"</span><span class="sb">`</span><span class="s2">"</span>
+  <span class="nv">SYMFILE</span><span class="o">=</span><span class="s2">"</span><span class="sb">`</span>find <span class="k">${</span><span class="nv">SEARCHPATHS</span><span class="k">}</span> <span class="nt">-name</span> <span class="k">${</span><span class="nv">SYMS</span><span class="k">}</span> <span class="nt">-maxdepth</span> 1 <span class="nt">-type</span> f<span class="sb">`</span><span class="s2">"</span>
+  <span class="nb">echo</span> <span class="s2">"add-symbol-file </span><span class="k">${</span><span class="nv">SYMFILE</span><span class="k">}</span><span class="s2"> </span><span class="k">${</span><span class="nv">TEXT</span><span class="k">}</span><span class="s2">"</span>
+<span class="k">done</span>
+</code></pre></div></div>
+
 <h2 id="参考文献">参考文献</h2>
 
 <ul>
