@@ -1,4 +1,219 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-02-20T14:17:41+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Debugging OVMF with GDB</title><link href="https://retrage.github.io/2019/12/05/debugging-ovmf-en.html" rel="alternate" type="text/html" title="Debugging OVMF with GDB" /><published>2019-12-05T08:26:19+00:00</published><updated>2019-12-05T08:26:19+00:00</updated><id>https://retrage.github.io/2019/12/05/debugging-ovmf-en</id><content type="html" xml:base="https://retrage.github.io/2019/12/05/debugging-ovmf-en.html">&lt;p&gt;In this blog post, 
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-03-04T10:28:04+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">ccov: printfデバッグを支援するツール</title><link href="https://retrage.github.io/2020/03/04/ccov-introduction.html" rel="alternate" type="text/html" title="ccov: printfデバッグを支援するツール" /><published>2020-03-04T10:23:37+00:00</published><updated>2020-03-04T10:23:37+00:00</updated><id>https://retrage.github.io/2020/03/04/ccov-introduction</id><content type="html" xml:base="https://retrage.github.io/2020/03/04/ccov-introduction.html">&lt;p&gt;ここではコードカバレッジ計測を元にしたprintfデバッグ支援ツールであるccovを作ったので紹介する．&lt;/p&gt;
+
+&lt;p&gt;コードは以下で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/retrage/ccov&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;gcov, llvm-covなどはコードカバレッジを測定できるツールである．
+これらは基本的にOS上で動き，簡単にコンパイラを入れ替えたりログを生成できること前提としている．
+一方でOSや組み込みの開発ではデバッガが利用できずprintfデバッグをせざるを得ない場合がある．&lt;/p&gt;
+
+&lt;p&gt;printfデバッグでは対象のコードに対して
+どこまでコードが実行されているかを調べるためにprintfを挿入していく．
+このときprintfの挿入方法にはいくつかある．&lt;/p&gt;
+
+&lt;p&gt;以下のようなコラッツの問題を元にした関数を考える．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;collatz&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;一つは二分探索できるように2箇所以上にprintfを挿入していく方法である．
+この方法では関数&lt;code class=&quot;highlighter-rouge&quot;&gt;collatz()&lt;/code&gt;に対して次のようにprintfを挿入する．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;collatz&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#1&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#2&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;デバッグ時には#1と#2が表示されているかでこの関数の処理がなされたかを判断する．
+もし#2が表示されない場合，#1と#2の間の処理において問題が発生したと判断でき，
+二分探索の要領でprintfの挿入位置を変えることで問題の箇所を特定できる．&lt;/p&gt;
+
+&lt;p&gt;しかし，組み込み開発などではデバイスへのデプロイに時間がかかるため
+繰り返しを多く行うこの方法は効率的でない．&lt;/p&gt;
+
+&lt;p&gt;もう一つはLLVMでのBasicBlock単位でprintfを挿入していく方法である．
+BasicBlockは分岐がないInstructionのまとまりの単位である．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;collatz()&lt;/code&gt;への適用例を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;collatz&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#1&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;while&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#2&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;%&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#3&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;/=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;else&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#4&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#5&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#6&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;この方法ではprintfの挿入数は多いものの，1度に全てのcode pathを網羅することができ，
+実行時の表示からどのようなcode pathを通っているかがわかる．&lt;/p&gt;
+
+&lt;p&gt;一方で，この方法ではprintfの挿入が煩雑であるという問題がある．
+全ての分岐に対してprintfを挿入していく必要があるため人手で行う場合には時間もかかり，
+また挿入を誤ってしまう場合もありうる．
+挿入が煩雑になる例として次のようなコードを考える．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;このコードに人手でprintfを挿入する場合，以下のように変更する必要があり，
+1行printfを入れるために3行の変更を行うこととなる．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;n&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;#n&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;そこで，このようなprintfの挿入を自動で行うLLVM passであるccovを作成した．&lt;/p&gt;
+
+&lt;h2 id=&quot;ccovの使い方&quot;&gt;ccovの使い方&lt;/h2&gt;
+
+&lt;h3 id=&quot;__log_coverage関数の用意&quot;&gt;__log_coverage()関数の用意&lt;/h3&gt;
+
+&lt;p&gt;ccovを利用するには以下のような&lt;code class=&quot;highlighter-rouge&quot;&gt;__log_coverage()&lt;/code&gt;関数を用意する必要がある．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;__log_coverage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;各引数はccovによって自動的に与えられるため，
+ユーザは何らかの形でログを出力する&lt;code class=&quot;highlighter-rouge&quot;&gt;__log_coverage()&lt;/code&gt;関数を定義するだけでよい．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;attr&lt;/code&gt;は現在関数の始まりを示す&lt;code class=&quot;highlighter-rouge&quot;&gt;ccov_entry&lt;/code&gt;と終わりを示す&lt;code class=&quot;highlighter-rouge&quot;&gt;ccov_ret&lt;/code&gt;の2つをサポートしている．&lt;/p&gt;
+
+&lt;p&gt;printfを使う場合の定義の例を以下に示す．&lt;/p&gt;
+
+&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;cp&quot;&gt;#define SIG &quot;#CCOV&quot;
+&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;enum&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ccov_attribute&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ccov_entry&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x01&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;ccov_ret&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x02&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+
+&lt;span class=&quot;kt&quot;&gt;void&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;__log_coverage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;char&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;const&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;%s:%s:%s:%d&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;SIG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;file&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;func&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;line&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ccov_entry&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;:entry&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;attr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ccov_ret&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;:ret&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;printf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;se&quot;&gt;\n&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ログが出力保存ができればどのような定義でも構わないため，
+printfの代わりにシリアルへの出力を行ったり，何らかの形でエンコードして出力を圧縮してもよい．&lt;/p&gt;
+
+&lt;h3 id=&quot;ccovのビルドと実行&quot;&gt;ccovのビルドと実行&lt;/h3&gt;
+
+&lt;p&gt;ccovは以下のようにビルドを行う．
+これにより&lt;code class=&quot;highlighter-rouge&quot;&gt;ccov/build/CCov/libCCov.so&lt;/code&gt;が生成される．&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; git clone https://github.com/retrage/ccov.git
+&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;ccov
+&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;mkdir &lt;/span&gt;build
+&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;cd &lt;/span&gt;build
+&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; cmake ..
+&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; make
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;clangでは次のようにccovをロードして有効にする．
+ccovはLLVM IRの持っているデバッグ情報を利用するため，&lt;code class=&quot;highlighter-rouge&quot;&gt;-g&lt;/code&gt;オプションが必要であり，
+Optimization Level 0で有効になるよう設定されているため&lt;code class=&quot;highlighter-rouge&quot;&gt;-O0&lt;/code&gt;オプションが必要となる．&lt;/p&gt;
+
+&lt;div class=&quot;language-console highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;gp&quot;&gt;$&lt;/span&gt; clang &lt;span class=&quot;nt&quot;&gt;-g&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-O0&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-Xclang&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-load&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-Xclang&lt;/span&gt; ~/src/ccov/build/CCov/libCCov.so &lt;span class=&quot;nt&quot;&gt;-c&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;-o&lt;/span&gt; main.o main.c
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;ccovによる実行時出力&quot;&gt;ccovによる実行時出力&lt;/h3&gt;
+
+&lt;p&gt;先の定義例を用い，ccovを有効にしてビルドしたものを実行すると次のようなログが得られる．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-log&quot;&gt;#CCOV:main.c:collatz:10
+#CCOV:main.c:collatz:18:ret
+#CCOV:main.c:collatz:7:entry
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;最初の&lt;code class=&quot;highlighter-rouge&quot;&gt;#CCOV&lt;/code&gt;はccovにより生成出力された行であることを示し，
+ファイル名，関数名，行番号が並んでいる．最後の&lt;code class=&quot;highlighter-rouge&quot;&gt;entry&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;ret&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;attr&lt;/code&gt;の入力に由来する．&lt;/p&gt;
+
+&lt;p&gt;この出力をソースコードと比較するだけでもどのようなcode pathを通ったかは分かるものの，
+対応する行を見つけるのを簡単にするための簡単なスクリプトを付属している．
+これを用いると次のような出力が得られる．&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-log&quot;&gt;    30|    10|  while (n != 1) {
+    31|    18|}
+    32|     7|void collatz(int n)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;左から実行順番号，行番号，対応するコード，となっている．
+ここでは&lt;code class=&quot;highlighter-rouge&quot;&gt;attr&lt;/code&gt;の情報を利用していないが，スタックなどを用いて
+各関数の開始と終了をトレースするようなスクリプトも考えられる．
+これらの周辺ツールはあくまで例であり，目的に応じて自作していくのが望ましい．&lt;/p&gt;
+
+&lt;h2 id=&quot;コードカバレッジ計測の手法&quot;&gt;コードカバレッジ計測の手法&lt;/h2&gt;
+
+&lt;p&gt;コードカバレッジは主にソフトウェアテストとfuzzingの2種類の文脈で用いられることが多い．
+ソフトウェアテストでは，コードカバレッジを計測してテストを実行し，
+テストがどれだけの対象のコードパスを網羅できているかの指標として利用されている．
+しかし，gcovなどは基本的にユーザ空間でカバレッジ情報を出力できることを前提としているため
+組み込みなどでは直接適用することが難しい．
+なお，過去にgcovをファームウェアに適用した例もある[1]．
+ここではカバレッジ情報をメモリの特定領域に出力させることであとから結果を取得できるようにしている．&lt;/p&gt;
+
+&lt;p&gt;一方，fuzzingのうちgraybox fuzzingではfuzzerの生成した入力を実行したときの
+コードカバレッジを計測し，その変化を元に次にどのように入力を変化させていくかを決定する．
+ここではgraybox fuzzingの代表的なfuzzerであるAmerican Fuzzy Lop (AFL)についてみていく．
+AFLでは&lt;code class=&quot;highlighter-rouge&quot;&gt;afl-gcc&lt;/code&gt;というコンパイラのラッパで対象をコンパイルする．
+このときアセンブリで条件分岐の命令の前にカバレッジ計測のためのコードを挿入している[2][3]．
+コードカバレッジ計測の手法としてはやや乱暴であるが，経験的にこの程度の粒度でもよいとのことである．&lt;/p&gt;
+
+&lt;h2 id=&quot;limitations&quot;&gt;Limitations&lt;/h2&gt;
+
+&lt;p&gt;ccovは単純にcode pathを通ったときにログを出力するだけの実装となっており，
+その前後関係を出力しない．
+あくまでログの出力順序からどのようなcode pathを通ったかを判別することになっている．
+このため，ccovをプリエンティブに動作するようなプログラムに対して適用した場合，
+複数の異なるコンテキストを持ったログが出力するため正しくcode pathを追跡することができない．&lt;/p&gt;
+
+&lt;p&gt;この問題に対して実行時にコンテキストを判別できるような乱数をを生成して
+コンテキストを追跡できるようにする，という解決方法が考えられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[1] https://www.flamingspork.com/blog/2015/06/12/gcov-code-coverage-for-openpower-firmware/&lt;/li&gt;
+  &lt;li&gt;[2] http://mmi.hatenablog.com/entry/2019/05/15/183807&lt;/li&gt;
+  &lt;li&gt;[3] https://github.com/google/AFL/blob/master/afl-as.c#L374&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここではコードカバレッジ計測を元にしたprintfデバッグ支援ツールであるccovを作ったので紹介する．</summary></entry><entry><title type="html">Debugging OVMF with GDB</title><link href="https://retrage.github.io/2019/12/05/debugging-ovmf-en.html" rel="alternate" type="text/html" title="Debugging OVMF with GDB" /><published>2019-12-05T08:26:19+00:00</published><updated>2019-12-05T08:26:19+00:00</updated><id>https://retrage.github.io/2019/12/05/debugging-ovmf-en</id><content type="html" xml:base="https://retrage.github.io/2019/12/05/debugging-ovmf-en.html">&lt;p&gt;In this blog post, 
 I will describe how to debug OVMF using GDB
 without any special tool unlike another post[1].&lt;/p&gt;
 
@@ -2803,43 +3018,4 @@ attributes #0 = { norecurse nounwind readonly }
 &lt;ul&gt;
   &lt;li&gt;https://github.com/google/redgrep&lt;/li&gt;
   &lt;li&gt;https://github.com/retrage/redgrep&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">正規表現からLLVM IRを生成する</summary></entry><entry><title type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</title><link href="https://retrage.github.io/2019/04/13/efi-book2-ad.html" rel="alternate" type="text/html" title="技術書典6で新刊「UEFI読本 GRUB編」を頒布" /><published>2019-04-13T03:18:33+00:00</published><updated>2019-04-13T03:18:33+00:00</updated><id>https://retrage.github.io/2019/04/13/efi-book2-ad</id><content type="html" xml:base="https://retrage.github.io/2019/04/13/efi-book2-ad.html">&lt;h1 id=&quot;技術書典6で新刊uefi読本-grub編を頒布&quot;&gt;技術書典6で新刊「UEFI読本 GRUB編」を頒布&lt;/h1&gt;
-
-&lt;p&gt;2019年4月14日に池袋サンシャインシティで開催される
-技術書典6において「海洋軟件」として
-新刊「UEFI読本 GRUB編」を頒布する。
-既刊「UEFI読本 基礎編 Linux編」も基礎編を分離し
-「UEFI読本 Linux編」として頒布する。
-配置先は「う27」である。&lt;/p&gt;
-
-&lt;h2 id=&quot;uefi読本-grub編&quot;&gt;UEFI読本 GRUB編&lt;/h2&gt;
-
-&lt;p&gt;以下、本書「はじめに」より抜粋。&lt;/p&gt;
-
-&lt;p&gt;前回の技術書典5において頒布した「UEFI読本 基礎編 Linux編」（以下、「Linux編」）は
-海洋軟件として初の同人誌であったにもかかわらず、
-多くの方に読んでいただいたようでこの場で感謝申し上げたい。
-「Linux編」ではEFI stubでの起動プロセスをソースコードレベルで追跡した。
-しかし、多くのLinuxディストリビューションではGRUB bootloaderを利用することが多く、
-一般的なLinux環境での起動プロセスをカバーできていなかった。
-そこで本書ではUEFI環境でのGRUBの起動とLinuxの起動をみていく。
-ただし、Linuxの起動そのものについては紙面の関係上ここでは対象外とする。&lt;/p&gt;
-
-&lt;h2 id=&quot;uefi読本-linux編&quot;&gt;UEFI読本 Linux編&lt;/h2&gt;
-
-&lt;p&gt;以下、本書「はじめに」より抜粋。&lt;/p&gt;
-
-&lt;p&gt;UEFIが2005年に登場してから10年以上が経過した。
-現在のx86系CPUを搭載したコンピュータのほとんどが
-UEFIに対応しており、かつOSも当然のように対応している。
-しかし、UEFIやそこからの起動を解説をした文書は非常に少なく、
-規格書かソースコードを読み解くしかなかった。
-本書はそのような現状に応えるべく企画された。&lt;/p&gt;
-
-&lt;p&gt;本書は「UEFI読本 Linux編」というUEFIにおけるLinux kernelの起動についての解説書である。
-「技術書典 5」において頒布した「UEFI読本 基礎編 Linux編」を元に
-基礎編を分離させて修正を加えた。&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://techbookfest.org/event/tbf06/circle/65580001&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">技術書典6で新刊「UEFI読本 GRUB編」を頒布</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">正規表現からLLVM IRを生成する</summary></entry></feed>
