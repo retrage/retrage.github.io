@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.0 -->
+<title>Porting Linux to Nabla Containers | retrage.github.io</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Porting Linux to Nabla Containers" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="This is an introduction of Linux Kernel Library ported to Nabla Containers." />
+<meta property="og:description" content="This is an introduction of Linux Kernel Library ported to Nabla Containers." />
+<link rel="canonical" href="https://retrage.github.io/2020/04/18/lkl-nabla-en.html" />
+<meta property="og:url" content="https://retrage.github.io/2020/04/18/lkl-nabla-en.html" />
+<meta property="og:site_name" content="retrage.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-04-18T08:10:13+00:00" />
+<script type="application/ld+json">
+{"description":"This is an introduction of Linux Kernel Library ported to Nabla Containers.","@type":"BlogPosting","url":"https://retrage.github.io/2020/04/18/lkl-nabla-en.html","headline":"Porting Linux to Nabla Containers","dateModified":"2020-04-18T08:10:13+00:00","datePublished":"2020-04-18T08:10:13+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://retrage.github.io/2020/04/18/lkl-nabla-en.html"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://retrage.github.io/feed.xml" title="retrage.github.io" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Porting Linux to Nabla Containers</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-04-18T08:10:13+00:00" itemprop="datePublished">Apr 18, 2020
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>This is an introduction of Linux Kernel Library ported to Nabla Containers.</p>
+
+<p><a href="https://github.com/nabla-containers/runnc.git">runnc</a> 
+is an OCI runtime that runs process-level isolated unikernels.
+It is built on the top of <a href="https://github.com/Solo5/solo5">Solo5</a>, 
+a sandbox for unikernels, and several unikernels (MirageOS, IncludeOS, Rumprun) run on it.
+The original runnc uses Rumprun, a NetBSD based unikernel.
+However, as Docker is started from Linux, 
+it is needed to have system call level compatibility with Linux.
+Therefore, I ported Linux Kernel Library (LKL) and musl libc to Solo5
+and put together with runnc.</p>
+
+<h2 id="frankenlibc-on-solo5">frankenlibc on Solo5</h2>
+
+<p>frankenlibc is a set of tools to run Rump unikernels in various environments.
+It has a fork that ported LKL and some libraries.
+I used this frankenlibc fork and added Solo5 platform support.</p>
+
+<ul>
+  <li>https://github.com/retrage/frankenlibc/tree/solo5</li>
+</ul>
+
+<h3 id="building-frankenlibc">Building frankenlibc</h3>
+
+<p>Clone the repository and checkout <code class="highlighter-rouge">solo5</code> branch.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> git clone https://github.com/retrage/frankenlibc.git
+<span class="gp">$</span> <span class="nb">cd </span>frankenlibc
+<span class="gp">$</span> git checkout solo5
+</code></pre></div></div>
+
+<p>Clone full Solo5 repository to avoid build failure and update submodules.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> git clone https://github.com/Solo5/solo5.git
+<span class="gp">$</span> git submodule update <span class="nt">--init</span>
+</code></pre></div></div>
+
+<p>Apply some patches.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> <span class="k">for </span>file <span class="k">in</span> <span class="sb">`</span>find patches/solo5/ <span class="nt">-maxdepth</span> 1 <span class="nt">-type</span> f<span class="sb">`</span> <span class="p">;</span> <span class="k">do </span>patch <span class="nt">-p1</span> &lt; <span class="nv">$file</span> <span class="p">;</span> <span class="k">done</span>
+</code></pre></div></div>
+
+<p>Finally, run the build script.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> ./build.sh <span class="nt">-k</span> linux notests solo5
+</code></pre></div></div>
+
+<p>You can find libraries and toolchain wrappers in <code class="highlighter-rouge">rump</code> directory
+after building successfully.</p>
+
+<h3 id="testing">Testing</h3>
+
+<p>Even if <code class="highlighter-rouge">notests</code> specified, <code class="highlighter-rouge">build.sh</code> builds simple tests to <code class="highlighter-rouge">rumpobj/tests</code>.</p>
+
+<p>Create a <code class="highlighter-rouge">tap100</code> tap device.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> <span class="nb">sudo </span>ip tuntap add tap100 mode tap
+<span class="gp">$</span> <span class="nb">sudo </span>ip addr add 10.0.0.1/24 dev tap100
+<span class="gp">$</span> <span class="nb">sudo </span>ip <span class="nb">link set </span>dev tap100 up
+</code></pre></div></div>
+
+<p>Create <code class="highlighter-rouge">disk.img</code> disk image.
+As LKL/frankenlibc creates directories on initialization, 
+some operations fail if read-only ISO image is used.
+To avoid this issue, we use the Ext4 file system image.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> <span class="nb">dd </span><span class="k">if</span><span class="o">=</span>/dev/zero <span class="nv">of</span><span class="o">=</span>disk.img <span class="nv">bs</span><span class="o">=</span>1024 <span class="nv">count</span><span class="o">=</span>20480
+<span class="gp">$</span> mkfs.ext4 <span class="nt">-F</span> disk.img
+</code></pre></div></div>
+
+<p>Note that Solo5 requires an application manifest on build time,
+which is embedded in a unikernel binary.
+In current frankenlibc Solo5 support, the manifest is common across binaries
+and specifies <code class="highlighter-rouge">rootfs</code> block device and <code class="highlighter-rouge">tap</code> network device.
+We have to provide these devices even not used in the applications.</p>
+
+<ul>
+  <li>https://github.com/retrage/frankenlibc/blob/solo5/platform/solo5/manifest.json</li>
+</ul>
+
+<p>Run <code class="highlighter-rouge">hello</code> test.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> <span class="nv">RUMP_VERBOSE</span><span class="o">=</span>1 ./rump/bin/rexec rumpobj/tests/hello rootfs:disk.img tap:tap100
+</code></pre></div></div>
+
+<p>In the Linux platform, <code class="highlighter-rouge">rexec</code> provides a sandbox environment for unikernels 
+using seccomp like Solo5’s tenders. 
+In the Solo5 platform, it is just a shell script wrapper for <code class="highlighter-rouge">spt</code> tender.</p>
+
+<h2 id="lkl-nabla-containers">LKL Nabla Containers</h2>
+
+<p>Now, it’s time to integrate with Nabla Containers.
+Since the original runnc imports older version of Solo5, 
+I updated it and adapted the runnc code base.</p>
+
+<ul>
+  <li>https://github.com/retrage/runnc/tree/lkl-musl</li>
+</ul>
+
+<h3 id="updating-supplied-arguments">Updating Supplied Arguments</h3>
+
+<p>Below is the original code that creates arguments for Solo5 tender.</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="x">    </span><span class="k">var</span><span class="x"> </span><span class="n">args</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="x">
+    </span><span class="k">if</span><span class="x"> </span><span class="n">mac</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="s">""</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunBin</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--x-exec-heap"</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--mem="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">strconv</span><span class="o">.</span><span class="n">FormatInt</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">Memory</span><span class="p">,</span><span class="x"> </span><span class="m">10</span><span class="p">),</span><span class="x">
+            </span><span class="s">"--net-mac="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">mac</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--net="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Tap</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--disk="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">disk</span><span class="p">,</span><span class="x">
+            </span><span class="n">r</span><span class="o">.</span><span class="n">UniKernelBin</span><span class="p">,</span><span class="x">
+            </span><span class="n">unikernelArgs</span><span class="p">}</span><span class="x">
+    </span><span class="p">}</span><span class="x"> </span><span class="k">else</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunBin</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--x-exec-heap"</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--mem="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">strconv</span><span class="o">.</span><span class="n">FormatInt</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">Memory</span><span class="p">,</span><span class="x"> </span><span class="m">10</span><span class="p">),</span><span class="x">
+            </span><span class="s">"--net="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Tap</span><span class="p">,</span><span class="x">
+            </span><span class="s">"--disk="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">disk</span><span class="p">,</span><span class="x">
+            </span><span class="n">r</span><span class="o">.</span><span class="n">UniKernelBin</span><span class="p">,</span><span class="x">
+            </span><span class="n">unikernelArgs</span><span class="p">}</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+</span></code></pre></div></div>
+
+<p>In the latest Solo5 (frankenlibc Solo5 platform uses), 
+<code class="highlighter-rouge">--net-mac</code> option is removed and we can specify multiple block devices 
+and network devices with <code class="highlighter-rouge">--block:</code> and <code class="highlighter-rouge">--net:</code> options.
+Ideally, it should support multiple devices. 
+However, as described before, it can specify <code class="highlighter-rouge">rootfs</code> and <code class="highlighter-rouge">tap</code> only.
+So, the port ends up with the support of these devices like this.</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="x">    </span><span class="k">var</span><span class="x"> </span><span class="n">args</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunBin</span><span class="p">,</span><span class="x">
+        </span><span class="s">"--mem="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">strconv</span><span class="o">.</span><span class="n">FormatInt</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">Memory</span><span class="p">,</span><span class="x"> </span><span class="m">10</span><span class="p">),</span><span class="x">
+        </span><span class="s">"--net:tap="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Tap</span><span class="p">,</span><span class="x">
+        </span><span class="s">"--block:rootfs="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">disk</span><span class="p">,</span><span class="x">
+        </span><span class="n">r</span><span class="o">.</span><span class="n">UniKernelBin</span><span class="p">}</span><span class="x">
+</span></code></pre></div></div>
+
+<h3 id="creating-disk-image">Creating Disk Image</h3>
+
+<p>I added <code class="highlighter-rouge">CreateExt4()</code> function and <code class="highlighter-rouge">llmodules/fs/ext4_storage.go</code> 
+to create Ext4 rootfs.</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">// CreateExt4 creates ext4 raw disk image from the dir argument</span><span class="x">
+</span><span class="k">func</span><span class="x"> </span><span class="n">CreateExt4</span><span class="p">(</span><span class="n">dir</span><span class="x"> </span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="n">target</span><span class="x"> </span><span class="o">*</span><span class="kt">string</span><span class="p">)</span><span class="x"> </span><span class="p">(</span><span class="kt">string</span><span class="p">,</span><span class="x"> </span><span class="kt">error</span><span class="p">)</span><span class="x"> </span><span class="p">{</span><span class="x">
+    </span><span class="k">var</span><span class="x"> </span><span class="n">fname</span><span class="x"> </span><span class="kt">string</span><span class="x">
+
+    </span><span class="k">if</span><span class="x"> </span><span class="n">target</span><span class="x"> </span><span class="o">==</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="n">f</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">ioutil</span><span class="o">.</span><span class="n">TempFile</span><span class="p">(</span><span class="s">"/tmp"</span><span class="p">,</span><span class="x"> </span><span class="s">"nabla"</span><span class="p">)</span><span class="x">
+        </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+            </span><span class="k">return</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+
+        </span><span class="n">fname</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">f</span><span class="o">.</span><span class="n">Name</span><span class="p">()</span><span class="x">
+        </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">f</span><span class="o">.</span><span class="n">Close</span><span class="p">();</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+            </span><span class="k">return</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+    </span><span class="p">}</span><span class="x"> </span><span class="k">else</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">var</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="kt">error</span><span class="x">
+        </span><span class="n">fname</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">filepath</span><span class="o">.</span><span class="n">Abs</span><span class="p">(</span><span class="o">*</span><span class="n">target</span><span class="p">)</span><span class="x">
+        </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+            </span><span class="k">return</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="n">errors</span><span class="o">.</span><span class="n">Wrap</span><span class="p">(</span><span class="n">err</span><span class="p">,</span><span class="x"> </span><span class="s">"Unable to resolve abs target path"</span><span class="p">)</span><span class="x">
+        </span><span class="p">}</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+
+    </span><span class="n">absDir</span><span class="p">,</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">filepath</span><span class="o">.</span><span class="n">Abs</span><span class="p">(</span><span class="n">dir</span><span class="p">)</span><span class="x">
+    </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="n">errors</span><span class="o">.</span><span class="n">Wrap</span><span class="p">(</span><span class="n">err</span><span class="p">,</span><span class="x"> </span><span class="s">"Unable to resolve abs dir path"</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+
+    </span><span class="n">cmd</span><span class="x"> </span><span class="o">:=</span><span class="x"> </span><span class="n">exec</span><span class="o">.</span><span class="n">Command</span><span class="p">(</span><span class="s">"virt-make-fs"</span><span class="p">,</span><span class="x"> </span><span class="s">"-F"</span><span class="p">,</span><span class="x"> </span><span class="s">"raw"</span><span class="p">,</span><span class="x"> </span><span class="s">"-t"</span><span class="p">,</span><span class="x"> </span><span class="s">"ext4"</span><span class="p">,</span><span class="x">
+        </span><span class="n">absDir</span><span class="p">,</span><span class="x"> </span><span class="n">fname</span><span class="p">)</span><span class="x">
+    </span><span class="n">err</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">cmd</span><span class="o">.</span><span class="n">Run</span><span class="p">()</span><span class="x">
+    </span><span class="k">if</span><span class="x"> </span><span class="n">err</span><span class="x"> </span><span class="o">!=</span><span class="x"> </span><span class="no">nil</span><span class="x"> </span><span class="p">{</span><span class="x">
+        </span><span class="k">return</span><span class="x"> </span><span class="s">""</span><span class="p">,</span><span class="x"> </span><span class="n">errors</span><span class="o">.</span><span class="n">Wrap</span><span class="p">(</span><span class="n">err</span><span class="p">,</span><span class="x"> </span><span class="s">"Unable to run virt-make-fs command"</span><span class="p">)</span><span class="x">
+    </span><span class="p">}</span><span class="x">
+
+    </span><span class="k">return</span><span class="x"> </span><span class="n">fname</span><span class="p">,</span><span class="x"> </span><span class="no">nil</span><span class="x">
+</span><span class="p">}</span><span class="x">
+</span></code></pre></div></div>
+
+<p><code class="highlighter-rouge">virt-make-fs</code>, a part of <a href="http://libguestfs.org/">libguestfs</a> 
+has similar interface with <code class="highlighter-rouge">genisoimage</code>.</p>
+
+<p>It would be better to switch <code class="highlighter-rouge">NewISOFsHandler()</code> and <code class="highlighter-rouge">NewExt4FsHandler()</code> on run time.</p>
+
+<h3 id="building-and-installing-runnc">Building and Installing runnc</h3>
+
+<p>Same as original.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> git clone https://github.com/retrage/runnc.git
+<span class="gp">$</span> <span class="nb">mkdir</span> <span class="nt">-p</span> <span class="nv">$GOPATH</span>/github.com/retrage
+<span class="gp">$</span> <span class="nb">ln</span> <span class="nt">-sf</span> <span class="nv">$PWD</span>/runnc <span class="nv">$GOPATH</span>/github.com/retrage/runnc
+<span class="gp">$</span> <span class="nb">cd </span>runnc
+<span class="gp">$</span> git apply patches/0001-solo5-elf-segment-align-workaround.patch
+<span class="gp">$</span> make build
+<span class="gp">$</span> make <span class="nb">install</span>
+</code></pre></div></div>
+
+<h3 id="testing-with-docker-images">Testing with Docker Images</h3>
+
+<p>I provided a set of Makefiles build LKL Nabla Container base Docker images.
+It builds Solo5 and frankenlibc, and Docker images.</p>
+
+<ul>
+  <li>https://github.com/retrage/lkl-nabla-base-build</li>
+</ul>
+
+<p>I also pushed pre-built Docker images to Docker Hub.</p>
+
+<ul>
+  <li><a href="https://hub.docker.com/repository/docker/retrage/lkl-nabla-hello-base">retrage/lkl-nabla-hello-base</a></li>
+  <li><a href="https://hub.docker.com/repository/docker/retrage/lkl-nabla-python3-base">retrage/lkl-nabla-python3-base</a></li>
+</ul>
+
+<p>You can use images like this.</p>
+
+<div class="language-console highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="gp">$</span> <span class="nb">sudo </span>docker run <span class="nt">--rm</span> <span class="nt">--runtime</span><span class="o">=</span>runnc retrage/lkl-nabla-python3-base:
+<span class="go">latest -c "print(\'hello\')"
+[sudo] password for akira:
+nabla-run arg [/opt/runnc/bin/nabla-run --mem=512 --net:tap=tap28157ba5950e --bl
+ock:rootfs=/var/run/docker/runtime-runnc/moby/28157ba5950e3e84824bd843fd1dafb06eccc7de2020a0619d6a5b463e5f2c2b/rootfs.img /var/lib/docker/overlay2/3d36c19950e53eefded8e1933f3d7e51990fc4c7b065be6c00776eeab8fb3136/merged/python3.nabla __RUMP_FDINFO_NET_tap=4 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOSTNAME=28157ba5950e PYTHONHASHSEED=1 PYTHONHOME=/usr/local HOME=/ -- -c print(\'hello\')]
+            |      ___|
+  __|  _ \  |  _ \ __ \
+\__ \ (   | | (   |  ) |
+____/\___/ _|\___/____/
+Solo5: Bindings version v0.6.4-6-g756accf-dirty
+Solo5: Memory map: 512 MB addressable:
+Solo5:   reserved @ (0x0 - 0xfffff)
+Solo5:       text @ (0x100000 - 0x889fff)
+Solo5:     rodata @ (0x88a000 - 0xb4cfff)
+Solo5:       data @ (0xb4d000 - 0xe7dfff)
+</span><span class="gp">Solo5:       heap &gt;</span><span class="o">=</span> 0xe7e000 &lt; stack &lt; 0x20000000
+<span class="go">sleeping 50000 usec
+hello
+Solo5: solo5_exit(0) called
+</span></code></pre></div></div>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>In this post, I introduced a brief of LKL Nabla Containers.
+It is still in an early stage and has room for improvement, 
+but already runs practical applications like Python.
+I would like to measure the performance and evaluate the pros/cons.</p>
+
+<p>Below is the TODO list:</p>
+
+<ul>
+  <li>Replace workaround for Solo5</li>
+  <li>Flexible <code class="highlighter-rouge">manifest.json</code> handling on build time</li>
+  <li>Pass <code class="highlighter-rouge">lkl.json</code> through run time arguments</li>
+  <li>Do not pass <code class="highlighter-rouge">__RUMP_FDINFO_NET_tap=4</code> environment variable on run time</li>
+</ul>
+
+  </div><a class="u-url" href="/2020/04/18/lkl-nabla-en.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">retrage.github.io</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">retrage.github.io</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Blog posts by @retrage</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
