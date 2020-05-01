@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-04-18T08:38:07+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Porting Linux to Nabla Containers</title><link href="https://retrage.github.io/2020/04/18/lkl-nabla-en.html" rel="alternate" type="text/html" title="Porting Linux to Nabla Containers" /><published>2020-04-18T08:10:13+00:00</published><updated>2020-04-18T08:10:13+00:00</updated><id>https://retrage.github.io/2020/04/18/lkl-nabla-en</id><content type="html" xml:base="https://retrage.github.io/2020/04/18/lkl-nabla-en.html">&lt;p&gt;This is an introduction of Linux Kernel Library ported to Nabla Containers.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-05-01T08:33:34+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Porting Linux to Nabla Containers</title><link href="https://retrage.github.io/2020/04/18/lkl-nabla-en.html" rel="alternate" type="text/html" title="Porting Linux to Nabla Containers" /><published>2020-04-18T08:10:13+00:00</published><updated>2020-04-18T08:10:13+00:00</updated><id>https://retrage.github.io/2020/04/18/lkl-nabla-en</id><content type="html" xml:base="https://retrage.github.io/2020/04/18/lkl-nabla-en.html">&lt;p&gt;This is an introduction of Linux Kernel Library ported to Nabla Containers.&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://github.com/nabla-containers/runnc.git&quot;&gt;runnc&lt;/a&gt; 
 is an OCI runtime that runs process-level isolated unikernels.
@@ -249,8 +249,31 @@ I would like to measure the performance and evaluate the pros/cons.&lt;/p&gt;
 &lt;ul&gt;
   &lt;li&gt;Replace workaround for Solo5&lt;/li&gt;
   &lt;li&gt;Flexible &lt;code class=&quot;highlighter-rouge&quot;&gt;manifest.json&lt;/code&gt; handling on build time&lt;/li&gt;
-  &lt;li&gt;Pass &lt;code class=&quot;highlighter-rouge&quot;&gt;lkl.json&lt;/code&gt; through run time arguments&lt;/li&gt;
+  &lt;li&gt;&lt;del&gt;Pass &lt;code class=&quot;highlighter-rouge&quot;&gt;lkl.json&lt;/code&gt; through run time arguments&lt;/del&gt;&lt;/li&gt;
   &lt;li&gt;Do not pass &lt;code class=&quot;highlighter-rouge&quot;&gt;__RUMP_FDINFO_NET_tap=4&lt;/code&gt; environment variable on run time&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;update-may-1st-2020&quot;&gt;Update: May 1st, 2020&lt;/h2&gt;
+
+&lt;p&gt;After wrote this post,
+I found that LKL must use network information created by the container runtime.
+Otherwise, the network does not work properly.
+I added the 3rd feature described in the above TODO list to frankenlibc and runnc.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/retrage/frankenlibc/commit/fb4fde66c73c8bec58d754249db77edb66537955&quot;&gt;add external lkl json config support&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/retrage/runnc/commit/e73c1203e8a1b19d4813917d893aec6181432e01&quot;&gt;Create lkl config json&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The OCI runtime builds and passes JSON config for LKL at startup.
+LKL parses it along with environment variables and arguments.&lt;/p&gt;
+
+&lt;p&gt;Now, popular network applications Nginx and redis work on LKL Nabla Containers.
+They are available as base Docker Images.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://hub.docker.com/repository/docker/retrage/lkl-nabla-nginx-base&quot;&gt;retrage/lkl-nabla-nginx-base&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://hub.docker.com/repository/docker/retrage/lkl-nabla-redis-base&quot;&gt;retrage/lkl-nabla-redis-base&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;</content><author><name></name></author><summary type="html">This is an introduction of Linux Kernel Library ported to Nabla Containers.</summary></entry><entry><title type="html">ccov: printfデバッグを支援するツール</title><link href="https://retrage.github.io/2020/03/04/ccov-introduction.html" rel="alternate" type="text/html" title="ccov: printfデバッグを支援するツール" /><published>2020-03-04T10:23:37+00:00</published><updated>2020-03-04T10:23:37+00:00</updated><id>https://retrage.github.io/2020/03/04/ccov-introduction</id><content type="html" xml:base="https://retrage.github.io/2020/03/04/ccov-introduction.html">&lt;p&gt;ここではコードカバレッジ計測を元にしたprintfデバッグ支援ツールであるccovを作ったので紹介する．&lt;/p&gt;
 
 &lt;p&gt;コードは以下で公開している．&lt;/p&gt;
