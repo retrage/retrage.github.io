@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.6.0 -->
+<title>Linux Kernel Library Nabla Containers Internals | retrage.github.io</title>
+<meta name="generator" content="Jekyll v3.8.5" />
+<meta property="og:title" content="Linux Kernel Library Nabla Containers Internals" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post." />
+<meta property="og:description" content="This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post." />
+<link rel="canonical" href="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html" />
+<meta property="og:url" content="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html" />
+<meta property="og:site_name" content="retrage.github.io" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2020-05-11T09:51:01+00:00" />
+<script type="application/ld+json">
+{"description":"This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post.","@type":"BlogPosting","url":"https://retrage.github.io/2020/05/11/lkl-nabla-internals.html","headline":"Linux Kernel Library Nabla Containers Internals","dateModified":"2020-05-11T09:51:01+00:00","datePublished":"2020-05-11T09:51:01+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://retrage.github.io/2020/05/11/lkl-nabla-internals.html"},"@context":"https://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="https://retrage.github.io/feed.xml" title="retrage.github.io" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">retrage.github.io</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Linux Kernel Library Nabla Containers Internals</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2020-05-11T09:51:01+00:00" itemprop="datePublished">May 11, 2020
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <p>This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post.</p>
+
+<p>You can find LKL Nabla code at:</p>
+
+<ul>
+  <li>https://github.com/retrage/runnc/tree/lkl-musl</li>
+  <li>https://github.com/retrage/frankenlibc/tree/solo5</li>
+</ul>
+
+<h2 id="modifications-to-runnc">Modifications to runnc</h2>
+
+<p>Before diving into frankenlibc code, let’s take a look at the modifications to runnc.</p>
+
+<p>When runnc is executed, it initializes devices that will be used by the container. Then, the runtime builds arguments and launches a container as a process.</p>
+
+<p>What kind of devices will be provided? On current runnc implementation, it can provide only one network device and block device correspondingly. This situation is the same in LKL Nabla.</p>
+
+<p>A container manager like Docker pulls container an image and extracts to a rootfs as a directory. runnc creates a disk image from the rootfs directory. The disk image format is ISO in Rumprun, but the default file system is ext4 in LKL. Thus, it is switched to ext4 in LKL Nabla.
+For the implementation, see <a href="https://github.com/retrage/runnc/blob/lkl-musl/nabla-lib/storage/storage_linux.go"><code class="highlighter-rouge">CreateExt4()</code></a>.</p>
+
+<p>Rumprun accepts JSON config from arguments on runtime. The original runnc builds config on container initialization. On the other hand, LKL also allows JSON config on runtime. However, the config format is quite different from Rumprun’s one. LKL Nabla’s runnc creates a config for LKL.
+<a href="https://github.com/retrage/runnc/blob/lkl-musl/llruntimes/nabla/runnc-cont/lkl.go">llruntimes/nabla/runnc-cont/lkl.go</a> is the config builder for LKL.</p>
+
+<p>After the initialization, runnc launches a unikernel process using Solo5 tender like:</p>
+
+<div class="language-go highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="x">    </span><span class="k">var</span><span class="x"> </span><span class="n">args</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="p">[]</span><span class="kt">string</span><span class="p">{</span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunBin</span><span class="p">,</span><span class="x">
+        </span><span class="s">"--mem="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">strconv</span><span class="o">.</span><span class="n">FormatInt</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">Memory</span><span class="p">,</span><span class="x"> </span><span class="m">10</span><span class="p">),</span><span class="x">
+        </span><span class="s">"--net:tap="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Tap</span><span class="p">,</span><span class="x">
+        </span><span class="s">"--block:rootfs="</span><span class="x"> </span><span class="o">+</span><span class="x"> </span><span class="n">disk</span><span class="p">,</span><span class="x">
+        </span><span class="n">r</span><span class="o">.</span><span class="n">UniKernelBin</span><span class="p">}</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="s">"__RUMP_FDINFO_NET_tap=4"</span><span class="p">)</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">Env</span><span class="o">...</span><span class="p">)</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="s">"--config"</span><span class="p">)</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="n">unikernelArgs</span><span class="p">)</span><span class="x">
+    </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="s">"--"</span><span class="p">)</span><span class="x">
+  </span><span class="n">args</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="nb">append</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunArgs</span><span class="o">...</span><span class="p">)</span><span class="x">
+  </span><span class="c">// snip</span><span class="x">
+    </span><span class="n">err</span><span class="x"> </span><span class="o">=</span><span class="x"> </span><span class="n">syscall</span><span class="o">.</span><span class="n">Exec</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">NablaRunBin</span><span class="p">,</span><span class="x"> </span><span class="n">args</span><span class="p">,</span><span class="x"> </span><span class="n">newenv</span><span class="p">)</span><span class="x">
+</span></code></pre></div></div>
+
+<h2 id="frankenlibc">frankenlibc</h2>
+
+<p>Now, it’s time to dive into Solo5 port frankenlibc. It was a bunch of tools to run Rumprun unikernel on userspace. It was forked and added LKL/musl support. LKL Nabla uses this fork to run LKL on Solo5.</p>
+
+<p>Below shows the architecture of frankenlibc.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: center">frankenlibc Layers</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: center">Application</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">musl libc</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">LKL</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">librumpuser</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">franken</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">platform</td>
+    </tr>
+    <tr>
+      <td style="text-align: center">Host</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>An application is the top of the 7 layers. The host is the bottom. The host-dependent layer is a platform. The code is located in <a href="https://github.com/retrage/frankenlibc/tree/solo5/platform">platform</a> directory. To port a new host, you will have to add the code to the platform.</p>
+
+<p>The interfaces that platform code should provide are the same as Linux system calls. Here is the list.</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">__libc_start_main</span><span class="p">(</span><span class="kt">int</span> <span class="p">(</span><span class="o">*</span><span class="n">main</span><span class="p">)(</span><span class="kt">int</span><span class="p">,</span><span class="kt">char</span> <span class="o">**</span><span class="p">,</span><span class="kt">char</span> <span class="o">**</span><span class="p">),</span> <span class="kt">int</span> <span class="n">argc</span><span class="p">,</span> <span class="kt">char</span> <span class="o">**</span><span class="n">argv</span><span class="p">);</span>
+<span class="kt">void</span> <span class="n">_exit</span><span class="p">(</span><span class="kt">int</span> <span class="n">status</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">clock_getres</span><span class="p">(</span><span class="n">clockid_t</span> <span class="n">clk_id</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="o">*</span><span class="n">tp</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">clock_gettime</span><span class="p">(</span><span class="n">clockid_t</span> <span class="n">clk_id</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="o">*</span><span class="n">tp</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">clock_nanosleep</span><span class="p">(</span><span class="n">clockid_t</span> <span class="n">clk_id</span><span class="p">,</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="o">*</span><span class="n">request</span><span class="p">,</span> <span class="k">struct</span> <span class="n">timespec</span> <span class="o">*</span><span class="n">remain</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">fcntl</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">int</span> <span class="n">cmd</span><span class="p">,</span> <span class="p">...);</span>
+<span class="kt">int</span> <span class="n">fstat</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">struct</span> <span class="n">stat</span> <span class="o">*</span><span class="n">st</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">fsync</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">getpagesize</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">getrandom</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">size</span><span class="p">,</span> <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">flags</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">kill</span><span class="p">(</span><span class="n">pid_t</span> <span class="n">pid</span><span class="p">,</span> <span class="kt">int</span> <span class="n">sig</span><span class="p">);</span>
+<span class="kt">off_t</span> <span class="n">lseek</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">offset</span><span class="p">,</span> <span class="kt">int</span> <span class="n">whence</span><span class="p">);</span>
+<span class="kt">void</span> <span class="o">*</span><span class="n">mmap</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">,</span> <span class="kt">int</span> <span class="n">prot</span><span class="p">,</span> <span class="kt">int</span> <span class="n">nflags</span><span class="p">,</span> <span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">offset</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">munmap</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">mprotect</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">length</span><span class="p">,</span> <span class="kt">int</span> <span class="n">prot</span><span class="p">);</span>
+<span class="kt">int</span> <span class="n">poll</span><span class="p">(</span><span class="k">struct</span> <span class="n">pollfd</span> <span class="o">*</span><span class="n">fds</span><span class="p">,</span> <span class="n">nfds_t</span> <span class="n">n</span><span class="p">,</span> <span class="kt">int</span> <span class="n">timeout</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">pread</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">offset</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">preadv</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">iovcnt</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">off</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">pwrite</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">offset</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">pwritev</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">iovcnt</span><span class="p">,</span> <span class="kt">off_t</span> <span class="n">off</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">read</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">readv</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">iovcnt</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">write</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="kt">void</span> <span class="o">*</span><span class="n">buf</span><span class="p">,</span> <span class="kt">size_t</span> <span class="n">count</span><span class="p">);</span>
+<span class="kt">ssize_t</span> <span class="n">writev</span><span class="p">(</span><span class="kt">int</span> <span class="n">fd</span><span class="p">,</span> <span class="k">const</span> <span class="k">struct</span> <span class="n">iovec</span> <span class="o">*</span><span class="n">iov</span><span class="p">,</span> <span class="kt">int</span> <span class="n">iovcnt</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>It looks much larger than that of Solo5 as it provides only 13 hypercalls to the guest OS, but some of them are optional. We need to implement the platform code using the hypercalls for porting LKL/musl to Solo5.</p>
+
+<h3 id="entry-point">Entry Point</h3>
+
+<p><code class="highlighter-rouge">solo5_start_main()</code> is an entry point in Solo5 guest. A Solo5 tender starts the OS from this function. The argument is a pointer to <code class="highlighter-rouge">struct solo5_start_info</code>. It contains <code class="highlighter-rouge">cmdline</code>, <code class="highlighter-rouge">heap_start</code> and <code class="highlighter-rouge">heap_size</code>.</p>
+
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">struct</span> <span class="n">solo5_start_info</span> <span class="p">{</span>
+    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">cmdline</span><span class="p">;</span>
+    <span class="kt">uintptr_t</span> <span class="n">heap_start</span><span class="p">;</span>
+    <span class="kt">size_t</span> <span class="n">heap_size</span><span class="p">;</span>
+<span class="p">};</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">cmdline</code> is an argument string passed when the unikernel process is launched. As frankenlibc expects <code class="highlighter-rouge">envp</code> and <code class="highlighter-rouge">argv</code> will be passed from the host, cmdline is parsed into envp and argv in the initialization.
+rexec, a launch tool for frankenlibc, can pass a JSON config through a file descriptor. The FD value is shared using the environment variable (e.g. <code class="highlighter-rouge">__RUMP_FDINFO_CONFIGJSON</code>). However, this method cannot be applied to Solo5 port because any environment variable cannot be shared with Solo5 guests. Therefore, the JSON config is passed from cmdline as a string in the Solo5 port.</p>
+
+<p>The other arguments <code class="highlighter-rouge">heap_start</code> and <code class="highlighter-rouge">heap_size</code> are information about heap provided by the tender. They are used for memory manager initialization. In this Solo5 port, the memory manager is a simple buddy allocator from <a href="http://xenbits.xen.org/gitweb/?p=mini-os.git;a=summary">mini-os</a>. It is used in the <code class="highlighter-rouge">mmap()</code>/<code class="highlighter-rouge">munmap()</code> <a href="https://github.com/retrage/frankenlibc/blob/solo5/platform/solo5/mmap.c">platform code</a>.</p>
+
+<h3 id="devices">Devices</h3>
+
+<p>In *nix system, most of the devices are represented as files and the operations are read/write to the file descriptor. frankenlibc also use this manner in platform code.
+rexec opens devices and passes the FD numbers through environment variables (e.g. <code class="highlighter-rouge">__RUMP_FDINFO_NET_tap</code>). This behavior is the same as the JSON config. The franken layer registers devices using the FD info in <a href="https://github.com/retrage/frankenlibc/blob/solo5/franken/init/fdinit.c"><code class="highlighter-rouge">fdinit()</code></a>.</p>
+
+<p>In Solo5, devices attached at runtime must be specified at build time. When building a guest, a JSON format config called Application Manifest <code class="highlighter-rouge">manifest.json</code> must be supplied. It declares user-specified devices. In contrast to Solo5, frankenlibc rexec can specify devices at run time. As described before, current runnc can deal with one block device and one network device. Therefore, the Solo5 port uses fixed <code class="highlighter-rouge">manifest.json</code> that specifies one block device <code class="highlighter-rouge">rootfs</code> and one network device <code class="highlighter-rouge">tap</code>. Below is the config.</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"solo5.manifest"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"devices"</span><span class="p">:</span><span class="w">
+  </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rootfs"</span><span class="p">,</span><span class="w"> </span><span class="s2">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"BLOCK_BASIC"</span><span class="w"> </span><span class="p">},</span><span class="w">
+    </span><span class="p">{</span><span class="w"> </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"tap"</span><span class="p">,</span><span class="w"> </span><span class="s2">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"NET_BASIC"</span><span class="w"> </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>A device in Solo5 is represented by <code class="highlighter-rouge">solo5_handle_t</code>, not by the file descriptor. In the frankenlibc Solo5 port, as the devices are fixed, it assigns a virtual FD number to the Solo5 device handle.</p>
+
+<p>Solo5 provides interfaces for reading/writing devices and console. In <code class="highlighter-rouge">read()</code>/<code class="highlighter-rouge">write()</code> platform code, it identifies the FD number and call appropriate hypercalls.</p>
+
+<p><code class="highlighter-rouge">poll()</code>/<code class="highlighter-rouge">clock_nanosleep()</code> are used for waiting network packets. Each network device has file descriptor <code class="highlighter-rouge">pollfd</code> to store polling state in frankenlibc. For Solo5 port, <code class="highlighter-rouge">solo5_yield()</code> is used to implement <code class="highlighter-rouge">poll()</code>/<code class="highlighter-rouge">clock_nanosleep()</code> The behavior is almost the same as the Linux port.</p>
+
+<p>In <code class="highlighter-rouge">clock_nanosleep()</code>, it calls <code class="highlighter-rouge">solo5_yield()</code> and if the network handle is set on <code class="highlighter-rouge">ready_set</code>, it updates the <code class="highlighter-rouge">pollfd.revents</code> and wake the associated thread. In <code class="highlighter-rouge">poll()</code>, it sleeps until <code class="highlighter-rouge">timeout</code> and sets FD’s <code class="highlighter-rouge">revents</code> if <code class="highlighter-rouge">pollfd.revents</code> is updated.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>This post summarized LKL Nabla internals. The most of implementations are straight forward thanks to frankenlibc platform-independent interfaces and simple Solo5 hypercalls. However, since LKL has different interfaces with Rumprun, patches to runnc for LKL port is quite large. It will be better to have a switching option to change between Rumprun and LKL on runnc.</p>
+
+  </div><a class="u-url" href="/2020/05/11/lkl-nabla-internals.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">retrage.github.io</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">retrage.github.io</li><li><a class="u-email" href="mailto:retrage01@gmail.com">retrage01@gmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">retrage</span></a></li><li><a href="https://www.twitter.com/retrage"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">retrage</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>Blog posts by @retrage</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
