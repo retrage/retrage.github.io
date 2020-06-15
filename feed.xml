@@ -1,4 +1,308 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-06-09T11:32:36+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Linux Kernel Library Nabla Containers Internals</title><link href="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html" rel="alternate" type="text/html" title="Linux Kernel Library Nabla Containers Internals" /><published>2020-05-11T09:51:01+00:00</published><updated>2020-05-11T09:51:01+00:00</updated><id>https://retrage.github.io/2020/05/11/lkl-nabla-internals</id><content type="html" xml:base="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html">&lt;p&gt;This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post.&lt;/p&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-06-15T09:46:53+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした</title><link href="https://retrage.github.io/2020/06/15/9pfspkg.html" rel="alternate" type="text/html" title="UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした" /><published>2020-06-15T09:37:23+00:00</published><updated>2020-06-15T09:37:23+00:00</updated><id>https://retrage.github.io/2020/06/15/9pfspkg</id><content type="html" xml:base="https://retrage.github.io/2020/06/15/9pfspkg.html">&lt;p&gt;UEFI向け9P File Systemを実装した．
+これにより9Pサーバからネットワークブートができるようになった．
+さらにFUSEと組み合わせることで少ない労力で9Pサーバ経由で
+クラウドからネットワークブートができるようになった．&lt;/p&gt;
+
+&lt;p&gt;ソースコードと発表資料と発表の録画は以下で公開している．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/9pfsPkg&lt;/li&gt;
+  &lt;li&gt;https://speakerdeck.com/retrage/network-boot-from-bell-labs&lt;/li&gt;
+  &lt;li&gt;https://youtu.be/3PX19nWrygQ&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;ネットワークブート&quot;&gt;ネットワークブート&lt;/h2&gt;
+
+&lt;p&gt;通常OSを起動するときBIOSはローカルディスクにアクセスしてブートイメージをロードする．
+ネットワークブートではローカルディスクの代わりにネットワーク上のサーバからブートイメージをロードする．
+これを実現するためにBIOSはネットワークスタックを持っている．
+既存のネットワークブートにはPXE BootとHTTP Bootがある．&lt;/p&gt;
+
+&lt;p&gt;PXEはPre-boot eXecution Environmentの略である．
+UEFI以前のLegacy BIOSから使われており，現在でも広く利用されている．
+PXEは標準化されており，プロプライエタリな実装以外にもiPXEというオープンソースな実装も存在する．
+PXEではTFTPというプロトコルでファイルの転送を行う．
+TFTPはPXE以外では一般的にあまり使われておらずPXE Bootのために特別にサーバを用意する必要がある．&lt;/p&gt;
+
+&lt;p&gt;HTTP Bootはその名の通りHTTPを使ってファイルの転送を行うネットワークブートである．
+このためApache HTTP Serverなどの一般的なHTTPサーバが利用できる．
+HTTP Bootは2015年にUEFI 2.5より標準化されており，DNSのサポートやTLSのサポートもあり，
+比較的セキュアかつモダンなやり方でブートができるようになっている[0]，&lt;/p&gt;
+
+&lt;p&gt;ここでUEFIのHTTPのインターフェースを示す，&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-http-protocol.png&quot; alt=&quot;EFI HTTP Protocol&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Configure()&lt;/code&gt;で設定を行い，&lt;code class=&quot;highlighter-rouge&quot;&gt;Request()&lt;/code&gt;でリクエストを送信し&lt;code class=&quot;highlighter-rouge&quot;&gt;Response()&lt;/code&gt;でレスポンスを受け取る．
+これらを用いてHTTP Bootのbootloaderを要約して次のように書くことができる．&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;HttpBootLoader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Send request&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Request&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TxToken&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Recieve response&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Response&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RxToken&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Start loaded image&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gBS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;StartImage&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ImageHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;uefiの拡張性&quot;&gt;UEFIの拡張性&lt;/h2&gt;
+
+&lt;p&gt;UEFIはUnified Extensible Firmware Interfaceの略であり，Extensibleとあるように拡張性がある，
+UEFIはモジュール性のあるデザインとなっている．モジュールの一つの単位をProtocolという．
+UEFIはProtocolをロードする関数を中核となる機能に持っている．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_BOOT_SERVICES.InstallProtocolInterface()&lt;/code&gt;の&lt;code class=&quot;highlighter-rouge&quot;&gt;Interface&lt;/code&gt;に
+ロードされたProtocolを渡すことでUEFIが外部のProtocolを導入できる．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-install-protocol-interface.png&quot; alt=&quot;EFI_BOOT_SERVICES.InstallProtocolInterface()&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;UEFIのProtocolの例としてSimple File System Protocolを紹介する．
+このProtocolはファイルシステム非依存のファイルへの操作のインターフェースを提供する．
+Simple File System ProtocolとFile Protocolの関数を示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-simple-file-system-protocol.png&quot; alt=&quot;EFI Simple File System Protocol&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Simple File System Protocolの&lt;code class=&quot;highlighter-rouge&quot;&gt;OpenVolume()&lt;/code&gt;によりボリュームを開き，
+そのルートディレクトリを表すFile Protocolである&lt;code class=&quot;highlighter-rouge&quot;&gt;Root&lt;/code&gt;が得られる．
+File Protocolには&lt;code class=&quot;highlighter-rouge&quot;&gt;Open()&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;Read()&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;Write()&lt;/code&gt;などのファイルへの操作が
+ファイルシステム非依存な形式のインターフェースで用意されている．&lt;/p&gt;
+
+&lt;p&gt;しかし，このようなファイルシステム非依存なインターフェースを持っている一方でUEFIはデフォルトではFATしか対応していない．
+Simple File System Protocolによる非FATなファイルシステムを使った例としてここではUEFI Rootkitsを挙げる．
+Rootkitsはカーネルやファームウェアをターゲットとしたマルウェアであり，UEFI RootkitsはUEFIをターゲットとしたものである．
+Rootkitsの役割はシステムに感染後，他のRootkitsや監視を行うエージェントなどをインストールすることである．
+こうしたUEFI Rootkitsの例としてHacking TeamのrkloaderとLoJaxを挙げる．
+Hacking TeamはイタリアにHQがあるセキュリティ企業であるが2015年に攻撃されて内部で使われていたソースコードが流出した．
+そうしたソースコードの中に含まれていたのはrkloader[2]である．
+一方LoJax[3]は2018年に初めてin-the-wildで報告されたUEFI Rootkitsである．
+rkloaderとLoJaxの共通点としてNTFSのUEFI Driverを持っている点が挙げられる．
+これによりターゲットのWindowsに対してKernel Rootkitsなどを埋め込むことができる．
+このNTFSにはNTFS-3GというNTFSのオープンソースの実装をUEFIに移植しており，
+インターフェースとして先に挙げたSimple File System Protocolを持っている．
+ここでrkloaderでのエージェントの埋め込みがSimple File System Protocolによっていかに簡単に行われているかを示す．&lt;/p&gt;
+
+&lt;p&gt;まず&lt;code class=&quot;highlighter-rouge&quot;&gt;Open()&lt;/code&gt;によりファイルを開き，&lt;code class=&quot;highlighter-rouge&quot;&gt;Write()&lt;/code&gt;により書き込みを行い，&lt;code class=&quot;highlighter-rouge&quot;&gt;Close()&lt;/code&gt;で閉じる．
+インストールといっても非常に簡潔に記述されていることがわかる．&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;EFIAPI&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;InstallAgent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_FILE_HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CHAR16&lt;/span&gt;	&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;FileNameUser&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Open FileNameScout as FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Open&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileNameScout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_READ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_WRITE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_CREATE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Write pSectiondata to FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VirtualSize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UINT8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSectiondata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Close FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;plan-9-file-protocol&quot;&gt;Plan 9 File Protocol&lt;/h2&gt;
+
+&lt;p&gt;Simple File System Protocolの有効性を示せたところで最初の話題であるネットワークブートについて考えてみる．
+既存のネットワークブートではネットワークを意識せざるを得ず柔軟性に欠ける，というのがここでの指摘である．
+そこでネットワーク透過なファイルシステムとプロトコルがあればファイルシステムの持つ柔軟性を確保しながらネットワークブートができると考えられる．&lt;/p&gt;
+
+&lt;p&gt;そこで登場するのがPlan 9 File Protocol (9P)[8]である，&lt;/p&gt;
+
+&lt;p&gt;Plan 9 from Bell Labs (Plan 9)[7]はオリジナルのUnixのベル研の開発者らによって開発された
+Unix後継のOSである．Unix哲学の一つとして”Everything is a file.”というのがあるが，
+Plan 9の特徴の一つとしてそれを押し進めた設計となっていることが挙げられる．
+Plan 9は商業的には失敗とされたものの，その成果として得られた規格や実装は多い．
+9PもそうしたPlan 9の成果の一つである．
+Plan 9ではファイルがローカル/リモートのどちらでも同様に扱うことができるようにするために9Pを開発した．
+以下に9Pでのファイルの読み込みまでの流れを示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-9p-flow.png&quot; alt=&quot;9P Flow&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;version, attachにより接続しルートディレクトリのファイルディスクリプタを得る．
+walkにより目的のファイルまでディレクトリを探索し，openによりそのファイルを開き，
+readによりファイルを読み込む．このように9Pではファイルへの操作がほぼ一対一対応したプロトコルとなっている．&lt;/p&gt;
+
+&lt;p&gt;9Pは明快かつシンプルなプロトコルであるためPlan 9と無関係なところでも多く利用されている．
+例えばLinux kernelではv9fsという9Pのクライアントファイルシステムを持っている[4]．
+またVirtIOではvirtio-9pという9Pサーバが実装されており，
+これによりホストのファイルシステムをゲストに対して共有する際に用いられている[5]．
+また，最近Windowsにアップデートが入りWindow Subsystem for Linux 2 (WSL2)が正式に提供されるようになった[6]．
+これはWSL1と違い，VM上にゲストのLinuxを動かすものである．
+通常VMのディスクイメージの実体はモノリシックなファイルであり，
+内部のファイルへのアクセスをホストのファイルと同様に行うことは難しい．
+そこでWSL2ではホストからゲストへのアクセスに9Pを用いている．
+ホストのWindowsは9Pクライアントを持っており，
+ゲストのLinuxのファイルへアクセスする際には9Pクライアントを経由してアクセスする．
+ゲストのLinuxは9Pサーバを持っており，ホストからの要求を処理してファイルを共有する．&lt;/p&gt;
+
+&lt;h2 id=&quot;9pfspkg&quot;&gt;9pfsPkg&lt;/h2&gt;
+
+&lt;p&gt;このように現在でも9Pは広く用いられている．
+そこで，9PのクライアントファイルシステムをUEFI向けに実装したので紹介する．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/9pfsPkg&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;9pfsPkgはSimple File System Protocolをインターフェースに持つ9PクライアントファイルシステムのUEFI driverである．
+先に示したように9Pではネットワーク透過にファイルシステムを扱うことができるため9pfsPkgでもその利点を活用できる，
+これによりUEFI Shellなどの既存のネットワークを意識しないツールでも
+一切の変更をせずにそのままネットワーク経由のファイル操作をができる．
+また，PXE Bootにみられるような専用のサーバを用意する必要がないというのも利点として挙げられる．&lt;/p&gt;
+
+&lt;h2 id=&quot;9p-boot&quot;&gt;9P Boot&lt;/h2&gt;
+
+&lt;p&gt;9Pによるネットワークブート(9P Boot)についてみていく，以下に9P Bootでの構成を示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-9p-boot-overview.png&quot; alt=&quot;9P Boot Overview&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;まずサーバ側で9Pサーバを適当なディレクトリ(e.g. &lt;code class=&quot;highlighter-rouge&quot;&gt;/tmp/9&lt;/code&gt;)をexported directoryに指定して起動しておく．
+次にクライアント側で9pfsPkgをロードする．これにより新しくボリュームが追加される．
+作成されたボリュームへの操作は9pfsPkgが処理を行い，
+9pfsPkgはUEFIのネットワークスタックを通じて9Pサーバと通信を行い，必要なファイル操作を行う．&lt;/p&gt;
+
+&lt;p&gt;これを実際に動かしてみると次のようになる．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://twitter.com/retrage/status/1262396289901309955?s=20&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;最初のUEFI Shellが起動した段階ではローカルのファイルシステム&lt;code class=&quot;highlighter-rouge&quot;&gt;FS0:&lt;/code&gt;のみが見える．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mapping table
+      FS0: Alias(s):HD0a65535a1:;BLK1:
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)/HD(1,MBR,0xBE1AFDFA,0x3F,0xFBFC1)
+     BLK0: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+     BLK2: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x2,0xFFFF,0x0)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;load 9pfs.efi&lt;/code&gt;によりUEFI driverをロードする．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\&amp;gt; load 9pfs.efi
+Image 'FS0:\9pfs.efi' loaded at 7E2E7000 - Success
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ロードされると新しくファイルシステム&lt;code class=&quot;highlighter-rouge&quot;&gt;FS1:&lt;/code&gt;が追加される．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mapping table
+      FS0: Alias(s):HD0a65535a1:;BLK1:                                          
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)/HD(1,MBR,0xBE1AFDFA,0x3F,0xFBFC1)
+      FS1: Alias(s):F1:
+          PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,0x1)
+     BLK0: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+     BLK2: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x2,0xFFFF,0x0)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;ここで注目したいのがファイルシステムのdevice pathである．
+ローカルの&lt;code class=&quot;highlighter-rouge&quot;&gt;FS0:&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)/HD(1,MBR,0xBE1AFDFA,0x3F,0xFBFC1)&lt;/code&gt;と
+なっているのに対し，
+リモートの&lt;code class=&quot;highlighter-rouge&quot;&gt;FS1:&lt;/code&gt;では&lt;code class=&quot;highlighter-rouge&quot;&gt;PciRoot(0x0)/Pci(0x2)/MAC(525400123456,0x1)&lt;/code&gt;となっており，
+ファイルシステムでは通常ありえないdevice pathとなっている．&lt;/p&gt;
+
+&lt;p&gt;この状態でも動作し，&lt;code class=&quot;highlighter-rouge&quot;&gt;fs1:&lt;/code&gt;で移動し&lt;code class=&quot;highlighter-rouge&quot;&gt;grubx64.efi&lt;/code&gt;によりGRUBを実行すると以下のように起動する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\&amp;gt; fs1:
+FS1:\&amp;gt; grubx64.efi
+                             GNU GRUB  version 2.02
+
+   Minimal BASH-like line editing is supported. For the first word, TAB
+   lists possible command completions. Anywhere else TAB lists possible
+   device or file completions.
+
+
+grub&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;このとき，UEFI ShellやGRUBからはローカルのファイルシステムを操作しているのと同じように扱われており，
+ネットワークブート固有の処理などはなされていないことを強調しておきたい．&lt;/p&gt;
+
+&lt;h2 id=&quot;proxy-boot&quot;&gt;Proxy Boot&lt;/h2&gt;
+
+&lt;p&gt;9P Bootによりネットワーク透過なファイルシステムによるネットワークブートが可能になった．
+しかし，これはあくまで利用するプロトコルが変わっただけであり，9Pを利用することによる恩恵が感じられにくい．
+そこで9pfsPkgの応用としてサーバを踏み台としてその先にあるサーバのファイルからブートする方法(Proxy Boot)を提示する．
+ここではより複雑な方法で共有されているファイルを簡単に扱うことができることを示すためにクラウドストレージからのブートを行う．
+Proxy Bootの概要を以下に示す．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-proxy-boot-overview.png&quot; alt=&quot;Proxy Boot Overview&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;クラウドストレージとしてGoogle Cloud Storage (GCS)を用いる．
+あらかじめGCSのbucketを作成してブートイメージをアップロードしておく．
+サーバ側にはgcsfuse[9]というGCSのbucketをマウントできるファイルシステムを用いてマウントしておく．
+9Pサーバのexported directoryにはgcsfuseのマウントポイント(e.g. /mnt/gcs)を指定しておく．
+あとは9P Bootと同様にクライアント側でボリュームをマウントするだけである．
+これにより，UEFIからはローカルのファイルと同じようにクラウドストレージにあるファイルを
+ネットワークを意識せずに操作することができる．&lt;/p&gt;
+
+&lt;p&gt;実際に動かしてみると次のようになる．&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://twitter.com/retrage/status/1267762465703485445?s=20&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;まず，GCSのbucketを作成しブートイメージをアップロードしておく．
+ここでは比較的規模が大きく実用的なものとしてBitVisorを起動することとする．
+&lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt;がBitVisorローダであり，&lt;code class=&quot;highlighter-rouge&quot;&gt;bitvisor.elf&lt;/code&gt;が本体である．
+これらはネットワークブートのための修正などは一切行われていないものであることを強調しておく．&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-gcs-bucket.png&quot; alt=&quot;GCS Bucket&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;次にサーバ側でgcsfuseを&lt;code class=&quot;highlighter-rouge&quot;&gt;/mnt/gcs&lt;/code&gt;をマウントポイントとしてマウントしておく．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ sudo -E gcsfuse proxy-boot /mnt/gcs
+ Using mount point: /mnt/gcs
+Opening GCS connection...
+Opening bucket...
+Mounting file system...
+File system has been successfully mounted.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;先ほどと同じように&lt;code class=&quot;highlighter-rouge&quot;&gt;load 9pfs.efi&lt;/code&gt;によりUEFI driverをロードして&lt;code class=&quot;highlighter-rouge&quot;&gt;fs1:&lt;/code&gt;に移動，
+&lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt;でBitVisorが起動する．&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Shell&amp;gt; fs0:
+FS0:\&amp;gt; load 9pfs.efi
+FS0:\&amp;gt; map -u
+FS0:\&amp;gt; fs1:
+FS1:\&amp;gt; loadvmm.efi
+Starting BitVisor...
+Copyright (c) 2007, 2008 University of Tsukuba
+All rights reserved.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;再度強調するが，UEFI Shellも&lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt;もあくまでローカルのファイルと全く同じように操作しており，
+操作しているファイルがクラウドストレージにあるということは一切考慮していない．&lt;/p&gt;
+
+&lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;既存のネットワークブートはネットワークを意識せざるを得ず柔軟性に欠けるというのがここでの指摘であった．
+9Pは現在でも広く使われており，UEFI向けの9Pクライアントファイルシステム(9pfsPkg)を実装することで
+ネットワーク透過なファイルシステムによるネットワークブート(9P Boot)が可能となった．
+これによりネットワークを意識しないでファイルを扱うことができるようになった．
+さらに9pfsPkgの応用としてサーバを踏み台としてクラウドストレージを間接的にマウントしてブート
+(Proxy Boot)できるようになった．これによりクラウドからのブートも非常に少ない労力で行えるようになった．&lt;/p&gt;
+
+&lt;h2 id=&quot;参考文献&quot;&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[0] https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_A_Feb14.pdf&lt;/li&gt;
+  &lt;li&gt;[1] https://tnishinaga.hatenablog.com/entry/2017/12/22/221956&lt;/li&gt;
+  &lt;li&gt;[2] https://github.com/hackedteam/vector-edk&lt;/li&gt;
+  &lt;li&gt;[3] https://www.welivesecurity.com/wp-content/uploads/2018/09/ESET-LoJax.pdf&lt;/li&gt;
+  &lt;li&gt;[4] https://www.kernel.org/doc/Documentation/filesystems/9p.txt&lt;/li&gt;
+  &lt;li&gt;[5] https://www.linux-kvm.org/page/9p_virtio&lt;/li&gt;
+  &lt;li&gt;[6] https://youtu.be/63wVlI9B3Ac?t=481&lt;/li&gt;
+  &lt;li&gt;[7] https://9p.io/plan9/&lt;/li&gt;
+  &lt;li&gt;[8] http://man.cat-v.org/plan_9/5/&lt;/li&gt;
+  &lt;li&gt;[9] https://github.com/GoogleCloudPlatform/gcsfuse&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">UEFI向け9P File Systemを実装した． これにより9Pサーバからネットワークブートができるようになった． さらにFUSEと組み合わせることで少ない労力で9Pサーバ経由で クラウドからネットワークブートができるようになった．</summary></entry><entry><title type="html">Linux Kernel Library Nabla Containers Internals</title><link href="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html" rel="alternate" type="text/html" title="Linux Kernel Library Nabla Containers Internals" /><published>2020-05-11T09:51:01+00:00</published><updated>2020-05-11T09:51:01+00:00</updated><id>https://retrage.github.io/2020/05/11/lkl-nabla-internals</id><content type="html" xml:base="https://retrage.github.io/2020/05/11/lkl-nabla-internals.html">&lt;p&gt;This post describes the design and implementation of Linux Kernel Library Nabla Containers (LKL Nabla), Linux based unikernels as processes. The previous post introduces LKL Nabla and provides how to build and run. Since most of the unikernel work is done by frankenlibc LKL/musl, mainly focus on frankenlibc Solo5 port in this post.&lt;/p&gt;
 
 &lt;p&gt;You can find LKL Nabla code at:&lt;/p&gt;
 
@@ -2062,315 +2366,4 @@ Assertion Errorについて解決できたので追記する．
 &lt;a href=&quot;https://acpica.org/node/124&quot;&gt;VERSION 20160527&lt;/a&gt;
 を利用してビルドする．
 手元ではこれでDebug, Relaseどちらも動作することを確認した．
-Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry><entry><title type="html">ELVMのEFI Byte Codeバックエンドを作る</title><link href="https://retrage.github.io/2019/07/13/elvm-ebc.html" rel="alternate" type="text/html" title="ELVMのEFI Byte Codeバックエンドを作る" /><published>2019-07-13T08:23:26+00:00</published><updated>2019-07-13T08:23:26+00:00</updated><id>https://retrage.github.io/2019/07/13/elvm-ebc</id><content type="html" xml:base="https://retrage.github.io/2019/07/13/elvm-ebc.html">&lt;p&gt;ここでは
-&lt;a href=&quot;https://github.com/shinh/elvm&quot;&gt;ELVM&lt;/a&gt;
-のEFI Byte Codeバックエンドについて紹介する．
-特にELVM IRとEFI Byte Codeのsemantic gapに注目する．&lt;/p&gt;
-
-&lt;h2 id=&quot;efi-byte-codeについて&quot;&gt;EFI Byte Codeについて&lt;/h2&gt;
-
-&lt;p&gt;EFI Byte Code (EBC)はUEFI Specificationで定義されている
-アーキテクチャ非依存なUEFI向けデバイスドライバのための仮想マシンである，
-EBCの詳細については過去の記事である
-&lt;a href=&quot;https://retrage.github.io/2018/11/11/efi-byte-code-myth.html&quot;&gt;EFI Byte Code解説&lt;/a&gt;
-を参考にしたい．&lt;/p&gt;
-
-&lt;h2 id=&quot;ebcバックエンドのビルドとテスト&quot;&gt;EBCバックエンドのビルドとテスト&lt;/h2&gt;
-
-&lt;p&gt;コードは以下で公開している．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;https://github.com/retrage/elvm/tree/retrage/ebcvm&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;以下でビルドとebcvmによるテストが行える．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ git clone https://github.com/retrage/elvm.git
-$ cd elvm &amp;amp;&amp;amp; git checkout retrage/ebcvm
-$ make ebc
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;バックエンドの概要&quot;&gt;バックエンドの概要&lt;/h2&gt;
-
-&lt;p&gt;EBCは64-bitなlittle endianなアーキテクチャであり，
-UEFIの仕様ではEBCのバイナリフォーマットはPE32+である．
-ELVMにはLinux向けのx86_32とARMのバックエンドが存在し，これらは直接ELFを出力する．
-一方でPEのサポートがないため新たにPEの出力をELVMに追加した．&lt;/p&gt;
-
-&lt;p&gt;EBCバックエンドの構成は既存のx86_32やARMのバックエンドを参考にしている．
-出力されるPEは&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;セクションと&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;セクションの2つのセクションを持つ．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;.text&lt;/code&gt;セクションにはELVM IRから変換したコードが配置され，
-&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;セクションには後述のELVM IRでのプログラムカウンタと実アドレスのテーブルが配置される．&lt;/p&gt;
-
-&lt;h2 id=&quot;pc2addrの作成&quot;&gt;pc2addrの作成&lt;/h2&gt;
-
-&lt;p&gt;ELVM IRでは&lt;code class=&quot;highlighter-rouge&quot;&gt;JMP&lt;/code&gt;命令などのターゲットのアドレスを
-ELVM IRにおけるプログラムカウンタの値で保持している．
-一方でEBCではターゲットのアドレスは実アドレスでなければならない．
-このため，ELVM IRでのプログラムカウンタの値と実アドレスの対応表を作成する必要がある．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;c1&quot;&gt;// pc_cnt: get program counter count&lt;/span&gt;
-  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;++&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最初にELVM IRのtextの命令数を&lt;code class=&quot;highlighter-rouge&quot;&gt;pc_cnt&lt;/code&gt;に数え上げる．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;c1&quot;&gt;// pc2addr: table from pc to addr&lt;/span&gt;
-  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;calloc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;sizeof&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;k&quot;&gt;for&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;module&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;next&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;!=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;prev_pc&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pc&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;ebc_emit_inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc2addr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;にプログラムカウンタの値をインデックスとして
-実アドレスの値のテーブルを作成する．
-ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;ebc_emit_inst()&lt;/code&gt;を呼んでいるが，
-実際にEBCの命令を出力しているのではなく出力される命令の大きさ分
-&lt;code class=&quot;highlighter-rouge&quot;&gt;g_emit_cnt&lt;/code&gt;をインクリメントしているだけである．&lt;/p&gt;
-
-&lt;h2 id=&quot;ヘッダの生成&quot;&gt;ヘッダの生成&lt;/h2&gt;
-
-&lt;p&gt;ELFやPEなどのバイナリフォーマットでは各セクションの大きさが
-正しくヘッダに書き込まれている必要がある．
-このため，実際にバイナリを出力する前に必ず先にセクションの大きさを計算して置く必要がある．
-既に&lt;code class=&quot;highlighter-rouge&quot;&gt;g_emit_cnt&lt;/code&gt;と&lt;code class=&quot;highlighter-rouge&quot;&gt;pc_cnt&lt;/code&gt;に必要な値が取得できているので，
-これらを元に出力する．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;  &lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.text&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PE_HEADER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PE_HEADER_SIZE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x60000020&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// r-x exec&lt;/span&gt;
-
-  &lt;span class=&quot;n&quot;&gt;strcpy&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;name&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;.rodata&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;pc_cnt&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;raddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
-                                                    &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rsize&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_FILE_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;chars&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x40000040&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// r-- inited&lt;/span&gt;
-
-  &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;aligned&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vsize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PE_SEC_ALIGN&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-
-  &lt;span class=&quot;c1&quot;&gt;// generate PE header&lt;/span&gt;
-  &lt;span class=&quot;n&quot;&gt;emit_headers&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;imagesz&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;elvm-irとebcの対応&quot;&gt;ELVM IRとEBCの対応&lt;/h2&gt;
-
-&lt;p&gt;ELVM IRはA, B, C, D, SP, BPの6個のレジスタを持つ．
-一方EBCはR0, R1, R2, R3, R4, R5, R6, R7, IP, FLAGSの10個のレジスタを持つ．
-このうちR0はスタックポインタとして予約されているため，
-以下のように対応させる．
-なお，R7は保存する必要のないレジスタとした．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kt&quot;&gt;int&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; 
-  &lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// A - R1&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// B - R2&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// C - R3&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// D - R4&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// BP - R5&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// SP - R6&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// R7 - free register&lt;/span&gt;
-  &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// R0 - stack pointer&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;前述の通り，ELVM IRとEBCにはsemantic gapが存在するため，
-これを埋めるように実装を行う．&lt;/p&gt;
-
-&lt;h3 id=&quot;setcc&quot;&gt;setcc&lt;/h3&gt;
-
-&lt;p&gt;ELVM IRにおいてEQ, NE, LT, GT, LE, GEなどのsetcc命令は
-srcとdstの2つのオペランドを持ち，
-dstとsrcを比較し結果をdstに0, 1で代入するというものである．&lt;/p&gt;
-
-&lt;p&gt;一方EBCではCMP命令が存在するが，
-これはOperand1とOperand2の2つオペランドを持ち，
-これらを比較して結果をFLAGSの0-bitにあるCフラグを設定するというものである．
-ELVM IRのsetccと対応させるためには次の2つの問題がある．&lt;/p&gt;
-
-&lt;ol&gt;
-  &lt;li&gt;CMP命令の結果をOperand1に代入する必要がある．&lt;/li&gt;
-  &lt;li&gt;ELVM IRにあるLT, GTに相当するものが存在しない．&lt;/li&gt;
-&lt;/ol&gt;
-
-&lt;p&gt;1つ目の問題については以下のようなコードを生成することで対応させる．
-CMP命令の結果によって設定されたCフラグを元にconditional branchを行い
-それぞれ飛んだ先でdstの値を設定する．
-なお，CMP命令にはELVM IRのNEに相当するものが存在しないが，
-conditional branchの設定を変えることでこれに対応できる．&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;    CMP32 dst, src
-    JMP8[cc/cs] .L1
-.L0:
-    MOVIdd dst, 0x01
-    JMP8 .L2
-.L1:
-    MOVIdd dst, 0x00
-    JMP8 .L2
-.L2
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;p&gt;2つ目の問題についてELVM IRでは扱う値が整数のみであるため，
-以下のようなコードで対応できる．
-まずGTであればGE，LTであればLEで比較を行い
-その結果が0であればそのまま0をdstに代入する．
-結果が1であればさらにEQで比較を行う．&lt;/p&gt;
-
-&lt;pre&gt;&lt;code class=&quot;language-asm&quot;&gt;    CMP32 dst, src
-    JMP8cc .L1
-    CMPeq dst, src
-    JMP8cs .L1
-.L0:
-    MOVIdd dst, 0x01
-    JMP8 .L2
-.L1:
-    MOVIdd dst, 0x00
-    JMP8 .L2
-.L2
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h3 id=&quot;jcc&quot;&gt;jcc&lt;/h3&gt;
-
-&lt;p&gt;ELVM IRのJEQ, JNE, JLT, JGT, GLE, JGEなどのjcc命令についても
-setcc命令と同様である．
-ただし，ジャンプを行う点で大きく異なり，前述の&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;テーブルを用いる．
-&lt;code class=&quot;highlighter-rouge&quot;&gt;pc2addr&lt;/code&gt;は&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;に存在するため&lt;code class=&quot;highlighter-rouge&quot;&gt;.rodata&lt;/code&gt;の先頭アドレスを取得し
-ELVM IRのプログラムカウンタの値を添字として目的のアドレスの値を取得する．
-以下が該当部分のコードである．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    &lt;span class=&quot;c1&quot;&gt;// MOVREL R1, rodata&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0xb9&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_le&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;rodata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;text&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vaddr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;emit_cnt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_imm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x04&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x4e&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MUL64 R7, R2&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x4c&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// ADD64 R7, R1&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x23&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x80&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVdd R7, @R7&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;putcgetc&quot;&gt;PUTC/GETC&lt;/h2&gt;
-
-&lt;p&gt;EBCは単体では外部にアクセスすることができない．
-そのため，UEFIのnativeの機能を&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;により呼び出すことで
-文字の読み書きを実現する．ここではPUTCを例に挙げる．&lt;/p&gt;
-
-&lt;p&gt;UEFIでは文字の出力はSystemTableに含まれるConOutがStdErrを利用する．
-これらはSimple Text Output Protocolであり，実際に文字の出力を行うのは
-&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;である，&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;typedef&lt;/span&gt;
-&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFIAPI&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_TEXT_STRING&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL&lt;/span&gt;  &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;This&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
-    &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CHAR16&lt;/span&gt;                           &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;String&lt;/span&gt;
-&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ここに示すように第2引数に出力したい文字列へのポインタを渡すようになっている．
-EBCの呼出規約はCDECLであり，
-関数の引数は全てスタック経由で渡すように定められている．
-この場合，逆順に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;が先にスタックにプッシュされることとなる，
-ここで&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;はCHAR16のポインタであることに注意したい．&lt;/p&gt;
-
-&lt;p&gt;渡される&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;はEBCのバックエンドではスタック上に確保した8-byteの領域となっている．
-以下に対応するコードを示す．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inst&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;src&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_imm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xff00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x6b&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSH64 R2; String&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_ebc_mov_reg&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;R0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
-      &lt;span class=&quot;c1&quot;&gt;// MOVbw @R2, R7&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x1d&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R7&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x08&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;+&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EBCREG&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;R2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;最初にR7に出力したい文字を代入し，R2に0xff00を代入する．
-R2をプッシュしスタック上に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;となる領域を確保する．
-R2にスタックポインタR0の値を代入しR7の値を確保した領域にコピーする．
-以上の操作でR2の指すスタック上の領域は次のようになる．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;00 00 00 00 00 00 ff xx
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ここでxxは出力される文字であり，ff以降の00 00は終端文字として扱われる．
-間にffを入れている理由については後述する．&lt;/p&gt;
-
-&lt;p&gt;次に&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;を呼ぶためにConOutの&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;のアドレスを計算する．
-ここで注意したいのはSystemTableのアドレスはnativeなものであり，
-アドレスは環境依存である点である．
-EBCにはNatural Indexと呼ばれる環境依存のアドレスに対応するための仕様が存在するため
-これを用いてアドレスを計算する．&lt;/p&gt;
-
-&lt;p&gt;UEFIのイメージのエントリポイントからConOutの&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;までは
-SystemTable-&amp;gt;ConOut-&amp;gt;OutputStringとたどれるようになっている．&lt;/p&gt;
-
-&lt;p&gt;R1に&lt;code class=&quot;highlighter-rouge&quot;&gt;OutputString()&lt;/code&gt;のアドレス，R2に&lt;code class=&quot;highlighter-rouge&quot;&gt;String&lt;/code&gt;のアドレスが代入されたので
-これらをプッシュして&lt;code class=&quot;highlighter-rouge&quot;&gt;CALLex&lt;/code&gt;を呼ぶ．&lt;/p&gt;
-
-&lt;div class=&quot;language-c highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x60&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x07&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x28&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVqw R7, R0 (0, +40)&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x72&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0xf1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x41&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVn R1, @R7(.SystemTable)&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x72&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x91&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x85&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x21&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// MOVn R1, @R1(.ConOut)&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x35&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x02&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSHn R2&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x35&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x01&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// PUSHn R1&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;emit_6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mh&quot;&gt;0x83&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x29&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x01&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x00&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mh&quot;&gt;0x10&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt; &lt;span class=&quot;c1&quot;&gt;// CALLEX @R1(.OutputString)&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h3 id=&quot;終端文字の扱いについて&quot;&gt;終端文字の扱いについて&lt;/h3&gt;
-
-&lt;p&gt;TianoCoreの実装では&lt;code class=&quot;highlighter-rouge&quot;&gt;CHAR_NULL&lt;/code&gt;=0x0000を終端文字としているが，
-ELVMのテストでは標準入出力を用いてバイナリの入出力を行っている．
-このため，出力したいCHAR16文字の後半を0x00としてしまうと
-期待される出力が0x00だった場合に終端文字として扱われてしまう．
-そこで出力されるCHAR16の後半を0xffで埋めることでこれを回避する．
-実際に文字を出力する際には0x00ffでマスクをかけて文字を得る．&lt;/p&gt;
-
-&lt;h2 id=&quot;テスト&quot;&gt;テスト&lt;/h2&gt;
-
-&lt;p&gt;以上のように実装したEBCバックエンドだが，
-ELVMのテストはUnix-likeな環境を想定しており，UEFI Shellではテストができない．
-そこで以前に作成したユーザ空間で動作するEBCの実装である
-&lt;a href=&quot;https://github.com/yabits/ebcvm&quot;&gt;ebcvm&lt;/a&gt;
-を用いてテストを行った．
-ebcvmについては
-&lt;a href=&quot;https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html&quot;&gt;ebcvm: A Usermode EFI Byte Code Virtual Machine&lt;/a&gt;
-で紹介している．&lt;/p&gt;
-
-&lt;p&gt;ELVMのテストで生成されたバイナリの一部はQEMU上のOVMFで実際に動作する．
-以下はCで書かれたfizzbuzzの実行結果の一部である．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\bin\&amp;gt; fizzbuzz_fast.c.eir.ebc
-1
-2
-Fizz
-4
-Buzz
-Fizz
-7
-8
-Fizz
-Buzz
-11
-Fizz
-13
-14
-FizzBuzz
-16
-17
-Fizz
-19
-Buzz
-Fizz
-22
-23
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;</content><author><name></name></author><summary type="html">ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する．</summary></entry></feed>
+Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry></feed>
