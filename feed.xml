@@ -1,4 +1,223 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-06-15T09:46:53+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした</title><link href="https://retrage.github.io/2020/06/15/9pfspkg.html" rel="alternate" type="text/html" title="UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした" /><published>2020-06-15T09:37:23+00:00</published><updated>2020-06-15T09:37:23+00:00</updated><id>https://retrage.github.io/2020/06/15/9pfspkg</id><content type="html" xml:base="https://retrage.github.io/2020/06/15/9pfspkg.html">&lt;p&gt;UEFI向け9P File Systemを実装した．
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2020-08-01T07:20:07+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">9pfsPkg: Network Boot from Bell Labs</title><link href="https://retrage.github.io/2020/08/01/9pfspkg-en.html" rel="alternate" type="text/html" title="9pfsPkg: Network Boot from Bell Labs" /><published>2020-08-01T07:15:51+00:00</published><updated>2020-08-01T07:15:51+00:00</updated><id>https://retrage.github.io/2020/08/01/9pfspkg-en</id><content type="html" xml:base="https://retrage.github.io/2020/08/01/9pfspkg-en.html">&lt;p&gt;I developed a Plan 9 file system (9P) client for UEFI to enable network booting from a commodity 9P server. By leveraging the simplicity and flexibility of 9P, the UEFI can do network boot from cloud storage without any effort. This blog post gives you a brief overview of 9pfsPkg.&lt;/p&gt;
+
+&lt;p&gt;The source code, introduction slides, and presentation video are available at:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/9pfsPkg&lt;/li&gt;
+  &lt;li&gt;https://speakerdeck.com/retrage/network-boot-from-bell-labs&lt;/li&gt;
+  &lt;li&gt;https://youtu.be/3PX19nWrygQ&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;what-is-network-boot&quot;&gt;What is Network Boot?&lt;/h2&gt;
+
+&lt;p&gt;Network boot is a boot method which loading boot images over the network. To make this possible, the BIOS has its network stack.
+There are two methods for network booting: PXE Boot and HTTP Boot.&lt;/p&gt;
+
+&lt;p&gt;PXE (Pre-eXecution Environment) Boot is the most widely used method as it exists from the Legacy BIOS era. It is standardized and implemented as not only proprietary but also open source. PXE boot uses TFTP to transfer files. This protocol is not popular, so it requires a dedicated TFTP server.&lt;/p&gt;
+
+&lt;p&gt;HTTP Boot uses HTTP for transferring images. It has been standardized from UEFI 2.5 in 2015[0]. It supports modern features like DNS and TLS. Since it uses HTTP, we can use commodity HTTP servers (e.g. Apache HTTP Server, Nginx).&lt;/p&gt;
+
+&lt;p&gt;Below is the interface of the HTTP protocol.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-http-protocol.png&quot; alt=&quot;EFI HTTP Protocol&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Configure()&lt;/code&gt; sets the configuration, &lt;code class=&quot;highlighter-rouge&quot;&gt;Request()&lt;/code&gt; sends a request, and &lt;code class=&quot;highlighter-rouge&quot;&gt;Response()&lt;/code&gt; receives a response. By using these functions, we can implement HTTP Boot bootloader like this:&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;HttpBootLoader&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Send request&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Request&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TxToken&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Recieve response&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Response&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Http&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;RxToken&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Start loaded image&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;gBS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;StartImage&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ImageHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;NULL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;This example shows how it is easy to boot with HTTP on UEFI.&lt;/p&gt;
+
+&lt;h2 id=&quot;uefi-is-extensible&quot;&gt;UEFI is Extensible&lt;/h2&gt;
+
+&lt;p&gt;UEFI is an abbreviation of the Unified Extensible Firmware Interface. As it includes the word “Extensible,” it has a modular design. The modules are called “Protocol” and UEFI has features that load external protocols in its core. By calling &lt;code class=&quot;highlighter-rouge&quot;&gt;EFI_BOOT_SERVICES.InstallProtocolInterface()&lt;/code&gt; with passing a loaded protocol to &lt;code class=&quot;highlighter-rouge&quot;&gt;Interface&lt;/code&gt; argument, it installs an external protocol.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-install-protocol-interface.png&quot; alt=&quot;EFI_BOOT_SERVICES.InstallProtocolInterface()&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;As an example of a UEFI protocol, I introduce the Simple File System Protocol. This protocol provides a file system independent file operation interfaces. Here is a figure of the interfaces.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-efi-simple-file-system-protocol.png&quot; alt=&quot;EFI Simple File System Protocol&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;OpenVolume()&lt;/code&gt; in Simple File System Protocol opens a volume and returns File Protocol &lt;code class=&quot;highlighter-rouge&quot;&gt;Root&lt;/code&gt; that represents the root directory. File Protocol provides file operation functions like &lt;code class=&quot;highlighter-rouge&quot;&gt;Open()&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Read()&lt;/code&gt;, &lt;code class=&quot;highlighter-rouge&quot;&gt;Write()&lt;/code&gt;.&lt;/p&gt;
+
+&lt;p&gt;However, even it has abstract interfaces, UEFI supports the FAT file system only by default. There are some third-party non-FAT file system drivers. Here is an example of the use of such a file system driver: UEFI Rootkits. A rootkit is malware that targets kernels or firmware. Once infected, it installs other rootkits and/or agents. Hacking Team’s rkloader[2] and LoJax[3] are such UEFI rootkits. They have NTFS UEFI drivers to embed kernel rootkits to the target Windows system. This driver is a port of NTFS-3G, an open-source NTFS implementation, and has Simple File System Protocol as an interface. The following snippet from the rkloader shows how Simple File System Protocol makes embedding an agent easy.&lt;/p&gt;
+
+&lt;div class=&quot;language-cpp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;n&quot;&gt;EFI_STATUS&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;EFIAPI&lt;/span&gt;
+&lt;span class=&quot;nf&quot;&gt;InstallAgent&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_FILE_HANDLE&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;IN&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CHAR16&lt;/span&gt;	&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;  &lt;span class=&quot;n&quot;&gt;FileNameUser&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Open FileNameScout as FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Open&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CurDir&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileNameScout&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_READ&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_WRITE&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;|&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;EFI_FILE_MODE_CREATE&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Write pSectiondata to FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Write&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;VirtualSize&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;UINT8&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pSectiondata&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;));&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// Close FileHandle&lt;/span&gt;
+  &lt;span class=&quot;n&quot;&gt;Status&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Close&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;FileHandle&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;EFI_SUCCESS&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;First of all, open a file by &lt;code class=&quot;highlighter-rouge&quot;&gt;Open()&lt;/code&gt;, deploy the agent by &lt;code class=&quot;highlighter-rouge&quot;&gt;Write()&lt;/code&gt;, and close the file with &lt;code class=&quot;highlighter-rouge&quot;&gt;Close()&lt;/code&gt;. As you can see, it is simple and does not have any trick.&lt;/p&gt;
+
+&lt;h2 id=&quot;plan-9-file-protocol&quot;&gt;Plan 9 File Protocol&lt;/h2&gt;
+
+&lt;p&gt;Now, let’s think about network boot. I pointed out that the current network boots are network-aware and less flexibility. Thus, we want a network transparent file system and protocol for network boot while maintaining the feasibility of the file system.&lt;/p&gt;
+
+&lt;p&gt;Here is the answer: Plan 9 File Protocol (9P)[8]&lt;/p&gt;
+
+&lt;p&gt;Plan 9 from Bell Labs (Plan 9)[7] is a Unix successor OS developed by the original Unix developer in Bell Labs. “Everything is a file.”, which is a well known Unix philosophy, is a core design decision on Plan 9. P9 is a protocol developed by Plan 9 developers to deal with remote files in the same manner as local files. Below is a flow of loading a file with 9P.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-9p-flow.png&quot; alt=&quot;9P Flow&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;The client negotiates by &lt;code class=&quot;highlighter-rouge&quot;&gt;version&lt;/code&gt; and connects with &lt;code class=&quot;highlighter-rouge&quot;&gt;attach&lt;/code&gt; to get a file descriptor of the root directory. &lt;code class=&quot;highlighter-rouge&quot;&gt;walk&lt;/code&gt; searches to the target file, &lt;code class=&quot;highlighter-rouge&quot;&gt;open&lt;/code&gt; it, and &lt;code class=&quot;highlighter-rouge&quot;&gt;read&lt;/code&gt; it. As you can see, 9P is a protocol that file operations and messages correspond to one-by-one.&lt;/p&gt;
+
+&lt;p&gt;9P is popular in the fields of not related to Plan 9 due to clarity and simplicity. For instance, the Linux kernel has a 9P client file system called v9fs[4]. VirtIO has a virtio-9p 9P server to share the host file system with the guests[5].&lt;/p&gt;
+
+&lt;p&gt;Recently, Microsoft has released Windows 10 update, and Windows Subsystem for Linux 2 (WSL2) is now officially supported. It runs a guest Linux on the Hyper-V VM in contrast to WSL1. Because VM disk image is a monolithic file, it is hard to access inside files with the same manner of host file access. To solve this issue, WSL2 uses 9P to access guest files from the host. The host Windows has 9P client to access the guest Linux files. The guest has a 9P server to process requests from the host to share the files[6].&lt;/p&gt;
+
+&lt;h2 id=&quot;9pfspkg&quot;&gt;9pfsPkg&lt;/h2&gt;
+
+&lt;p&gt;As I described in the previous section, 9P is still widely used nowadays. I implemented a 9P client file system for UEFI: 9pfsPkg.&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://github.com/yabits/9pfsPkg&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;9pfsPkg is a 9P client file system UEFI driver with a Simple File System Protocol interface. Because 9P is a network transparent file system, we can use existing non-network-aware tools (e.g. UEFI Shell) for file operations via networks without any modification by using 9pfsPkg. Another advantage of the file system is that it does not require dedicated servers (like TFTP in PXE Boot).&lt;/p&gt;
+
+&lt;h2 id=&quot;9p-boot&quot;&gt;9P Boot&lt;/h2&gt;
+
+&lt;p&gt;Let’s take a look at a boot by 9P (9P Boot). The below shows the overview.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-9p-boot-overview.png&quot; alt=&quot;9P Boot Overview&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;First of all, the 9P service runs on the server with an exported directory (e.g. &lt;code class=&quot;highlighter-rouge&quot;&gt;/tmp/9&lt;/code&gt;). Next, the client loads the 9pfsPkg UEFI driver to create a new volume. The driver processes operations to the file system volume and communicates with the server via the UEFI network stack to handle the file operations.&lt;/p&gt;
+
+&lt;p&gt;The below video clip shows what it looks:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://twitter.com/retrage/status/1262396289901309955?s=20&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;When the UEFI startups, we can see the local file system &lt;code class=&quot;highlighter-rouge&quot;&gt;FS0:&lt;/code&gt; only.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mapping table
+      FS0: Alias(s):HD0a65535a1:;BLK1:
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)/HD(1,MBR,0xBE1AFDFA,0x3F,0xFBFC1)
+     BLK0: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+     BLK2: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x2,0xFFFF,0x0)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Load 9pfsPkg UEFI driver by &lt;code class=&quot;highlighter-rouge&quot;&gt;load 9pfs.efi&lt;/code&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\&amp;gt; load 9pfs.efi
+Image 'FS0:\9pfs.efi' loaded at 7E2E7000 - Success
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;The new file system &lt;code class=&quot;highlighter-rouge&quot;&gt;FS1:&lt;/code&gt; has appeared.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Mapping table
+      FS0: Alias(s):HD0a65535a1:;BLK1:                                          
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)/HD(1,MBR,0xBE1AFDFA,0x3F,0xFBFC1)
+      FS1: Alias(s):F1:
+          PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,0x1)
+     BLK0: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+     BLK2: Alias(s):
+          PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x2,0xFFFF,0x0)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In contrast to local &lt;code class=&quot;highlighter-rouge&quot;&gt;FS0:&lt;/code&gt;, the device path of remote &lt;code class=&quot;highlighter-rouge&quot;&gt;FS1:&lt;/code&gt; is &lt;code class=&quot;highlighter-rouge&quot;&gt;PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,0x1)&lt;/code&gt;. It represents that the volume is on the remote server.&lt;/p&gt;
+
+&lt;p&gt;By executing &lt;code class=&quot;highlighter-rouge&quot;&gt;fs1:&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;grubx64.efi&lt;/code&gt;, it boots the bootloader GRUB.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;FS0:\&amp;gt; fs1:
+FS1:\&amp;gt; grubx64.efi
+                             GNU GRUB  version 2.02
+
+   Minimal BASH-like line editing is supported. For the first word, TAB
+   lists possible command completions. Anywhere else TAB lists possible
+   device or file completions.
+
+
+grub&amp;gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;At this point, UEFI Shell and GRUB deal with the remote files in the same manner as local files. There is no network boot specific process.&lt;/p&gt;
+
+&lt;h2 id=&quot;proxy-boot&quot;&gt;Proxy Boot&lt;/h2&gt;
+
+&lt;p&gt;9P Boot enables non-network-aware network boot. To take more advantages of the 9P, I propose Proxy Boot as an application of 9P Boot. It can boot from other servers via the direct server as a proxy. By using Proxy Boot, UEFI can boot from cloud storage without any effort. Following is the overview of Proxy Boot.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-proxy-boot-overview.png&quot; alt=&quot;Proxy Boot Overview&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;I used Google Cloud Storage (GCS) for the network boot. The storage bucket has boot images. The server mounts the bucket as a file system using gcsfuse[9]. The 9P server uses the gcsfuse’s mount point (e.g. /mnt/gcs) as an exported directory. The client mounts the volume in the same manner as 9P Boot. The client UEFI can treat the cloud storage files as if local files.&lt;/p&gt;
+
+&lt;p&gt;The below is the demo:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;https://twitter.com/retrage/status/1267762465703485445?s=20&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;Create a GCS bucket and upload boot images. I used BitVisor (thin-hypervisor) as a practical boot image. &lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt; is the loader, and &lt;code class=&quot;highlighter-rouge&quot;&gt;bitvisor.elf&lt;/code&gt; is the actual BitVisor image. They are default build and no modification for the network boot.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/9pfspkg-gcs-bucket.png&quot; alt=&quot;GCS Bucket&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;Next, mount the bucket on the server using gcsfuse at &lt;code class=&quot;highlighter-rouge&quot;&gt;/mnt/gcs&lt;/code&gt; mount point.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ sudo -E gcsfuse proxy-boot /mnt/gcs
+ Using mount point: /mnt/gcs
+Opening GCS connection...
+Opening bucket...
+Mounting file system...
+File system has been successfully mounted.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;On the client, load the driver with &lt;code class=&quot;highlighter-rouge&quot;&gt;load 9pfs.efi&lt;/code&gt;, move to &lt;code class=&quot;highlighter-rouge&quot;&gt;fs1:&lt;/code&gt;, and call &lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt; to boot BitVisor.&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Shell&amp;gt; fs0:
+FS0:\&amp;gt; load 9pfs.efi
+FS0:\&amp;gt; map -u
+FS0:\&amp;gt; fs1:
+FS1:\&amp;gt; loadvmm.efi
+Starting BitVisor...
+Copyright (c) 2007, 2008 University of Tsukuba
+All rights reserved.
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Once again, the UEFI Shell and &lt;code class=&quot;highlighter-rouge&quot;&gt;loadvmm.efi&lt;/code&gt; operates the cloud storage files as if local files, and there is no cloud-specific process.&lt;/p&gt;
+
+&lt;h2 id=&quot;conclusion&quot;&gt;Conclusion&lt;/h2&gt;
+
+&lt;p&gt;In this blog post, I pointed out that the existing network boots are network-aware and less flexible. The 9P client file system for UEFI (9pfsPkg) enables network transparent network boot (9P Boot). As an application of the 9pfsPkg, I proposed a network boot from cloud storage via the server (Proxy Boot) without any effort.&lt;/p&gt;
+
+&lt;h2 id=&quot;references&quot;&gt;References&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[0] https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_A_Feb14.pdf&lt;/li&gt;
+  &lt;li&gt;[1] https://tnishinaga.hatenablog.com/entry/2017/12/22/221956&lt;/li&gt;
+  &lt;li&gt;[2] https://github.com/hackedteam/vector-edk&lt;/li&gt;
+  &lt;li&gt;[3] https://www.welivesecurity.com/wp-content/uploads/2018/09/ESET-LoJax.pdf&lt;/li&gt;
+  &lt;li&gt;[4] https://www.kernel.org/doc/Documentation/filesystems/9p.txt&lt;/li&gt;
+  &lt;li&gt;[5] https://www.linux-kvm.org/page/9p_virtio&lt;/li&gt;
+  &lt;li&gt;[6] https://youtu.be/63wVlI9B3Ac?t=481&lt;/li&gt;
+  &lt;li&gt;[7] https://9p.io/plan9/&lt;/li&gt;
+  &lt;li&gt;[8] http://man.cat-v.org/plan_9/5/&lt;/li&gt;
+  &lt;li&gt;[9] https://github.com/GoogleCloudPlatform/gcsfuse&lt;/li&gt;
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">I developed a Plan 9 file system (9P) client for UEFI to enable network booting from a commodity 9P server. By leveraging the simplicity and flexibility of 9P, the UEFI can do network boot from cloud storage without any effort. This blog post gives you a brief overview of 9pfsPkg.</summary></entry><entry><title type="html">UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした</title><link href="https://retrage.github.io/2020/06/15/9pfspkg.html" rel="alternate" type="text/html" title="UEFI向け9P File Systemを作ってクラウドからネットワークブートできるようにした" /><published>2020-06-15T09:37:23+00:00</published><updated>2020-06-15T09:37:23+00:00</updated><id>https://retrage.github.io/2020/06/15/9pfspkg</id><content type="html" xml:base="https://retrage.github.io/2020/06/15/9pfspkg.html">&lt;p&gt;UEFI向け9P File Systemを実装した．
 これにより9Pサーバからネットワークブートができるようになった．
 さらにFUSEと組み合わせることで少ない労力で9Pサーバ経由で
 クラウドからネットワークブートができるようになった．&lt;/p&gt;
@@ -2283,87 +2502,4 @@ UEFIも2.8になりEBC自体がOptionalの扱いとなったため，
   &lt;li&gt;[8] https://llvm.org/docs/WritingAnLLVMBackend.html&lt;/li&gt;
   &lt;li&gt;[9] https://tatsu-zine.com/books/llvm&lt;/li&gt;
   &lt;li&gt;[10] https://github.com/lowRISC/riscv-llvm&lt;/li&gt;
-&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と EBCバックエンド固有の問題などについてみていく．</summary></entry><entry><title type="html">文鎮化したMinnowboardを復旧させる</title><link href="https://retrage.github.io/2019/07/14/bricked-minnowboard.html" rel="alternate" type="text/html" title="文鎮化したMinnowboardを復旧させる" /><published>2019-07-14T05:24:13+00:00</published><updated>2019-07-14T05:24:13+00:00</updated><id>https://retrage.github.io/2019/07/14/bricked-minnowboard</id><content type="html" xml:base="https://retrage.github.io/2019/07/14/bricked-minnowboard.html">&lt;p&gt;MinnowboardはIntel Atomを搭載した
-シングルボードコンピュータである．
-Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい
-brick (文鎮化) させてしまったので
-SPI Flashを外部から書き換えることで復旧させる．&lt;/p&gt;
-
-&lt;p&gt;今回対象とするのは&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Minnowboard MAX (MAX)&lt;/li&gt;
-  &lt;li&gt;Minnowboard Turbot Dual-Core (Turbot)&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;である．
-基本的にはこれらは同じ仕様であるが，
-後述するような差異がSPI Flashに存在する．&lt;/p&gt;
-
-&lt;h3 id=&quot;spi-flash-programmerを使った書き込み&quot;&gt;SPI Flash Programmerを使った書き込み&lt;/h3&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://minnowboard.org/tutorials/updating-firmware-via-spi-flash-programmer&quot;&gt;Updating Firmware via SPI Flash Programmer&lt;/a&gt;
-を参考にする．
-このチュートリアルではDediProg SF100という
-書き込み機を用いているが
-手元にないため，他の書き込み機を利用する．&lt;/p&gt;
-
-&lt;p&gt;Minnowboardが搭載するSPI Flashには2種類存在する．
-&lt;a href=&quot;https://github.com/MinnowBoard-org/bugs-and-help/issues/98&quot;&gt;Issue #98&lt;/a&gt;
-によればMAXや一部のTurbotでは1.8VをVccとするが
-大多数のTurbotではVccが3.3Vであるとのことである．
-これらの見分け方としてある抵抗が実装されているかで
-調べることができるとされている．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;抵抗R152があり，抵抗R818がない場合: 3.3V&lt;/li&gt;
-  &lt;li&gt;抵抗R152がなく，抵抗R818がある場合: 1.8V&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;p&gt;&lt;a href=&quot;https://minnowboard.org/minnowboard-turbot/documentation&quot;&gt;Minnowboard Turbot Domumentation&lt;/a&gt;
-によればそれぞれ次のようなSPI Flashが搭載されている．&lt;/p&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;3.3V: WINBOND W25Q64BVSSIG, MICRON N25Q064A13&lt;/li&gt;
-  &lt;li&gt;1.8V: WINBOND W25Q64FWSSIG, MICRON N25Q064A11&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;minnowboard-max&quot;&gt;Minnowboard MAX&lt;/h3&gt;
-
-&lt;p&gt;MAXは以前にcorebootのバイナリイメージを書き込んだが
-失敗したためbrickしていたものである．
-このボードでは1.8VのSPI Flashが搭載されていた．
-ここではEZP2010を用いて書き込みを行った．&lt;/p&gt;
-
-&lt;h3 id=&quot;minnowboard-turbot-dual-core&quot;&gt;Minnowboard Turbot Dual-Core&lt;/h3&gt;
-
-&lt;p&gt;Turbotに対して
-&lt;a href=&quot;https://firmware.intel.com/projects/minnowboard-max&quot;&gt;Intel Architecture Firmware Resource Center&lt;/a&gt;
-のrelease noteにあるように
-UEFI Shell経由でファームウェアを書き換えた．
-これはIntelの配布するバイナリイメージでは問題なく動作した．
-一方で手元でビルドしたファームウェアを書き込んだ場合，
-UEFI Shellに入る直前に次のようなAssertion Errorにより
-ハングするようになってしまった．&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;OSIndication Variable Value 0
-
-ASSERT_EFI_ERROR (Status = Not Found)
-ASSERT [ISPDxe] c:\minnowboard2closesource\Vlv2DeviceRefCodePkg\ValleyView2Soc\NorthCluster\ISPDxe\ISPDxe.c(273): !EFI_ERROR (Status)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;ここに書かれているソースコードは公開されておらず，
-バイナリファイルのみが配布されている．
-このため原因の特定は容易ではない．&lt;/p&gt;
-
-&lt;h3 id=&quot;20190805-追記&quot;&gt;2019/08/05 追記&lt;/h3&gt;
-
-&lt;p&gt;以上の記事について公開していたところ，
-Brian Delgadoさんから助言をいただき
-Assertion Errorについて解決できたので追記する．
-問題はファームウェアのビルドに使うiaslである．
-新しいiaslでは上記の問題が発生するため，
-&lt;a href=&quot;https://acpica.org/node/124&quot;&gt;VERSION 20160527&lt;/a&gt;
-を利用してビルドする．
-手元ではこれでDebug, Relaseどちらも動作することを確認した．
-Brian Delgadoさん，情報をどうもありがとうございました．&lt;/p&gt;</content><author><name></name></author><summary type="html">MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい brick (文鎮化) させてしまったので SPI Flashを外部から書き換えることで復旧させる．</summary></entry></feed>
+&lt;/ul&gt;</content><author><name></name></author><summary type="html">ここでは開発しているLLVMのEFI Byte Code (EBC)バックエンドの概要と EBCバックエンド固有の問題などについてみていく．</summary></entry></feed>
