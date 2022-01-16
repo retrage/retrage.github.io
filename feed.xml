@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2022-01-16T04:17:34+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Allwinner NezhaにJTAGで接続する</title><link href="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html" rel="alternate" type="text/html" title="Allwinner NezhaにJTAGで接続する" /><published>2022-01-15T19:14:19+00:00</published><updated>2022-01-15T19:14:19+00:00</updated><id>https://retrage.github.io/2022/01/15/allwinner-nezha-jtag</id><content type="html" xml:base="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html">&lt;p&gt;Allwinner NezhaはD1という64-bit RISC-VなSoCが載ったSBCである。Linuxがちゃんと動くRISC-Vマシンとしてはかなり安価なため一部で人気がある。
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2022-01-16T04:20:24+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">Allwinner NezhaにJTAGで接続する</title><link href="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html" rel="alternate" type="text/html" title="Allwinner NezhaにJTAGで接続する" /><published>2022-01-15T19:14:19+00:00</published><updated>2022-01-15T19:14:19+00:00</updated><id>https://retrage.github.io/2022/01/15/allwinner-nezha-jtag</id><content type="html" xml:base="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html">&lt;p&gt;Allwinner NezhaはD1という64-bit RISC-VなSoCが載ったSBCである。Linuxがちゃんと動くRISC-Vマシンとしてはかなり安価なため一部で人気がある。
 ここではこれにJTAGで接続してみた話をメモ程度に書いておく。なお、今回は接続してOpenOCDで認識できた程度でその先のGDBでのデバッグはできていない。&lt;/p&gt;
 
 &lt;h2 id=&quot;jtagの端子について&quot;&gt;JTAGの端子について&lt;/h2&gt;
@@ -90,8 +90,7 @@ FEL modeではNezhaのOTG USB経由でホストから操作を行う必要があ
 
 &lt;p&gt;うまくいくと以下のように &lt;code class=&quot;highlighter-rouge&quot;&gt;riscv.cpu&lt;/code&gt; のJTAG tapが見える。&lt;/p&gt;
 
-&lt;p&gt;TODO:
-&lt;img src=&quot;/img/nezha-jtag-openocd.png&quot; alt=&quot;Nezha JTAG OpenOCD&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&quot;/img/nezha-jtag-openocd.png&quot; alt=&quot;Nezha JTAG OpenOCD&quot; /&gt;&lt;/p&gt;
 
 &lt;p&gt;ただし、現時点では&lt;/p&gt;
 &lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;Error: riscv.cpu: IR capture error; saw 0x1e not 0x01
