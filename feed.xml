@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2022-12-31T03:16:54+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">2022年にやったこと</title><link href="https://retrage.github.io/2022/12/31/2022-review.html" rel="alternate" type="text/html" title="2022年にやったこと" /><published>2022-12-31T02:54:56+00:00</published><updated>2022-12-31T02:54:56+00:00</updated><id>https://retrage.github.io/2022/12/31/2022-review</id><content type="html" xml:base="https://retrage.github.io/2022/12/31/2022-review.html">&lt;blockquote class=&quot;twitter-tweet&quot;&gt;&lt;p lang=&quot;ja&quot; dir=&quot;ltr&quot;&gt;今年はブログ記事も書かなかったし、外から見えるアウトプットが目に見えて少なかった。今はまだ技術の貯金とか業務でコードを書いているのでいいが、そのうち技術も追いつかなくなって、「Twitterでは訳知り顔で抽象的な技術論を語るが、実際には手を動かしていないおじさん」化しそうで怖い&lt;/p&gt;&amp;mdash; retrage (@retrage) &lt;a href=&quot;https://twitter.com/retrage/status/1608981455182651392?ref_src=twsrc%5Etfw&quot;&gt;December 31, 2022&lt;/a&gt;&lt;/blockquote&gt;
-&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="3.8.5">Jekyll</generator><link href="https://retrage.github.io/feed.xml" rel="self" type="application/atom+xml" /><link href="https://retrage.github.io/" rel="alternate" type="text/html" /><updated>2022-12-31T03:26:57+00:00</updated><id>https://retrage.github.io/feed.xml</id><title type="html">retrage.github.io</title><subtitle>Blog posts by @retrage</subtitle><entry><title type="html">2022年にやったこと</title><link href="https://retrage.github.io/2022/12/31/2022-review.html" rel="alternate" type="text/html" title="2022年にやったこと" /><published>2022-12-31T02:54:56+00:00</published><updated>2022-12-31T02:54:56+00:00</updated><id>https://retrage.github.io/2022/12/31/2022-review</id><content type="html" xml:base="https://retrage.github.io/2022/12/31/2022-review.html">&lt;p&gt;https://twitter.com/retrage/status/1608981455182651392&lt;/p&gt;
 
 &lt;p&gt;こういう不安を感じたので、心の安寧を取り戻すために今月と今年に何をやったのかをまとめてみる。なお、自分の中で「取り組んでいることを話題にすると完成しなくなる」ジンクスがあるので、いまやっていることはここでは書かない。&lt;/p&gt;
 
@@ -26,8 +25,7 @@
 &lt;p&gt;aarch64/LinuxではUEFIを使った起動を採用しているが、Apple Siliconでは従来のIntel MacのようにEFI環境が用意されていない。このギャップを埋めるために、Asahi Linuxではm1n1というブートローダからu-bootを起動し、u-bootの提供するEFI環境を使って(GRUBを経由して)Linux kernelを起動する。
 ここで気になったのは、「u-bootでEFI環境を提供する代わりに、Rust Hypervisor Firmwareをm1n1に直接統合することでLinux起動できないか」ということである。幸い、m1n1にはRustで書かれたchainloadがあったため、これを入れ替える形でRHFをm1n1に統合できた。なお、RHFはx86_64向けだったので、これが初めてのaarch64対応でもあった。GRUBのロードと起動まではできたものの、本来であればGRUB CLIを操作して調査するところだが、USBキーボードのドライバがm1n1にはないので動かせないのでデバッグできず、そのまま放置してある。&lt;/p&gt;
 
-&lt;blockquote class=&quot;twitter-tweet&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;The unmodified GRUB launched from Rust Hypervisor Firmware integration for m1n1 entered the rescue shell. Next setting up full environment to boot Asahi Linux without u-boot. &lt;a href=&quot;https://t.co/xWQAz2sAOh&quot;&gt;pic.twitter.com/xWQAz2sAOh&lt;/a&gt;&lt;/p&gt;&amp;mdash; retrage (@retrage) &lt;a href=&quot;https://twitter.com/retrage/status/1521746313767170049?ref_src=twsrc%5Etfw&quot;&gt;May 4, 2022&lt;/a&gt;&lt;/blockquote&gt;
-&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;p&gt;https://twitter.com/retrage/status/1521746313767170049&lt;/p&gt;
 
 &lt;ul&gt;
   &lt;li&gt;https://github.com/retrage/m1n1/tree/rust-hypervisor-firmware-integration&lt;/li&gt;
@@ -43,8 +41,7 @@
 &lt;p&gt;IDA ProプラグインであるefiXplorerには静的解析による典型的なSMMの脆弱性スキャナが実装されている。Iこの機能がどのように作られているのか知りたかったのでGhidra向けに実装した。Ghidraで使われている中間表現であるpCodeがかなり高レベルな情報まで復元して表現してくれるため、かなり実装がしやすかった。簡単なData Flow Analysisも実装したが、比較的書きやすかった覚えがある。
 ついでにこの脆弱性スキャナを簡単に使えるように、GitHub ActionsにHeadless Ghidraを実行するactionsを作成して、検出結果をレポートとして報告するようにしてみた。&lt;/p&gt;
 
-&lt;blockquote class=&quot;twitter-tweet&quot;&gt;&lt;p lang=&quot;en&quot; dir=&quot;ltr&quot;&gt;My Weekend Project: Ghidra version of efiXplorer vulnerability scanner. I reimplemented the SMM callout checker as an extension of efiSeek. It can detect CVE-2021-3452.&lt;a href=&quot;https://t.co/FFDpr1ivxH&quot;&gt;https://t.co/FFDpr1ivxH&lt;/a&gt; &lt;a href=&quot;https://t.co/1sIHonFm1C&quot;&gt;pic.twitter.com/1sIHonFm1C&lt;/a&gt;&lt;/p&gt;&amp;mdash; retrage (@retrage) &lt;a href=&quot;https://twitter.com/retrage/status/1503000062980358147?ref_src=twsrc%5Etfw&quot;&gt;March 13, 2022&lt;/a&gt;&lt;/blockquote&gt;
-&lt;script async=&quot;&quot; src=&quot;https://platform.twitter.com/widgets.js&quot; charset=&quot;utf-8&quot;&gt;&lt;/script&gt;
+&lt;p&gt;https://twitter.com/retrage/status/1503000062980358147&lt;/p&gt;
 
 &lt;ul&gt;
   &lt;li&gt;https://github.com/retrage/efiSeek/tree/efi-xplorer&lt;/li&gt;
@@ -55,7 +52,7 @@
 &lt;h2 id=&quot;まとめ&quot;&gt;まとめ&lt;/h2&gt;
 
 &lt;p&gt;これぐらいが今年のうちに一区切りついた、もしくは飽きたことだと思う。期間を見るとわかるが、7月以降やったことが書かれていない。これは、自分の中でまだ途中だったりサボっていたりしているためである。
-来年は良い年であるように。&lt;/p&gt;</content><author><name></name></author><summary type="html">今年はブログ記事も書かなかったし、外から見えるアウトプットが目に見えて少なかった。今はまだ技術の貯金とか業務でコードを書いているのでいいが、そのうち技術も追いつかなくなって、「Twitterでは訳知り顔で抽象的な技術論を語るが、実際には手を動かしていないおじさん」化しそうで怖い&amp;mdash; retrage (@retrage) December 31, 2022</summary></entry><entry><title type="html">Allwinner NezhaにJTAGで接続する</title><link href="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html" rel="alternate" type="text/html" title="Allwinner NezhaにJTAGで接続する" /><published>2022-01-15T19:14:19+00:00</published><updated>2022-01-15T19:14:19+00:00</updated><id>https://retrage.github.io/2022/01/15/allwinner-nezha-jtag</id><content type="html" xml:base="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html">&lt;p&gt;Allwinner NezhaはD1という64-bit RISC-VなSoCが載ったSBCである。Linuxがちゃんと動くRISC-Vマシンとしてはかなり安価なため一部で人気がある。
+来年は良い年であるように。&lt;/p&gt;</content><author><name></name></author><summary type="html">https://twitter.com/retrage/status/1608981455182651392</summary></entry><entry><title type="html">Allwinner NezhaにJTAGで接続する</title><link href="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html" rel="alternate" type="text/html" title="Allwinner NezhaにJTAGで接続する" /><published>2022-01-15T19:14:19+00:00</published><updated>2022-01-15T19:14:19+00:00</updated><id>https://retrage.github.io/2022/01/15/allwinner-nezha-jtag</id><content type="html" xml:base="https://retrage.github.io/2022/01/15/allwinner-nezha-jtag.html">&lt;p&gt;Allwinner NezhaはD1という64-bit RISC-VなSoCが載ったSBCである。Linuxがちゃんと動くRISC-Vマシンとしてはかなり安価なため一部で人気がある。
 ここではこれにJTAGで接続してみた話をメモ程度に書いておく。なお、今回は接続してOpenOCDで認識できた程度でその先のGDBでのデバッグはできていない。&lt;/p&gt;
 
 &lt;h2 id=&quot;jtagの端子について&quot;&gt;JTAGの端子について&lt;/h2&gt;
