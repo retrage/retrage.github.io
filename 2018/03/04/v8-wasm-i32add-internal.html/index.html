@@ -1,0 +1,81 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる - retrage.github.io</title><meta name=theme-color><meta name=description content="WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmが"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる"><meta itemprop=description content="WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmが"><meta itemprop=datePublished content="2018-03-04T14:43:55+00:00"><meta itemprop=dateModified content="2018-03-04T14:43:55+00:00"><meta itemprop=wordCount content="1201"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる"><meta name=twitter:description content="WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため， wasmについての説明は割愛する． ここでは，wasmが"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">Google V8 JavaScript EngineでのWebAssemblyのi32.addの実装を見てみる</h1><div class="text-sm antialiased opacity-60"><time>Mar 4, 2018</time></div></header><section><p>WebAssembly(以下，wasm)については，既に多くの解説記事が存在するため，
+wasmについての説明は割愛する．
+ここでは，wasmがどのように実装され，実行されるのかを見ていく．
+参照する実装はGoogle V8 JavaScript Engineの
+<code>1b254a25163fd84a7696ff62e87cb6dcde7e13f2</code>である．</p><h2 id=簡単なコード例>簡単なコード例</h2><p>次のようなwasmのコードを考える．</p><pre tabindex=0><code>(module
+    (func (param $lhs i32) (param $rhs i32) (result i32)
+        get_local $lhs
+        get_local $rhs
+        i32.add
+    )
+)
+</code></pre><p>このコードは2つのパラメータを加算して返す関数を表している．
+具体的には，パラメータ$lhsと$rhsをスタックにプッシュし，
+i32.addによりそれらの加算を行なっている．</p><h2 id=i32addの実装からたどる>i32.addの実装からたどる</h2><p>最初にi32.addはどのように実装されているのかを見ていく．
+<code>src/wasm/wasm-interpreter.cc</code>には次のような定義がある．</p><pre tabindex=0><code>#define FOREACH_SIMPLE_BINOP(V) \
+  V(I32Add, uint32_t, +)        \
+</code></pre><p><code>I32Add</code>とあるので，ここがi32.addの定義であることがわかる．
+次に<code>FOREACH_SIMPLE_BINOP</code>が使われている部分を見る．</p><pre tabindex=0><code>#define EXECUTE_SIMPLE_BINOP(name, ctype, op)               \
+  case kExpr##name: {                                       \
+    WasmValue rval = Pop();                                 \
+    WasmValue lval = Pop();                                 \
+    auto result = lval.to&lt;ctype&gt;() op rval.to&lt;ctype&gt;();     \
+    possible_nondeterminism_ |= has_nondeterminism(result); \
+    Push(WasmValue(result));                                \
+    break;                                                  \
+  }
+          FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
+</code></pre><p><code>EXECUTE_SIMPLE_BINOP</code>を引数として<code>FOREACH_SIMPLE_BINOP</code>を
+呼び出していることがわかる．
+ここでは，何らかのcase文となっておりその中で，
+スタックから値をポップしrvalとlvalに代入し，与えられたopで計算を行い，
+resultに代入し，値をプッシュしていることがわかる．
+つまり，ここで実際の計算が行われていることがわかる．</p><p>では，このcase文の大元を見てみる．</p><pre tabindex=0><code>      switch (orig) {
+        case kExprNop:
+          break;
+</code></pre><p>ここから，origにより判定していることがわかる．
+origは</p><pre tabindex=0><code>      byte orig = code-&gt;start[pc];
+</code></pre><p>であり，codeは</p><pre tabindex=0><code>  void Execute(InterpreterCode* code, pc_t pc, int max) {
+</code></pre><p>から<code>Execute</code>の引数であることがわかる．
+さらに，<code>Execute</code>は</p><pre tabindex=0><code>  WasmInterpreter::State Run(int num_steps = -1) {
+    DCHECK(state_ == WasmInterpreter::STOPPED ||
+           state_ == WasmInterpreter::PAUSED);
+    DCHECK(num_steps == -1 || num_steps &gt; 0);
+    if (num_steps == -1) {
+      TRACE(&#34;  =&gt; Run()\n&#34;);
+    } else if (num_steps == 1) {
+      TRACE(&#34;  =&gt; Step()\n&#34;);
+    } else {
+      TRACE(&#34;  =&gt; Run(%d)\n&#34;, num_steps);
+    }
+    state_ = WasmInterpreter::RUNNING;
+    Execute(frames_.back().code, frames_.back().pc, num_steps);
+    // If state_ is STOPPED, the current activation must be fully unwound.
+    DCHECK_IMPLIES(state_ == WasmInterpreter::STOPPED,
+                   current_activation().fp == frames_.size());
+    return state_;
+  }
+</code></pre><p>より<code>WasmInterpreter::State Run</code>から呼び出されている．
+コードを追うのは一旦このあたりでやめておく．</p><h2 id=スタックの実装>スタックの実装</h2><p>wasmはスタックマシンとなっている．ここでは，これまでで出てきた関数
+<code>Pop</code>や<code>Push</code>からスタックの実装をみていく．</p><pre tabindex=0><code>  WasmValue Pop() {
+    DCHECK_GT(frames_.size(), 0);
+    DCHECK_GT(StackHeight(), frames_.back().llimit());  // can&#39;t pop into locals
+    return *--sp_;
+  }
+</code></pre><pre tabindex=0><code>  void Push(WasmValue val) {
+    DCHECK_NE(kWasmStmt, val.type());
+    DCHECK_LE(1, stack_limit_ - sp_);
+    *sp_++ = val;
+  }
+</code></pre><p><code>Pop</code>，<code>Push</code>，いずれも実装はたったの1行だけであることがわかる．</p><p>以上，Google V8 JavaScript Engineでのwasmの実装を簡単に見ていった．
+正直なところ，最適化などで非常に複雑かつ高度な実装になっていると思っていたが，
+今回読んだ部分はナイーブな実装となっており，読みやすいといえる．
+一方で，JavaScriptとのインターフェースとなる部分は相当複雑であることが
+容易に想像できる．</p><h2 id=参考文献>参考文献</h2><ul><li><a href=https://webassembly.github.io/spec/core/index.html>https://webassembly.github.io/spec/core/index.html</a></li><li><a href=https://developer.mozilla.org/ja/docs/WebAssembly/Understanding_the_text_format>https://developer.mozilla.org/ja/docs/WebAssembly/Understanding_the_text_format</a></li><li><a href=https://github.com/v8/v8/blob/master/src/wasm/wasm-interpreter.cc>https://github.com/v8/v8/blob/master/src/wasm/wasm-interpreter.cc</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2018/04/01/8cc-lazyk.html/><span class=mr-1.5>←</span><span>8cc in Lazy K</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2017/12/18/coreboot-ffi.html/><span>Rustでcoreboot payload</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

@@ -1,0 +1,170 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>Debugging OVMF with GDB - retrage.github.io</title><meta name=theme-color><meta name=description content="In this blog post, I will describe how to debug OVMF using GDB without any special tool unlike another post[1].
+Code Mapping in UEFI On x64 UEFI, it provides flat single address memory space and place the firmware itself and UEFI images on the space without any memory protection. In this way, we can do source code level debugging any UEFI code with debugger. On OVMF, each feature is modularized and the module is loaded as UEFI image."><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="Debugging OVMF with GDB"><meta itemprop=description content="In this blog post, I will describe how to debug OVMF using GDB without any special tool unlike another post[1].
+Code Mapping in UEFI On x64 UEFI, it provides flat single address memory space and place the firmware itself and UEFI images on the space without any memory protection. In this way, we can do source code level debugging any UEFI code with debugger. On OVMF, each feature is modularized and the module is loaded as UEFI image."><meta itemprop=datePublished content="2019-12-05T17:26:19+00:00"><meta itemprop=dateModified content="2019-12-05T17:26:19+00:00"><meta itemprop=wordCount content="810"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="Debugging OVMF with GDB"><meta name=twitter:description content="In this blog post, I will describe how to debug OVMF using GDB without any special tool unlike another post[1].
+Code Mapping in UEFI On x64 UEFI, it provides flat single address memory space and place the firmware itself and UEFI images on the space without any memory protection. In this way, we can do source code level debugging any UEFI code with debugger. On OVMF, each feature is modularized and the module is loaded as UEFI image."></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">Debugging OVMF with GDB</h1><div class="text-sm antialiased opacity-60"><time>Dec 5, 2019</time></div></header><section><p>In this blog post,
+I will describe how to debug OVMF using GDB
+without any special tool unlike another post[1].</p><h2 id=code-mapping-in-uefi>Code Mapping in UEFI</h2><p>On x64 UEFI, it provides flat single address memory space
+and place the firmware itself and UEFI images on the space
+without any memory protection.
+In this way, we can do source code level debugging
+any UEFI code with debugger.
+On OVMF, each feature is modularized
+and the module is loaded as UEFI image.
+BootServices is included in <code>DxeCore.efi</code>,
+loaded at boot time.</p><pre tabindex=0><code>Notify: PPI Guid: EE16160A-E8BE-47A6-820A-C6900DB0250A, Peim notify entry point: 836CA9
+PlatformPei: ClearCacheOnMpServicesAvailable
+DiscoverPeimsAndOrderWithApriori(): Found 0x0 PEI FFS files in the 1th FV
+DXE IPL Entry
+Loading PEIM D6A2CB7F-6A18-4E2F-B43B-9920A733700A
+Loading PEIM at 0x00007EA8000 EntryPoint=0x00007EAB0BC DxeCore.efi
+Loading DXE CORE at 0x00007EA8000 EntryPoint=0x00007EAB0BC
+</code></pre><h2 id=debug-symbols-in-edk2>Debug Symbols in EDK2</h2><p>EDK2 build system generates
+debug symbol information <code>*.debug</code>
+along with executables <code>*.efi</code>
+on debug build (<code>-b DEBUG</code>).
+If you use gcc (example: <code>GCC5</code>),
+it compiles source code to ELF object files,
+link with custom linker script,
+and convert to PE format.
+Thus, the debug info is for ELF
+and can be recognized by GDB.
+On the other hand,
+Visual Studio and clang/lld (<code>CLANG9</code>)[2]
+generates PE/COFF directly and the debug info
+may be PDB.</p><p>To summarize, the points are:</p><ul><li>OVMF code is placed on the flat single memory space.</li><li>GDB can debug EDK2 UEFI image built with gcc</li></ul><p>Let&rsquo;s take a look at how to debug OVMF.</p><h2 id=building-edk2>Building EDK2</h2><p>Build EDK2 using gcc as usual.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>$ git clone git@github.com:tianocore/edk2.git
+</span></span><span style=display:flex><span>$ cd edk2
+</span></span><span style=display:flex><span>$ git submodule update --init --recursive
+</span></span><span style=display:flex><span>$ make -C BaseTools
+</span></span><span style=display:flex><span>$ source ./edksetup.sh
+</span></span><span style=display:flex><span>$ build -p OvmfPkg/OvmfPkgX64.dsc -b DEBUG -a X64 -t GCC5
+</span></span></code></pre></div><p>To make debugging easy, create a Makefile as follow.
+Note that we have to connect debugcon at 0x402
+to dump debug information (<code>debug.log</code>) from OVMF[4].</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-makefile data-lang=makefile><span style=display:flex><span><span style=color:#75715e>#!/usr/bin/env make
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>SHELL<span style=color:#f92672>=</span>/bin/bash
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>LOG<span style=color:#f92672>=</span>debug.log
+</span></span><span style=display:flex><span>OVMFBASE<span style=color:#f92672>=</span>edk2/Build/OvmfX64/DEBUG_GCC5/
+</span></span><span style=display:flex><span>OVMFCODE<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>OVMFBASE<span style=color:#66d9ef>)</span>/FV/OVMF_CODE.fd
+</span></span><span style=display:flex><span>OVMFVARS<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>OVMFBASE<span style=color:#66d9ef>)</span>/FV/OVMF_VARS.fd
+</span></span><span style=display:flex><span>QEMU<span style=color:#f92672>=</span>qemu-system-x86_64
+</span></span><span style=display:flex><span>QEMUFLAGS<span style=color:#f92672>=</span>-drive format<span style=color:#f92672>=</span>raw,file<span style=color:#f92672>=</span>fat:rw:image <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -drive <span style=color:#66d9ef>if</span><span style=color:#f92672>=</span>pflash,format<span style=color:#f92672>=</span>raw,readonly,file<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>OVMFCODE<span style=color:#66d9ef>)</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -drive <span style=color:#66d9ef>if</span><span style=color:#f92672>=</span>pflash,format<span style=color:#f92672>=</span>raw,file<span style=color:#f92672>=</span><span style=color:#66d9ef>$(</span>OVMFVARS<span style=color:#66d9ef>)</span> <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -debugcon file:<span style=color:#66d9ef>$(</span>LOG<span style=color:#66d9ef>)</span> -global isa-debugcon.iobase<span style=color:#f92672>=</span>0x402 <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -serial stdio <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -nographic <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>          -nodefaults
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>run</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>$(</span>QEMU<span style=color:#66d9ef>)</span> <span style=color:#66d9ef>$(</span>QEMUFLAGS<span style=color:#66d9ef>)</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>debug</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>$(</span>QEMU<span style=color:#66d9ef>)</span> <span style=color:#66d9ef>$(</span>QEMUFLAGS<span style=color:#66d9ef>)</span> -s -S
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>.PHONY</span><span style=color:#f92672>:</span> run debug
+</span></span></code></pre></div><p>Before debugging, run the firmware to get <code>debug.log</code>.
+It may be better to provide <code>startup.nsh</code> script.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>$ make run
+</span></span></code></pre></div><p>Now, we have <code>debug.log</code>.
+It includes the addresses of loaded UEFI images like this:</p><pre tabindex=0><code>Loading PEIM at 0x00007EA8000 EntryPoint=0x00007EAB0BC DxeCore.efi
+</code></pre><p>Next, extract text section (<code>.text</code>) RVA from <code>*.efi</code>
+PE binaries.
+This can be done by <code>readelf</code> if it is ELF,
+but the images are PE format.
+Here we use
+<a href=https://github.com/retrage/peinfo>retrage/peinfo</a>[3].</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>$ git clone git@github.com:retrage/peinfo.git
+</span></span><span style=display:flex><span>$ cd peinfo
+</span></span><span style=display:flex><span>$ make
+</span></span></code></pre></div><p>peinfo extracts section information from a binary.
+This time we want to know VirtualAddress in RVA.</p><pre tabindex=0><code>Name: .text
+VirtualSize: 0x000204c0
+VirtualAddress: 0x00000240
+SizeOfRawData: 0x000204c0
+PointerToRawData: 0x00000240
+PointerToRelocations: 0x00000000
+PointerToLinenumbers: 0x00000000
+NumberOfRelocations: 0x0000
+NumberOfLinenumbers: 0x0000
+Characteristics: 0x60000020
+</code></pre><p>Run following bash script with <code>debug.log</code> and peinfo.
+This outputs a snippet of GDB script that adds
+symbol information (<code>add-symbol-file</code>).
+It calculates the address of UEFI image text section
+from base address and VirtualAddress.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>LOG<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;debug.log&#34;</span>
+</span></span><span style=display:flex><span>BUILD<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;edk2/Build/OvmfX64/DEBUG_GCC5/X64&#34;</span>
+</span></span><span style=display:flex><span>PEINFO<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;peinfo/peinfo&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>${</span>LOG<span style=color:#e6db74>}</span> | grep Loading | grep -i efi | <span style=color:#66d9ef>while</span> read LINE; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  BASE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>LINE<span style=color:#e6db74>}</span><span style=color:#e6db74> | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f4`&#34;</span>
+</span></span><span style=display:flex><span>  NAME<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>LINE<span style=color:#e6db74>}</span><span style=color:#e6db74> | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f6 | tr -d &#34;</span><span style=color:#f92672>[</span>:cntrl:<span style=color:#f92672>]</span><span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  ADDR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`</span><span style=color:#e6db74>${</span>PEINFO<span style=color:#e6db74>}</span><span style=color:#e6db74> </span><span style=color:#e6db74>${</span>BUILD<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>NAME<span style=color:#e6db74>}</span><span style=color:#e6db74> \
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        | grep -A 5 text | grep VirtualAddress | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f2`&#34;</span>
+</span></span><span style=display:flex><span>  TEXT<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`python -c &#34;</span>print<span style=color:#f92672>(</span>hex<span style=color:#f92672>(</span><span style=color:#e6db74>${</span>BASE<span style=color:#e6db74>}</span> + <span style=color:#e6db74>${</span>ADDR<span style=color:#e6db74>}</span><span style=color:#f92672>))</span><span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  SYMS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>NAME<span style=color:#e6db74>}</span><span style=color:#e6db74> | sed -e &#34;</span>s/<span style=color:#ae81ff>\.</span>efi/<span style=color:#ae81ff>\.</span>debug/g<span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;add-symbol-file </span><span style=color:#e6db74>${</span>BUILD<span style=color:#e6db74>}</span><span style=color:#e6db74>/</span><span style=color:#e6db74>${</span>SYMS<span style=color:#e6db74>}</span><span style=color:#e6db74> </span><span style=color:#e6db74>${</span>TEXT<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span>
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>$ bash gen_symbol_offsets.sh &gt; gdbscript
+</span></span></code></pre></div><p>The generated GDB script is like this:</p><pre tabindex=0><code class=language-gdb data-lang=gdb>add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PcdPeim.debug 0x82c380
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/ReportStatusCodeRouterPei.debug 0x831080
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/StatusCodeHandlerPei.debug 0x833100
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PlatformPei.debug 0x835100
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/PeiCore.debug 0x7ee8240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DxeIpl.debug 0x7ee3240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/S3Resume2Pei.debug 0x7edf240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/CpuMpPei.debug 0x7ed6240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DxeCore.debug 0x7ea8240
+add-symbol-file edk2/Build/OvmfX64/DEBUG_GCC5/X64/DevicePathDxe.debug 0x7b8f240
+</code></pre><p>Now we are ready.</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>$ make debug
+</span></span></code></pre></div><p>Let&rsquo;s place a breakpoint at <code>BootServices->HandleProtocol()</code>.</p><pre tabindex=0><code class=language-gdb data-lang=gdb>(gdb) source gdbscript
+(gdb) b CoreHandleProtocol
+(gdb) target remote localhost:1234
+(gdb) c
+</code></pre><p>The debugger stops, and we can do source code level debug.</p><pre tabindex=0><code class=language-gdb data-lang=gdb>   ┌──/home/akira/src/ovmf-debug/edk2/MdeModulePkg/Core/Dxe/Hand/Handle.c──────┐
+   │933     CoreHandleProtocol (                                               │
+   │934       IN EFI_HANDLE       UserHandle,                                  │
+   │935       IN EFI_GUID         *Protocol,                                   │
+   │936       OUT VOID            **Interface                                  │
+   │937       )                                                                │
+B+&gt;│938     {                                                                  │
+   │939       return CoreOpenProtocol (                                        │
+   │940               UserHandle,                                              │
+   │941               Protocol,                                                │
+   │942               Interface,                                               │
+   │943               gDxeCoreImageHandle,                                     │
+   │944               NULL,                                                    │
+   │945               EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL                     │
+   └───────────────────────────────────────────────────────────────────────────┘
+remote Thread 1 In: CoreHandleProtocol                      L938  PC: 0x7eb6ad4 
+
+
+
+(gdb) 
+</code></pre><h3 id=20191205-postscript>2019/12/05 Postscript</h3><p>tnishinaga gave me the improved version of the script
+to support multiple search paths. Thank you!</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span><span style=color:#75715e>#!/bin/bash
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>LOG<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;debug.log&#34;</span>
+</span></span><span style=display:flex><span>BUILD<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;./Build&#34;</span>
+</span></span><span style=display:flex><span>SEARCHPATHS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;./Build/OvmfX64/DEBUG_GCC5/X64/ ./Build/Edk2SamplePkgX64/DEBUG_GCC5/X64/&#34;</span>
+</span></span><span style=display:flex><span>PEINFO<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;peinfo/peinfo&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>cat <span style=color:#e6db74>${</span>LOG<span style=color:#e6db74>}</span> | grep Loading | grep -i efi | <span style=color:#66d9ef>while</span> read LINE; <span style=color:#66d9ef>do</span>
+</span></span><span style=display:flex><span>  BASE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>LINE<span style=color:#e6db74>}</span><span style=color:#e6db74> | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f4`&#34;</span>
+</span></span><span style=display:flex><span>  NAME<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>LINE<span style=color:#e6db74>}</span><span style=color:#e6db74> | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f6 | tr -d &#34;</span><span style=color:#f92672>[</span>:cntrl:<span style=color:#f92672>]</span><span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  EFIFILE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`find </span><span style=color:#e6db74>${</span>SEARCHPATHS<span style=color:#e6db74>}</span><span style=color:#e6db74> -name </span><span style=color:#e6db74>${</span>NAME<span style=color:#e6db74>}</span><span style=color:#e6db74> -maxdepth 1 -type f`&#34;</span>
+</span></span><span style=display:flex><span>  ADDR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`</span><span style=color:#e6db74>${</span>PEINFO<span style=color:#e6db74>}</span><span style=color:#e6db74> </span><span style=color:#e6db74>${</span>EFIFILE<span style=color:#e6db74>}</span><span style=color:#e6db74> \
+</span></span></span><span style=display:flex><span><span style=color:#e6db74>        | grep -A 5 text | grep VirtualAddress | cut -d &#34;</span> <span style=color:#e6db74>&#34; -f2`&#34;</span>
+</span></span><span style=display:flex><span>  TEXT<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`python -c &#34;</span>print<span style=color:#f92672>(</span>hex<span style=color:#f92672>(</span><span style=color:#e6db74>${</span>BASE<span style=color:#e6db74>}</span> + <span style=color:#e6db74>${</span>ADDR<span style=color:#e6db74>}</span><span style=color:#f92672>))</span><span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  SYMS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`echo </span><span style=color:#e6db74>${</span>NAME<span style=color:#e6db74>}</span><span style=color:#e6db74> | sed -e &#34;</span>s/<span style=color:#ae81ff>\.</span>efi/<span style=color:#ae81ff>\.</span>debug/g<span style=color:#e6db74>&#34;`&#34;</span>
+</span></span><span style=display:flex><span>  SYMFILE<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;`find </span><span style=color:#e6db74>${</span>SEARCHPATHS<span style=color:#e6db74>}</span><span style=color:#e6db74> -name </span><span style=color:#e6db74>${</span>SYMS<span style=color:#e6db74>}</span><span style=color:#e6db74> -maxdepth 1 -type f`&#34;</span>
+</span></span><span style=display:flex><span>  echo <span style=color:#e6db74>&#34;add-symbol-file </span><span style=color:#e6db74>${</span>SYMFILE<span style=color:#e6db74>}</span><span style=color:#e6db74> </span><span style=color:#e6db74>${</span>TEXT<span style=color:#e6db74>}</span><span style=color:#e6db74>&#34;</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>done</span>
+</span></span></code></pre></div><h2 id=references>References</h2><ul><li>[1] <a href=https://jp3bgy.github.io/blog/uefi/2018/12/24/How-to-Source-Debug-OVMF.html>https://jp3bgy.github.io/blog/uefi/2018/12/24/How-to-Source-Debug-OVMF.html</a></li><li>[2] <a href=https://github.com/tianocore/edk2/commit/15330934dc860c20b2143c802f3b4285e89021e3>https://github.com/tianocore/edk2/commit/15330934dc860c20b2143c802f3b4285e89021e3</a></li><li>[3] <a href=https://github.com/retrage/peinfo>https://github.com/retrage/peinfo</a></li><li>[4] <a href=https://github.com/tianocore/tianocore.github.io/wiki/How-to-debug-OVMF-with-QEMU-using-GDB>https://github.com/tianocore/tianocore.github.io/wiki/How-to-debug-OVMF-with-QEMU-using-GDB</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2020/03/04/ccov-introduction.html/><span class=mr-1.5>←</span><span>ccov: printfデバッグを支援するツール</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/11/26/efi-status-code.html/><span>EFI_STATUSの値</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

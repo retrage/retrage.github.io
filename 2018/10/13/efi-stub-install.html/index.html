@@ -1,0 +1,76 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>EFI stubなArch Linuxのインストール - retrage.github.io</title><meta name=theme-color><meta name=description content="QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2]["><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="EFI stubなArch Linuxのインストール"><meta itemprop=description content="QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2]["><meta itemprop=datePublished content="2018-10-13T00:20:31+00:00"><meta itemprop=dateModified content="2018-10-13T00:20:31+00:00"><meta itemprop=wordCount content="1274"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="EFI stubなArch Linuxのインストール"><meta name=twitter:description content="QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。 ここでのホストはUbuntu 16.04.4 TLSとする。 なお[1][2]["></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">EFI stubなArch Linuxのインストール</h1><div class="text-sm antialiased opacity-60"><time>Oct 13, 2018</time></div></header><section><p>QEMU上の仮想マシンにEFI stubなArch Linuxをインストールする。
+ここでのホストはUbuntu 16.04.4 TLSとする。
+なお[1][2][3][4]を参考にした。</p><h2 id=ovmfのダウンロードとarch-linuxのインストールディスクのダウンロード>OVMFのダウンロードとArch Linuxのインストールディスクのダウンロード</h2><p>最初にOVMFをダウンロードして解凍する。
+OVMFはTianoCoreをベースにした仮想マシン向けのUEFI実装である。</p><pre tabindex=0><code>$ wget https://www.kraxel.org/repos/jenkins/edk2/edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm
+$ rpm2cpio edk2.git-ovmf-x64-0-20180508.84.g7cd8a57599.noarch.rpm | cpio -idmv
+$ cp usr/share/edk2.git/ovmf-x64/OVMF_CODE-pure-efi.fd .
+$ cp usr/share/edk2.git/ovmf-x64/OVMF_VARS-pure-efi.fd .
+</code></pre><p>Arch Linuxのインストールディスクをダウンロードする。</p><pre tabindex=0><code>$ wget http://ftp.jaist.ac.jp/pub/Linux/ArchLinux/iso/2018.05.01/archlinux-2018.05.01-x86_64.iso
+</code></pre><p>インストール先のディスクイメージを作成する。</p><pre tabindex=0><code>$ qemu-img create -f raw arch-amd64.img 32G
+</code></pre><h2 id=仮想マシンの起動と設定>仮想マシンの起動と設定</h2><p>インストールディスクから起動する。
+これ以降は仮想マシンでの操作となる。</p><pre tabindex=0><code>$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user -cdrom archlinux-2018.05.01-x86_64.iso -boot d
+</code></pre><p>キーボードレイアウトを設定。</p><pre tabindex=0><code># loadkeys jp106
+</code></pre><p><code>gdisk</code>でパーティションを作成。
+ここでは/dev/sda1を512MBのEFIパーティション、
+/dev/sda2を残りのすべての容量としたLinuxパーティションとした。</p><pre tabindex=0><code># gdisk /dev/sda
+</code></pre><pre tabindex=0><code>Command (? for help):o
+</code></pre><pre tabindex=0><code>Command (? for help):n
+Permission number: 1
+First sector     : 
+Last sector      : +512M
+Hex code or GUID : ef00
+</code></pre><pre tabindex=0><code>Command (? for help):n
+Permission number: 2
+First sector     : 
+Last sector      :  
+Hex code or GUID : 8300
+</code></pre><p>最後に書き込みを行う。</p><pre tabindex=0><code>Command (? for help):w
+</code></pre><p>各パーティションをフォーマット</p><pre tabindex=0><code># mkfs.vfat -F32 /dev/sda1
+# mkfs.ext4 /dev/sda2
+</code></pre><p>それぞれをマウント。</p><pre tabindex=0><code># mount /dev/sda2
+# mkdir -p /mnt/boot
+# mount /dev/sda1 /mnt/boot
+</code></pre><p>ダウンロードのミラーサイトを設定。</p><pre tabindex=0><code># nano /etc/pacman.d/mirrorlist
+</code></pre><p>システムのインストール。</p><pre tabindex=0><code># pacstrap -i /mnt base base-devel
+</code></pre><p>fstabの生成。</p><pre tabindex=0><code># genfstab -U -p /mnt &gt;&gt; /mnt/etc/fstab
+</code></pre><p>localeの設定。</p><pre tabindex=0><code># locale-gen
+# echo LANG=en_US.UTF-8 &gt; /etc/locale.conf
+# export LANG=en_US.UTF-8
+</code></pre><p>キーボードマップの設定。</p><pre tabindex=0><code># echo KEYMAP=jp106 &gt; /etc/vconsole.conf
+</code></pre><p>localtimeの設定。</p><pre tabindex=0><code># rm /etc/localtime
+# ln -s /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+</code></pre><pre tabindex=0><code># hwclock -u -w
+</code></pre><p>ホスト名の設定。</p><pre tabindex=0><code># echo &#34;arch-vm&#34; &gt; /etc/hostname
+</code></pre><p>DHCPクライアントの設定。</p><pre tabindex=0><code># systemctl enable dhcpcd.service
+</code></pre><p>パスワードの設定。</p><pre tabindex=0><code># passwd
+</code></pre><p>GRUB2の代わりに<code>efibootmgr</code>でEFI Variableを設定。</p><pre tabindex=0><code># efibootmgr -d /dev/sda -p 1 -c -L &#34;Arch Linux&#34; -l /vmlinuz-linux -u &#34;root=dev/sda2 rw initrd=initramfs-linux.img&#34;
+# efibootmgr -v
+</code></pre><p>exitしてhalt。</p><pre tabindex=0><code># exit
+# halt
+</code></pre><p>以下で正しく起動することを確認。</p><pre tabindex=0><code>$ qemu-system-x86_64 -enable-kvm -k ja -m 2048 -localtime -drive if=pflash,format=raw,readonly,file=OVMF_CODE-pure-efi.fd -drive if=pflash,format=raw,file=OVMF_VARS-pure-efi.fd -hda arch-amd64.img -net nic,model=e1000 -net user
+</code></pre><h2 id=efi-stubなlinux-kernelのビルド>EFI stubなLinux kernelのビルド</h2><p>先の説明でインストールしたArch LinuxはEFI stubとなっている。
+ここでは、ホストでLinux kernelをビルドしそれを仮想マシンにインストールしてみる。</p><h3 id=linuxカーネルのビルド>Linuxカーネルのビルド</h3><p>カーネルをダウンロードする。</p><pre tabindex=0><code>$ git clone https://kernel.googlesource.com/pub/scm/linux/kernel/git/torvalds/linux.git --branch v4.17 --depth 1
+</code></pre><p>ホストのconfigをコピーして多少の修正を行い、ホスト上でビルドする。
+<code>make menuconfig</code>で<code>CONFIG_EFI_STUB=y</code>となっていることを確認する。
+<code>make</code>するときのjob数はホストのCPUのコア数に応じて変更する。</p><pre tabindex=0><code>$ cp /boot/config-4.15.0-33-generic .config
+$ make menuconfig
+$ make -j9
+</code></pre><h3 id=linux-kernelの仮想マシンへのインストール>Linux kernelの仮想マシンへのインストール</h3><p>仮想マシンのディスクイメージをマウントする。</p><pre tabindex=0><code># /sbin/kpartx -av arch-amd64.img
+# mount /dev/mapper/loop0p2 /mnt
+</code></pre><p>ホストでビルドしたカーネルを仮想マシンにインストールする。</p><pre tabindex=0><code># make INSTALL_MOD_PATH=/mnt modules_install
+# mkdir -p /mnt/var/tmp
+# cp System.map /mnt/var/tmp
+# cp arch/x86_64/boot/bzImage /mnt/var/tmp
+# umount /mnt
+</code></pre><p>最後に仮想マシン上でホストでビルドしたbzImageとSystem.mapをコピーし、
+initramfsを生成する。</p><pre tabindex=0><code># cp -f /var/tmp/bzImage /boot/vmlinuz-linux
+# cp -f /var/tmp/System.map /boot/System.map
+# mkinitcpio -c /etc/mkinitcpio.conf -g /boot/initramfs-linux.img
+</code></pre><p>最後に再起動し、ビルドしたバージョンのカーネルであることを確認する。</p><h2 id=参考文献>参考文献</h2><ul><li>[1] <a href=https://wiki.archlinux.org/index.php/Installation_guide>https://wiki.archlinux.org/index.php/Installation_guide</a></li><li>[2] <a href=https://wiki.archlinux.org/index.php/EFISTUB>https://wiki.archlinux.org/index.php/EFISTUB</a></li><li>[3] <a href=http://note.kurodigi.com/archlinux-uefi-install/>http://note.kurodigi.com/archlinux-uefi-install/</a></li><li>[4] <a href=https://kernhack.hatenablog.com/entry/2013/11/01/083558>https://kernhack.hatenablog.com/entry/2013/11/01/083558</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2018/11/11/efi-byte-code-myth.html/><span class=mr-1.5>←</span><span>EFI Byte Code解説</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2018/10/01/efi-book-ad.html/><span>技術書典5で「UEFI読本 基礎編 Linux編」を頒布</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

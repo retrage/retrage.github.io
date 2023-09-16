@@ -1,0 +1,333 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>LKL.js: Linux kernelを直接JavaScript上で動かす - retrage.github.io</title><meta name=theme-color><meta name=description content="Linux kernelを直接JavaScript上で動かした． つまり，JSLinuxのようにEmulatorをJavaScriptで作成し， その上で"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="LKL.js: Linux kernelを直接JavaScript上で動かす"><meta itemprop=description content="Linux kernelを直接JavaScript上で動かした． つまり，JSLinuxのようにEmulatorをJavaScriptで作成し， その上で"><meta itemprop=datePublished content="2018-07-21T15:30:00+00:00"><meta itemprop=dateModified content="2018-07-21T15:30:00+00:00"><meta itemprop=wordCount content="6332"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="LKL.js: Linux kernelを直接JavaScript上で動かす"><meta name=twitter:description content="Linux kernelを直接JavaScript上で動かした． つまり，JSLinuxのようにEmulatorをJavaScriptで作成し， その上で"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">LKL.js: Linux kernelを直接JavaScript上で動かす</h1><div class="text-sm antialiased opacity-60"><time>Jul 21, 2018</time></div></header><section><p>Linux kernelを直接JavaScript上で動かした．
+つまり，JSLinuxのようにEmulatorをJavaScriptで作成し，
+その上でLinuxを動かすのではなく，
+JavaScriptで書かれたLinuxを生成し，それを動かす，ということである．</p><p><img src=/img/lkl-js-architecture.png alt="lkl.js Architecture"></p><p>リポジトリは以下の通り．</p><ul><li><a href=https://github.com/retrage/linux/tree/retrage/em-v2>https://github.com/retrage/linux/tree/retrage/em-v2</a></li></ul><p>なお
+<a href=https://retrage.github.io/lkl-js/>lkl.js Demo</a>
+にデモを用意した．
+SharedArrayBufferを有効にして試してみてほしい．</p><h2 id=linux-kernel-library-lkl>Linux Kernel Library (LKL)</h2><p>ここでは，Linux kernelをLibrary OSの形態の1つであるAnykernelにする
+Linux Kernel Library (LKL)を利用する．
+LKLはLinux kernelのforkとして存在し，<code>arch/lkl</code>にのみLKL specificな
+コードをおき，その他は全く変更を加えずに動作するように設計されている．
+これによりmainlineへの追従性を高めている．(現在はv4.16)
+LKLはAnykernelであるので，
+LinuxやFreeBSD, Windowsなど様々なOSのユーザ空間で動作する．</p><h2 id=emscripten>Emscripten</h2><p>EmscriptenはLLVMを利用したC/C++からJavaScript/WebAssemblyへのトランスパイラである．
+Emscriptenはlibcやpthreadなどへも対応しており，Unix-likeな環境を用意している．</p><h2 id=lklをemscriptenでjavascriptに移植できるか>LKLをEmscriptenでJavaScriptに移植できるか？</h2><p>LKLは様々なOSで動作し，EmscriptenはUnix-likeな環境を用意する．
+では，LKLはEmscriptenでJavaScriptに移植することはできるだろうか．</p><h2 id=移植する前に>移植する前に</h2><h3 id=clangでのlinux-kernelのビルドの現状>clangでのLinux kernelのビルドの現状</h3><p>そもそもLinux kernelとは，gcc拡張に依存しており，
+clangなどではそもそも扱えないのでは，という疑問がある．
+かつてLLVM Linuxというプロジェクトが立ち上がるぐらいには
+Linux kernelをclangでコンパイルするのは困難であった．
+しかし，2017年頃より，Androidの開発者らにより，
+Linux kernelがclangでもコンパイル可能となった．</p><h3 id=linux-kernelのビルドの流れ>Linux kernelのビルドの流れ</h3><p>Linux kernelのビルドの流れをみていく．
+最初に，makeが行われると，kconfigの設定からビルドされるソースコード(<em>.c/</em>.S)が決定され，
+コンパイルが行われる．コンパイルにより生成されたオブジェクトファイル(*.o)は
+一度機能ごとにarにより<code>built-in.o</code>などの名前でアーカイブ化される．
+最後に，まとめて得られた<code>built-in.o</code>をリンクすることにより<code>vmlinux</code>を得る．
+以上がLinux kernelにおける簡単なビルドの流れとなっている．</p><h2 id=lklをemscriptenで移植>LKLをEmscriptenで移植</h2><p>では，実際にどのようにLKLをEmscriptenで移植していくのかをみていく．</p><p>Emscriptenに限らず，LLVMを利用する場合，次のような流れでターゲットにコンパイルする．</p><p>Source -> LLVM IR -> Target</p><p>このように一度LLVM IR (<em>.bc/</em>.ll)に変換してからターゲットに変換される．
+なお，Emscriptenでは通常のリンクに当たる部分がLLVM IRからJavaScriptへの変換となっている．
+このため，最初に全て(Emscriptenの用意するlibcなども含めて)をLLVM IRに変換する必要がある．</p><h3 id=vmliuxbcの生成>vmliux.bcの生成</h3><p>emcc (Emscripten clangのwrapper)でのビルドは次のようになっている</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>make -C tools/lkl CC<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CC<span style=color:#e6db74> </span>$CFLAGS<span style=color:#e6db74>&#34;</span> AR<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$PY<span style=color:#e6db74> </span>$PWD<span style=color:#e6db74>/ar.py&#34;</span> V<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span>
+</span></span></code></pre></div><p>ここで重要なのが<code>$CFLAGS</code>と<code>ar.py</code>の2つである．それぞれみていく．
+(なお，<code>CC="$CC $CFLAGS"</code>となっているのは無理やりCFLAGSを渡すためである)</p><p><code>$CFLAGS</code>は次のようになっている．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s WASM=0&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s ASYNCIFY=1&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s EMULATE_FUNCTION_POINTER_CASTS=1&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s USE_PTHREADS=1&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s PTHREAD_POOL_SIZE=4&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -s TOTAL_MEMORY=1342177280&#34;</span>
+</span></span></code></pre></div><p>ここでは，Emscriptenに渡すオプションを指定している．
+詳細についてはEmscriptenのマニュアルを参考にしてほしい．</p><p>さらに以下のような定義を指定している．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DMAX_NR_ZONES=2&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DNR_PAGEFLAGS=20&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DSPINLOCK_SIZE=0&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DF_GETLK64=12&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DF_SETLK64=13&#34;</span>
+</span></span><span style=display:flex><span>CFLAGS<span style=color:#f92672>=</span><span style=color:#e6db74>&#34;</span>$CFLAGS<span style=color:#e6db74> -DF_SETLKW64=14&#34;</span>
+</span></span></code></pre></div><p>これらは本来Linux kernelビルド時に空のファイルをコンパイルするなど
+して得られる値であり，今回の場合，これらは直接得ることができない．
+そのため，あらかじめx86_64でビルドしたときに得られた値をここで指定している．</p><p>次に<code>ar.py</code>をみていく．以下のような簡単なものとなっている．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>filename <span style=color:#f92672>=</span> <span style=color:#e6db74>&#34;objs&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>main</span>():
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> os<span style=color:#f92672>.</span>path<span style=color:#f92672>.</span>exists(filename):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>with</span> open(filename, <span style=color:#e6db74>&#34;w&#34;</span>) <span style=color:#66d9ef>as</span> fp:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>pass</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    objs <span style=color:#f92672>=</span> []
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> i, arg <span style=color:#f92672>in</span> enumerate(sys<span style=color:#f92672>.</span>argv):
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> <span style=color:#e6db74>&#34;.o&#34;</span> <span style=color:#f92672>in</span> arg <span style=color:#f92672>and</span> <span style=color:#f92672>not</span> <span style=color:#e6db74>&#34;built-in&#34;</span> <span style=color:#f92672>in</span> arg <span style=color:#f92672>and</span> i <span style=color:#f92672>&gt;</span> <span style=color:#ae81ff>2</span>:
+</span></span><span style=display:flex><span>            objs<span style=color:#f92672>.</span>append(arg)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(filename, <span style=color:#e6db74>&#34;aw&#34;</span>) <span style=color:#66d9ef>as</span> fp:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> obj <span style=color:#f92672>in</span> objs:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> <span style=color:#f92672>not</span> obj <span style=color:#f92672>is</span> <span style=color:#e6db74>&#34;&#34;</span>:
+</span></span><span style=display:flex><span>                fp<span style=color:#f92672>.</span>write(obj <span style=color:#f92672>+</span> <span style=color:#e6db74>&#34; &#34;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>
+</span></span></code></pre></div><p>先に説明したように，本来Linux kernelでは
+コンパイルによって得られたオブジェクトファイルを
+<code>ar</code>によりまとめ，最後にリンクを行うことで<code>vmlinux</code>を得る．</p><p>Emscriptenで扱うには<code>vmlinux</code>をLLVM bitcodeとして得る必要がある．
+LLVMには<code>llvm-link</code>という複数のLLVM bitcodeファイルをリンクして
+1つのLLVM bitcodeを得るリンカが存在する．
+<code>vmlinux.bc</code>を得るには<code>llvm-link</code>を利用する必要があるが，
+ここで1つ問題がある．<code>llvm-link</code>は通常のリンカのように，
+アーカイブファイルを引数としてとることができない．
+そのため，本来アーカイブにされるオブジェクトファイルを記録しておく必要がある．
+ここでは，<code>objs</code>にそれらをまとめてファイルパスとして記録しておく．</p><p>次に実際に<code>vmlinux.bc</code>が生成される部分をみていく．
+<code>scripts/link-vmlinux.sh</code>に次のような変更が加えられている．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-sh data-lang=sh><span style=display:flex><span>info CLEAN obj 
+</span></span><span style=display:flex><span>python <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>srctree<span style=color:#e6db74>}</span><span style=color:#e6db74>/clean-obj.py&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>info GEN link-vmlinux.sh
+</span></span><span style=display:flex><span>python <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>srctree<span style=color:#e6db74>}</span><span style=color:#e6db74>/link-vmlinux-gen.py&#34;</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>info LINK vmlinux
+</span></span><span style=display:flex><span>bash <span style=color:#e6db74>&#34;</span><span style=color:#e6db74>${</span>srctree<span style=color:#e6db74>}</span><span style=color:#e6db74>/link-vmlinux.sh&#34;</span>
+</span></span></code></pre></div><p><code>clean-obj.py</code>では先に得られた<code>objs</code>より重複するファイルパスを削除する．
+次に<code>link-vmlinux-gen.py</code>では<code>objs</code>より<code>llvm-link</code>を行う
+<code>vmlinux-link.sh</code>(<code>scripts/link-vmlinux.sh</code>とは異なる)を生成する．
+最後に<code>link-vmlinux.sh</code>を実行し，<code>vmlinux.bc</code>を得る．</p><p>以上が<code>vmlinux.bc</code>を得るまでの流れとなっている．</p><h3 id=bootjsの生成>boot.jsの生成</h3><p>次に実際にJavaScriptが生成されるまでをみていく．
+先に説明したとおり，LKLはLibray OSの1つであるので，<code>vmlinux</code>それ単体では動作せず，
+アプリケーションとなる部分があってはじめて動作する．ここでは，LKLのHello, worldに相当する
+<code>tools/lkl/tests/boot</code>をターゲットとする．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>$LINK -o $LKL/tests/boot.bc <span style=color:#ae81ff>\
+</span></span></span><span style=display:flex><span><span style=color:#ae81ff></span>    $LKL/tests/boot-in.o $LKL/lib/liblkl-in.o $LKL/lib/lkl.o
+</span></span></code></pre></div><p>まず，先に生成した<code>vmlinux.bc</code> (<code>$LKL/lib/lkl.o</code>)と
+ホスト依存部分<code>$LKL/lib/liblkl-in.o</code>，
+アプリケーション部分<code>$LKL/tests/boot-in.o</code>をリンクして<code>$LKL/tests/boot.bc</code>を得る．</p><p>次に以下のようなことを行う．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>$DIS -o $LKL/tests/boot.ll $LKL/tests/boot.bc
+</span></span><span style=display:flex><span>$CP ~/.emscripten_cache/asmjs/dlmalloc.bc js/dlmalloc.bc
+</span></span><span style=display:flex><span>$CP ~/.emscripten_cache/asmjs/libc.bc js/libc.bc
+</span></span><span style=display:flex><span>$CP ~/.emscripten_cache/asmjs/pthreads.bc js/pthreads.bc
+</span></span><span style=display:flex><span>$DIS -o js/dlmalloc.ll js/dlmalloc.bc
+</span></span><span style=display:flex><span>$DIS -o js/libc.ll js/libc.bc
+</span></span><span style=display:flex><span>$DIS -o js/pthreads.ll js/pthreads.bc
+</span></span><span style=display:flex><span>$PY rename_symbols.py $LKL/tests/boot.ll $LKL/tests/boot-mod.ll
+</span></span></code></pre></div><p>最初に<code>boot.bc</code>を<code>llvm-dis</code>を用いてLLVM bitcodeからLLVM IRへ変換する．
+次にEmscriptenの<code>dlmalloc.bc</code>や<code>libc.bc</code>，<code>pthreads.bc</code>などのファイルを
+LLVM IRへと変換する．
+最後に<code>rename_symbols.py</code>を<code>boot.ll</code>に対して実行する．
+このようなことを行うのには理由がある．
+それは，Linux kernelで利用されている関数名とlibcなどで利用されている関数名が
+衝突してしまうからである．
+通常のLKLでは，ELFの仕様を利用しうまくLinux kernelの関数を隠匿化することにより
+この衝突を回避している．一方で，Emscriptenでは名前空間などが存在しないために，
+このような衝突が発生してしまう．
+そこで，あらかじめリンクされる予定のLLVM bitcodeをLLVM IRに変換し，
+衝突するであろう関数名を<code>rename_symbols.py</code>で書き換えることにより衝突を回避している．</p><p>また，<code>rename_symbols.py</code>では，
+Linux kernelに含まれる，inline asmをEmscriptenの<code>emscripten_asm_const_int</code>
+に変換するなどの操作も行なっている．</p><p>以上によって得られた<code>boot-mod.ll</code>より</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-bash data-lang=bash><span style=display:flex><span>EMCC_DEBUG<span style=color:#f92672>=</span><span style=color:#ae81ff>1</span> $CC -o js/boot.html $LKL/tests/boot-mod.ll $CFLAGS -v
+</span></span></code></pre></div><p>によりHTMLとJSを得る．</p><h2 id=動かすための修正>動かすための修正</h2><p>以上により得られた「完全に」JavaScriptで書かれたLinux kernelとそれを利用した
+アプリケーションboot.jsであるが，このままでは動作しない．
+これは，通常のマシンとJavaScriptとではそもそものアーキテクチャが
+大きく異なっていることに由来する．それでもいくつかの修正を加える．</p><h3 id=inline-assemblyの置換>inline assemblyの置換</h3><p>Linux kernelでは基本的に<code>arch</code>以下にアーキテクチャ依存のコードをおき，
+それ以外ではアーキテクチャ非依存のコードとなるように配置されている．
+しかし，一部のコードでは，コンパイラによる最適化により意味のあるコードが
+コンパイル時に失われないように空のinline assemblyが挿入されている場合がある．
+以下はその一例，<code>kernel/time/time.c</code>の<code>set_normalized_timespec64</code>である．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>void</span> <span style=color:#a6e22e>set_normalized_timespec64</span>(<span style=color:#66d9ef>struct</span> timespec64 <span style=color:#f92672>*</span>ts, <span style=color:#66d9ef>time64_t</span> sec, s64 nsec)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>while</span> (nsec <span style=color:#f92672>&gt;=</span> NSEC_PER_SEC) {
+</span></span><span style=display:flex><span>		<span style=color:#75715e>/*
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		 * The following asm() prevents the compiler from
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		 * optimising this loop into a modulo operation. See
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		 * also __iter_div_u64_rem() in include/linux/time.h
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		 */</span>
+</span></span><span style=display:flex><span>		<span style=color:#66d9ef>asm</span>(<span style=color:#e6db74>&#34;&#34;</span> <span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;+rm&#34;</span>(nsec));
+</span></span><span style=display:flex><span>		nsec <span style=color:#f92672>-=</span> NSEC_PER_SEC;
+</span></span><span style=display:flex><span>		<span style=color:#f92672>++</span>sec;
+</span></span><span style=display:flex><span>	}
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>while</span> (nsec <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>0</span>) {
+</span></span><span style=display:flex><span>		<span style=color:#66d9ef>asm</span>(<span style=color:#e6db74>&#34;&#34;</span> <span style=color:#f92672>:</span> <span style=color:#e6db74>&#34;+rm&#34;</span>(nsec));
+</span></span><span style=display:flex><span>		nsec <span style=color:#f92672>+=</span> NSEC_PER_SEC;
+</span></span><span style=display:flex><span>		<span style=color:#f92672>--</span>sec;
+</span></span><span style=display:flex><span>	}
+</span></span><span style=display:flex><span>	ts<span style=color:#f92672>-&gt;</span>tv_sec <span style=color:#f92672>=</span> sec;
+</span></span><span style=display:flex><span>	ts<span style=color:#f92672>-&gt;</span>tv_nsec <span style=color:#f92672>=</span> nsec;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>このようなinline assemblyはLLVM bitcodeからJavaScriptへの変換に失敗する要因となる．
+このため，<code>asm("" : "+rm"(nsec));</code>をEmscriptenで定義されている
+CからJSのコードを呼ぶinline assembly<code>emscripten_asm_const_int</code>に置き換えることで対応する．</p><h3 id=early_paramの修正>early_paramの修正</h3><p>Linux kernelでは，<code>early_param</code>というものが存在する．
+これは，<code>include/linux/init.h</code>に以下のように定義される．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>struct</span> obs_kernel_param {
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>str;
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>int</span> (<span style=color:#f92672>*</span>setup_func)(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>);
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>int</span> early;
+</span></span><span style=display:flex><span>};
+</span></span><span style=display:flex><span><span style=color:#75715e>/* snip */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define __setup_param(str, unique_id, fn, early)			\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>	static const char __setup_str_##unique_id[] __initconst		\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		__aligned(1) = str; 					\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>	static struct obs_kernel_param __setup_##unique_id		\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		__used __section(.init.setup)				\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		__attribute__((aligned((sizeof(long)))))		\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>		= { __setup_str_##unique_id, fn, early }
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span><span style=color:#75715e>/* snip */</span>
+</span></span><span style=display:flex><span><span style=color:#75715e>#define early_param(str, fn)						\
+</span></span></span><span style=display:flex><span><span style=color:#75715e>	__setup_param(str, fn, fn, 1)
+</span></span></span></code></pre></div><p>つまり，<code>early_param</code>はマクロであり，<code>str</code>と<code>fn</code>を引数にとり，
+<code>.init.setup</code>セクションに置かれる<code>obs_kernel_param</code>構造体であることがわかる．</p><p>通常のLKLのビルドで生成される<code>arch/lkl/kernel/vmlinux.lds</code>を参照すると
+以下のようであることから，<code>.init.setup</code>は<code>__setup_start</code>と<code>__setup_end</code>で
+挟まれたように配置されることがわかる．</p><pre tabindex=0><code>__setup_start = .; KEEP(*(.init.setup)) __setup_end = .;
+</code></pre><p>これらのシンボルは<code>init/main.c</code>において次のように使われる．
+ここでは，Linux kernelのboot parameter(<code>param</code>)の1つについて，
+<code>.init.setup</code>にある<code>obs_kernel_param</code>の<code>str</code>と比較を行い，
+一致した場合に設定してある<code>(*setup_func)(char*)</code>を
+<code>val</code>を引数として実行している．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>/* Check for early params. */</span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>int</span> __init <span style=color:#a6e22e>do_early_param</span>(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>param, <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>val,
+</span></span><span style=display:flex><span>				 <span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>unused, <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>arg)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>const</span> <span style=color:#66d9ef>struct</span> obs_kernel_param <span style=color:#f92672>*</span>p;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>for</span> (p <span style=color:#f92672>=</span> __setup_start; p <span style=color:#f92672>&lt;</span> __setup_end; p<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>		<span style=color:#66d9ef>if</span> ((p<span style=color:#f92672>-&gt;</span>early <span style=color:#f92672>&amp;&amp;</span> <span style=color:#a6e22e>parameq</span>(param, p<span style=color:#f92672>-&gt;</span>str)) <span style=color:#f92672>||</span>
+</span></span><span style=display:flex><span>		    (<span style=color:#a6e22e>strcmp</span>(param, <span style=color:#e6db74>&#34;console&#34;</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span>
+</span></span><span style=display:flex><span>		     <span style=color:#a6e22e>strcmp</span>(p<span style=color:#f92672>-&gt;</span>str, <span style=color:#e6db74>&#34;earlycon&#34;</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>		) {
+</span></span><span style=display:flex><span>			<span style=color:#66d9ef>if</span> (p<span style=color:#f92672>-&gt;</span><span style=color:#a6e22e>setup_func</span>(val) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>				<span style=color:#a6e22e>pr_warn</span>(<span style=color:#e6db74>&#34;Malformed early option &#39;%s&#39;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, param);
+</span></span><span style=display:flex><span>		}
+</span></span><span style=display:flex><span>	}
+</span></span><span style=display:flex><span>	<span style=color:#75715e>/* We accept everything at this stage. */</span>
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><p>まとめると，<code>do_early_param</code>では<code>early_param</code>によって登録されている
+<code>setup_func</code>をboot parameterにより実行する，という形になっている．</p><p>ただ，これはELFのシンボルを利用しているために，JavaScriptでは正しく実行されない．
+このため，ここで呼ばれるであろう関数について，以下のようにハードコードする．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>int</span> __init <span style=color:#a6e22e>do_early_param</span>(<span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>param, <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>val,
+</span></span><span style=display:flex><span>				 <span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>unused, <span style=color:#66d9ef>void</span> <span style=color:#f92672>*</span>arg)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* XXX: There is a lot of early_param, but hardcode in init/main.c */</span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>const</span> <span style=color:#66d9ef>char</span> <span style=color:#f92672>*</span>early_params[MAX_INIT_ARGS<span style=color:#f92672>+</span><span style=color:#ae81ff>2</span>] <span style=color:#f92672>=</span> { <span style=color:#e6db74>&#34;debug&#34;</span>, <span style=color:#e6db74>&#34;quiet&#34;</span>, <span style=color:#e6db74>&#34;loglevel&#34;</span>, NULL, };
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>int</span> i;
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> (i <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>; early_params[i]; i<span style=color:#f92672>++</span>) {
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>strcmp</span>(param, early_params[i]) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>||</span>
+</span></span><span style=display:flex><span>                    (<span style=color:#a6e22e>strcmp</span>(param, <span style=color:#e6db74>&#34;console&#34;</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span> <span style=color:#f92672>&amp;&amp;</span>
+</span></span><span style=display:flex><span>                     <span style=color:#a6e22e>strcmp</span>(early_params[i], <span style=color:#e6db74>&#34;earlycon&#34;</span>) <span style=color:#f92672>==</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>                ) {
+</span></span><span style=display:flex><span>                        <span style=color:#66d9ef>switch</span> (i) {
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>0</span><span style=color:#f92672>:</span> <span style=color:#75715e>/* debug */</span>
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>debug_kernel</span>(val) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>                                        <span style=color:#a6e22e>pr_warn</span>(<span style=color:#e6db74>&#34;Malformed early option &#39;%s&#39;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, param);
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>1</span><span style=color:#f92672>:</span> <span style=color:#75715e>/* quiet */</span>
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>quiet_kernel</span>(val) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>                                        <span style=color:#a6e22e>pr_warn</span>(<span style=color:#e6db74>&#34;Malformed early option &#39;%s&#39;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, param);
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>case</span> <span style=color:#ae81ff>2</span><span style=color:#f92672>:</span> <span style=color:#75715e>/* loglevel */</span>
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>if</span> (<span style=color:#a6e22e>loglevel</span>(val) <span style=color:#f92672>!=</span> <span style=color:#ae81ff>0</span>)
+</span></span><span style=display:flex><span>                                        <span style=color:#a6e22e>pr_warn</span>(<span style=color:#e6db74>&#34;Malformed early option &#39;%s&#39;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, param);
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>break</span>;
+</span></span><span style=display:flex><span>                                <span style=color:#66d9ef>default</span><span style=color:#f92672>:</span>
+</span></span><span style=display:flex><span>                                <span style=color:#a6e22e>pr_warn</span>(<span style=color:#e6db74>&#34;Unknown early option &#39;%s&#39;</span><span style=color:#ae81ff>\n</span><span style=color:#e6db74>&#34;</span>, param);
+</span></span><span style=display:flex><span>                        }
+</span></span><span style=display:flex><span>                }
+</span></span><span style=display:flex><span>        }
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>	<span style=color:#75715e>/* We accept everything at this stage. */</span>
+</span></span><span style=display:flex><span>	<span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h3 id=initcallの修正>initcallの修正</h3><p>先の<code>early_param</code>同様，初期化で呼ばれる<code>initcall</code>も
+ELFのシンボルを用いて呼ばれる関数を管理している．
+JavaScript単体では，どの関数が呼ばれるべきかはわからない．
+そのため，通常のLKLのビルドで生成される<code>System.map</code>
+を用いて関数をあらかじめ取得し，そこから関数呼び出しを行う．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(sys<span style=color:#f92672>.</span>argv[<span style=color:#ae81ff>1</span>], <span style=color:#e6db74>&#34;r&#34;</span>) <span style=color:#66d9ef>as</span> fp:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> line <span style=color:#f92672>in</span> fp:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> SIG <span style=color:#f92672>in</span> line:
+</span></span><span style=display:flex><span>                symbol <span style=color:#f92672>=</span> line[:<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>]<span style=color:#f92672>.</span>split(<span style=color:#e6db74>&#34; &#34;</span>)[<span style=color:#ae81ff>2</span>]
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>try</span>:
+</span></span><span style=display:flex><span>                    level <span style=color:#f92672>=</span> int(symbol[<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>])
+</span></span><span style=display:flex><span>                    initcall <span style=color:#f92672>=</span> symbol[symbol<span style=color:#f92672>.</span>index(SIG)<span style=color:#f92672>+</span>len(SIG):len(symbol)<span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>                    initcalls[level]<span style=color:#f92672>.</span>append(initcall)
+</span></span><span style=display:flex><span>                <span style=color:#66d9ef>except</span> <span style=color:#a6e22e>ValueError</span>:
+</span></span><span style=display:flex><span>                    <span style=color:#66d9ef>pass</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> level, row <span style=color:#f92672>in</span> enumerate(initcalls):
+</span></span><span style=display:flex><span>        print(<span style=color:#e6db74>&#34;/* initcall</span><span style=color:#e6db74>{}</span><span style=color:#e6db74> */&#34;</span><span style=color:#f92672>.</span>format(level))
+</span></span><span style=display:flex><span>        print(<span style=color:#e6db74>&#34;EM_ASM({&#34;</span>)
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> initcall <span style=color:#f92672>in</span> row:
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>if</span> initcall <span style=color:#f92672>in</span> blacklist:
+</span></span><span style=display:flex><span>                print(<span style=color:#e6db74>&#34;    /* _&#34;</span><span style=color:#f92672>+</span>initcall<span style=color:#f92672>+</span><span style=color:#e6db74>&#34;(); */&#34;</span>)
+</span></span><span style=display:flex><span>            <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>                print(<span style=color:#e6db74>&#34;    _&#34;</span><span style=color:#f92672>+</span>initcall<span style=color:#f92672>+</span><span style=color:#e6db74>&#34;();&#34;</span>)
+</span></span><span style=display:flex><span>        print(<span style=color:#e6db74>&#34;});&#34;</span>)
+</span></span></code></pre></div><p>これによって得られるコードを<code>do_initcalls</code>にハードコードする．
+<code>EM_ASM</code>はCにJSのコード直接記述するinline assemblyである．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>void</span> __init <span style=color:#a6e22e>do_initcalls</span>(<span style=color:#66d9ef>void</span>)
+</span></span><span style=display:flex><span>{
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* XXX: initcalls are broken, so hardcode here */</span>
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* initcall0 */</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>EM_ASM</span>({
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>_net_ns_init</span>();
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>        <span style=color:#75715e>/* initcall1 */</span>
+</span></span><span style=display:flex><span>        <span style=color:#a6e22e>EM_ASM</span>({
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>_lkl_console_init</span>();
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>_wq_sysfs_init</span>();
+</span></span><span style=display:flex><span>            <span style=color:#a6e22e>_ksysfs_init</span>();
+</span></span><span style=display:flex><span><span style=color:#75715e>/* snip */</span>
+</span></span><span style=display:flex><span>        });
+</span></span><span style=display:flex><span>}
+</span></span></code></pre></div><h2 id=デモと結果>デモと結果</h2><p>冒頭で紹介したように，lkl.jsではpthreadを利用しているため，
+SharedArrayBufferを有効にする必要がある．
+現在のブラウザではSharedArrayBufferが実装されているものの，
+Spectreのmitiagtionのため，デフォルトでは無効になっている．
+そのためこれを有効にした上で実行してみてほしい．</p><p><code>start_kernel</code>の実行結果を以下に示す．</p><pre tabindex=0><code>  [    0.000000] Linux version 4.16.0+ (akira@akira-Z270) () #13 Tue Jul 17 23:01:19 JST 2018
+  [    0.000000] bootmem address range: 0x675000 - 0x1674000
+  [    0.000000] On node 0 totalpages: 4095
+  [    0.000000]   Normal zone: 36 pages used for memmap
+  [    0.000000]   Normal zone: 0 pages reserved
+  [    0.000000]   Normal zone: 4095 pages, LIFO batch:0
+  [    0.000000] pcpu-alloc: s0 r0 d32768 u32768 alloc=1*32768
+  [    0.000000] pcpu-alloc: [0] 0 
+  [    0.000000] Built 1 zonelists, mobility grouping off.  Total pages: 4059
+  [    0.000000] Kernel command line: mem=16M loglevel=8
+  [    0.000000] Parameter  is obsolete, ignored
+  [    0.000000] Parameter  is obsolete, ignored
+  [    0.000000] Dentry cache hash table entries: 2048 (order: 1, 8192 bytes)
+  [    0.000000] Inode-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.000000] Memory available: 16144k/16380k RAM
+  [    0.000000] SLUB: HWalign=32, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+  [    0.000000] NR_IRQS: 1024
+  [    0.000000] lkl: irqs initialized
+  [    0.000000] clocksource: lkl: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+  [    0.000100] lkl: time and timers initialized (irq1)
+  [    0.001100] pid_max: default: 4096 minimum: 301
+  [    0.009400] Mount-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.009900] Mountpoint-cache hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.327100] console [lkl_console0] enabled
+  [    0.329600] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604462750000 ns
+  [    0.329700] xor: automatically using best checksumming function   8regs     
+  [    0.341199] NET: Registered protocol family 16
+  [    0.388999] clocksource: Switched to clocksource lkl
+  [    0.414100] NET: Registered protocol family 2
+  [    0.437700] tcp_listen_portaddr_hash hash table entries: 512 (order: 0, 4096 bytes)
+  [    0.438199] TCP established hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.439000] TCP bind hash table entries: 1024 (order: 0, 4096 bytes)
+  [    0.439600] TCP: Hash tables configured (established 1024 bind 1024)
+  [    0.443200] UDP hash table entries: 256 (order: 0, 4096 bytes)
+  [    0.444000] UDP-Lite hash table entries: 256 (order: 0, 4096 bytes)
+  [    0.472100] workingset: timestamp_bits=30 max_order=12 bucket_order=0
+  [    0.863100] SGI XFS with ACLs, security attributes, no debug enabled
+  [    0.923700] jitterentropy: Initialization failed with host not compliant with requirements: 2
+  [    0.924599] io scheduler noop registered
+  [    0.924900] io scheduler deadline registered
+  [    0.933099] io scheduler cfq registered (default)
+  [    0.933500] io scheduler kyber registered
+  [    1.633500] NET: Registered protocol family 10
+  [    1.658400] Segment Routing with IPv6
+  [    1.660800] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+  [    1.674200] ------------[ cut here ]------------
+  [    1.675500] WARNING: CPU: 0 PID: 0 at arch/lkl/kernel/setup.c:188   (null)
+  [    1.675899] Call Trace:
+  [    1.676200] 
+  [    1.676999] ---[ end trace 941dc55fe0966cff ]---
+  [    1.684299] Warning: unable to open an initial console.
+  [    1.685200] This architecture does not have kernel memory protection.
+  pthread_join((pthread_t)tid, NULL): No such process
+  lkl_start_kernel(&amp;lkl_host_ops, &#34;mem=16M loglevel=8&#34;) = 0 
+</code></pre><h2 id=現在の問題点>現在の問題点</h2><p>以上より，JavaScript上で直接Linux kerenlが起動したことが確認できた．
+しかし，現状ではdmesgが出力されるだけで全く実用には適さない．
+これには次のような問題点が存在するためである．</p><ol><li>kthreadの生成に失敗する</li><li>rootfsのマウントに失敗する</li><li>init</li></ol><p>また，Emscriptenでのpthreadのサポートがあまりよくない．
+Little Kernel(LK)からsemaphore, mutex, threadの機能を抜き出し，
+これらをgreen threadとして扱うLKLを作成した．</p><ul><li><a href=https://github.com/retrage/linux/tree/retrage/fiber>https://github.com/retrage/linux/tree/retrage/fiber</a></li></ul><p>これを用いたLKL.jsを作成することを予定している．</p><h2 id=まとめ>まとめ</h2><p>JavaScriptで書かれたLinux kernelをLKLからEmscriptenにより生成し，
+これが起動し，dmesgが出力されることを確認した．
+通常のマシンとJavaScriptではアーキテクチャが大きく異なるが，
+いくつかの修正とworkaroundを加えることにより，
+多少なりとも動作することがわかった．</p><h2 id=参考文献>参考文献</h2><ul><li><a href=https://github.com/lkl/linux>https://github.com/lkl/linux</a></li><li><a href=https://github.com/kripken/emscripten>https://github.com/kripken/emscripten</a></li><li><a href=https://llvm.org/>https://llvm.org/</a></li><li><a href=https://clang.llvm.org/>https://clang.llvm.org/</a></li><li><a href=https://wiki.linuxfoundation.org/llvmlinux>https://wiki.linuxfoundation.org/llvmlinux</a></li><li><a href=https://lwn.net/Articles/734071/>https://lwn.net/Articles/734071/</a></li><li><a href=http://llvm.org/docs/CommandGuide/llvm-link.html>http://llvm.org/docs/CommandGuide/llvm-link.html</a></li><li><a href=https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html>https://0xax.gitbooks.io/linux-insides/Concepts/linux-cpu-3.html</a></li><li><a href=https://github.com/littlekernel/lk>https://github.com/littlekernel/lk</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2018/07/25/lkl-js-en.html/><span class=mr-1.5>←</span><span>LKL.js: Running Linux Kernel on JavaScript *Directly*</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2018/06/26/zephyr-on-hifive1.html/><span>HiFive1でZephyr</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

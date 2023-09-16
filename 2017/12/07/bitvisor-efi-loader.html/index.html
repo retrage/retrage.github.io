@@ -1,0 +1,57 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる - retrage.github.io</title><meta name=theme-color><meta name=description content="この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる． EFI Loaderのコード"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる"><meta itemprop=description content="この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる． EFI Loaderのコード"><meta itemprop=datePublished content="2017-12-07T02:05:28+00:00"><meta itemprop=dateModified content="2017-12-07T02:05:28+00:00"><meta itemprop=wordCount content="994"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる"><meta name=twitter:description content="この記事は BitVisor Advent Calendar 7日目の記事として書かれた． ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる． EFI Loaderのコード"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">BitVisorのEFI向け VMM Loader(1st stage)のコードを読んでみる</h1><div class="text-sm antialiased opacity-60"><time>Dec 7, 2017</time></div></header><section><p>この記事は
+<a href=https://qiita.com/advent-calendar/2017/bitvisor>BitVisor Advent Calendar</a>
+7日目の記事として書かれた．
+ここでは，BitVisorのEFI向け VMMLoader(1st stage)のコードを読んでみる．</p><p>EFI Loaderのコードは
+<a href="https://bitbucket.org/bitvisor/bitvisor/src/34fa14de2421cd3564323eec998f8e0c465e99a0/boot/uefi-loader/loadvmm.c?at=default&amp;fileviewer=file-view-default"><code>boot/uefi-loader/loadvmm.c</code></a>
+にある．</p><p><code>efi_main</code>をみていく．</p><pre tabindex=0><code>        status = systab-&gt;BootServices-&gt;
+                HandleProtocol (image, &amp;LoadedImageProtocol, &amp;tmp);
+</code></pre><p>LoadedImageProtocolがサポートされているかを確認．</p><pre tabindex=0><code>        status = systab-&gt;BootServices-&gt;
+                HandleProtocol (loaded_image-&gt;DeviceHandle,
+                                &amp;FileSystemProtocol, &amp;tmp);
+</code></pre><p>FileSystemProtocolがサポートされているかを確認．</p><pre tabindex=0><code>        create_file_path (loaded_image-&gt;FilePath, L&#34;bitvisor.elf&#34;, file_path,
+                          sizeof file_path / sizeof file_path[0]);
+</code></pre><p>ここで，<code>bitvisor.elf</code>までのパスを作成する．</p><pre tabindex=0><code>        status = fileio-&gt;OpenVolume (fileio, &amp;file);
+</code></pre><p>ボリュームを開く．</p><pre tabindex=0><code>        status = file-&gt;Open (file, &amp;file2, file_path, EFI_FILE_MODE_READ, 0);
+</code></pre><p>先で作成したファイルパスのファイルを開く．</p><pre tabindex=0><code>        status = systab-&gt;BootServices-&gt;AllocatePages (AllocateMaxAddress,
+                                                      EfiLoaderData, 0x10,
+                                                      &amp;paddr);
+</code></pre><p>4KiB*0x10=64KiBだけページをAllocateする．</p><pre tabindex=0><code>	readsize = 0x10000;
+	status = file2-&gt;Read (file2, &amp;readsize, (void *)paddr);
+</code></pre><p><code>bitvisor.elf</code>のうち0x10000だけpaddrに展開する．
+このあたりのマジックナンバーについては榮樂さんによる<a href=https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf>スライド</a>
+に詳しく書いてある．
+それによれば，</p><pre tabindex=0><code>BitVisorのVMMローダ(2nd stage)ではELFバイナリの先頭64KiB
+</code></pre><p>(20ページ目)
+とある．この部分はその先頭64KiBを読み出していると考えられる．</p><pre tabindex=0><code>	entry = *(uint32_t *)(paddr + 0x18);
+	entry_func = (entry_func_t *)(paddr + (entry &amp; 0xFFFF));
+</code></pre><p>ELFの先頭アドレスからエントリポイントを計算し，<code>entry_func</code>とする．</p><pre tabindex=0><code>	struct bitvisor_boot boot_ext = {
+		UEFI_BITVISOR_BOOT_UUID,
+		paddr,
+		readsize,
+		file2
+	};
+	void *boot_exts[] = {
+		&amp;boot_ext,
+		NULL
+	};
+
+	boot_error = entry_func (image, systab, boot_exts);
+</code></pre><p>必要な情報を構造体に抱えて<code>entry_func</code>に飛び込む．</p><p>以上を簡単にまとめると，
+ファイルの読み出し->エントリポイントの計算->エントリポイントへのジャンプ
+のようになっている．
+ELFのパースを行わないことで，簡素な実装となっていることが見て取れる．
+また，</p><h2 id=最後に>最後に</h2><p>EFIアプリケーションの開発と言えばEDK2やgnu-efiがあるが，
+BitVisorのEFI Loaderの場合，EDKからのヘッダを利用し，
+<code>x86_64-w64-mingw32-gcc</code>によりコンパイルを行う．
+このため依存関係が少なくコンパイルが容易であると言える．</p><p>BitVisorの<code>uefi-loader</code>に加え，品川先生の<a href=https://github.com/utshina/uefi-simple>uefi-simple</a>に刺激を受け，
+<a href=https://github.com/retrage/uefi-sample>uefi-sample</a>
+というサンプルを作成した．
+これにより，EDK2やgnu-efiに頼ることなくEFIアプリケーションを作成することができる．</p><p>ここでは，BitVisor のVMMローダ(1st stage)のコードを読んだ．
+機会があれば，2nd stageのコードも読んでみたい．</p><h2 id=参考文献>参考文献</h2><ul><li><a href=https://bitbucket.org/bitvisor/bitvisor>https://bitbucket.org/bitvisor/bitvisor</a></li><li><a href=https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf>https://www.bitvisor.org/summit2/slides/bitvisor-summit-2-03-eiraku.pdf</a></li><li><a href=https://qiita.com/hdk_2/items/b73161f08fefce0d99c3>https://qiita.com/hdk_2/items/b73161f08fefce0d99c3</a></li><li><a href=https://github.com/utshina/uefi-simple>https://github.com/utshina/uefi-simple</a></li><li><a href=https://github.com/retrage/uefi-sample>https://github.com/retrage/uefi-sample</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2017/12/09/efi-stub-header.html/><span class=mr-1.5>←</span><span>EFI stubなLinux kernelのヘッダ部分を見てみる</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2017/11/09/windows10-ezp2010-driver.html/><span>Windows 10にEZP2010のドライバをインストール</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

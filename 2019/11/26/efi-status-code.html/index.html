@@ -1,0 +1,182 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>EFI_STATUSの値 - retrage.github.io</title><meta name=theme-color><meta name=description content="毎回EFI_STATUSの値を調べるのが手間なのでここでまとめておく． TL;DR EFI_STATUS Value (64-bit) EFI_SUCCESS 0x0 EFI_LOAD_ERROR 0x8000000000000001 EFI_INVALID_PARAMETER 0x8000000000000002 EFI_UNSUPPORTED 0x8000000000000003 EFI_BAD_BUFFER_SIZE 0x8000000000000004 EFI_BUFFER_TOO_SMALL 0x8000000000000005 EFI_NOT_READY 0x8000000000000006 EFI_DEVICE_ERROR 0x8000000000000007 EFI_WRITE_PROTECTED 0x8000000000000008 EFI_OUT_OF_RESOURCES 0x8000000000000009 EFI_VOLUME_CORRUPTED 0x800000000000000a EFI_VOLUME_FULL 0x800000000000000b EFI_NO_MEDIA 0x800000000000000c EFI_MEDIA_CHANGED 0x800000000000000d EFI_NOT_FOUND 0x800000000000000e EFI_ACCESS_DENIED"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="EFI_STATUSの値"><meta itemprop=description content="毎回EFI_STATUSの値を調べるのが手間なのでここでまとめておく． TL;DR EFI_STATUS Value (64-bit) EFI_SUCCESS 0x0 EFI_LOAD_ERROR 0x8000000000000001 EFI_INVALID_PARAMETER 0x8000000000000002 EFI_UNSUPPORTED 0x8000000000000003 EFI_BAD_BUFFER_SIZE 0x8000000000000004 EFI_BUFFER_TOO_SMALL 0x8000000000000005 EFI_NOT_READY 0x8000000000000006 EFI_DEVICE_ERROR 0x8000000000000007 EFI_WRITE_PROTECTED 0x8000000000000008 EFI_OUT_OF_RESOURCES 0x8000000000000009 EFI_VOLUME_CORRUPTED 0x800000000000000a EFI_VOLUME_FULL 0x800000000000000b EFI_NO_MEDIA 0x800000000000000c EFI_MEDIA_CHANGED 0x800000000000000d EFI_NOT_FOUND 0x800000000000000e EFI_ACCESS_DENIED"><meta itemprop=datePublished content="2019-11-26T09:40:56+00:00"><meta itemprop=dateModified content="2019-11-26T09:40:56+00:00"><meta itemprop=wordCount content="812"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="EFI_STATUSの値"><meta name=twitter:description content="毎回EFI_STATUSの値を調べるのが手間なのでここでまとめておく． TL;DR EFI_STATUS Value (64-bit) EFI_SUCCESS 0x0 EFI_LOAD_ERROR 0x8000000000000001 EFI_INVALID_PARAMETER 0x8000000000000002 EFI_UNSUPPORTED 0x8000000000000003 EFI_BAD_BUFFER_SIZE 0x8000000000000004 EFI_BUFFER_TOO_SMALL 0x8000000000000005 EFI_NOT_READY 0x8000000000000006 EFI_DEVICE_ERROR 0x8000000000000007 EFI_WRITE_PROTECTED 0x8000000000000008 EFI_OUT_OF_RESOURCES 0x8000000000000009 EFI_VOLUME_CORRUPTED 0x800000000000000a EFI_VOLUME_FULL 0x800000000000000b EFI_NO_MEDIA 0x800000000000000c EFI_MEDIA_CHANGED 0x800000000000000d EFI_NOT_FOUND 0x800000000000000e EFI_ACCESS_DENIED"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">EFI_STATUSの値</h1><div class="text-sm antialiased opacity-60"><time>Nov 26, 2019</time></div></header><section><p>毎回<code>EFI_STATUS</code>の値を調べるのが手間なのでここでまとめておく．</p><h2 id=tldr>TL;DR</h2><table><thead><tr><th>EFI_STATUS</th><th>Value (64-bit)</th></tr></thead><tbody><tr><td>EFI_SUCCESS</td><td>0x0</td></tr><tr><td>EFI_LOAD_ERROR</td><td>0x8000000000000001</td></tr><tr><td>EFI_INVALID_PARAMETER</td><td>0x8000000000000002</td></tr><tr><td>EFI_UNSUPPORTED</td><td>0x8000000000000003</td></tr><tr><td>EFI_BAD_BUFFER_SIZE</td><td>0x8000000000000004</td></tr><tr><td>EFI_BUFFER_TOO_SMALL</td><td>0x8000000000000005</td></tr><tr><td>EFI_NOT_READY</td><td>0x8000000000000006</td></tr><tr><td>EFI_DEVICE_ERROR</td><td>0x8000000000000007</td></tr><tr><td>EFI_WRITE_PROTECTED</td><td>0x8000000000000008</td></tr><tr><td>EFI_OUT_OF_RESOURCES</td><td>0x8000000000000009</td></tr><tr><td>EFI_VOLUME_CORRUPTED</td><td>0x800000000000000a</td></tr><tr><td>EFI_VOLUME_FULL</td><td>0x800000000000000b</td></tr><tr><td>EFI_NO_MEDIA</td><td>0x800000000000000c</td></tr><tr><td>EFI_MEDIA_CHANGED</td><td>0x800000000000000d</td></tr><tr><td>EFI_NOT_FOUND</td><td>0x800000000000000e</td></tr><tr><td>EFI_ACCESS_DENIED</td><td>0x800000000000000f</td></tr><tr><td>EFI_NO_RESPONSE</td><td>0x8000000000000010</td></tr><tr><td>EFI_NO_MAPPING</td><td>0x8000000000000011</td></tr><tr><td>EFI_TIMEOUT</td><td>0x8000000000000012</td></tr><tr><td>EFI_NOT_STARTED</td><td>0x8000000000000013</td></tr><tr><td>EFI_ALREADY_STARTED</td><td>0x8000000000000014</td></tr><tr><td>EFI_ABORTED</td><td>0x8000000000000015</td></tr><tr><td>EFI_ICMP_ERROR</td><td>0x8000000000000016</td></tr><tr><td>EFI_TFTP_ERROR</td><td>0x8000000000000017</td></tr><tr><td>EFI_PROTOCOL_ERROR</td><td>0x8000000000000018</td></tr><tr><td>EFI_INCOMPATIBLE_VERSION</td><td>0x8000000000000019</td></tr><tr><td>EFI_SECURITY_VIOLATION</td><td>0x800000000000001a</td></tr><tr><td>EFI_CRC_ERROR</td><td>0x800000000000001b</td></tr><tr><td>EFI_END_OF_MEDIA</td><td>0x800000000000001c</td></tr><tr><td>EFI_END_OF_FILE</td><td>0x800000000000001f</td></tr><tr><td>EFI_INVALID_LANGUAGE</td><td>0x8000000000000020</td></tr><tr><td>EFI_COMPROMISED_DATA</td><td>0x8000000000000021</td></tr><tr><td>EFI_HTTP_ERROR</td><td>0x8000000000000023</td></tr><tr><td>EFI_NETWORK_UNREACHABLE</td><td>0x8000000000000064</td></tr><tr><td>EFI_HOST_UNREACHABLE</td><td>0x8000000000000065</td></tr><tr><td>EFI_PROTOCOL_UNREACHABLE</td><td>0x8000000000000066</td></tr><tr><td>EFI_PORT_UNREACHABLE</td><td>0x8000000000000067</td></tr><tr><td>EFI_CONNECTION_FIN</td><td>0x8000000000000068</td></tr><tr><td>EFI_CONNECTION_RESET</td><td>0x8000000000000069</td></tr><tr><td>EFI_CONNECTION_REFUSED</td><td>0x800000000000006a</td></tr><tr><td>EFI_WARN_UNKNOWN_GLYPH</td><td>0x1</td></tr><tr><td>EFI_WARN_DELETE_FAILURE</td><td>0x2</td></tr><tr><td>EFI_WARN_WRITE_FAILURE</td><td>0x3</td></tr><tr><td>EFI_WARN_BUFFER_TOO_SMALL</td><td>0x4</td></tr><tr><td>EFI_WARN_STALE_DATA</td><td>0x5</td></tr><tr><td>EFI_WARN_FILE_SYSTEM</td><td>0x6</td></tr></tbody></table><h2 id=edk2での定義>EDK2での定義</h2><pre tabindex=0><code class=language-c:MdePkg/Include/Uefi/UefiBaseType.h:24 data-lang=c:MdePkg/Include/Uefi/UefiBaseType.h:24>///
+/// Function return status for EFI API.
+///
+typedef RETURN_STATUS             EFI_STATUS;
+</code></pre><pre tabindex=0><code class=language-c:MdePkg/Include/Base.h:959 data-lang=c:MdePkg/Include/Base.h:959>//
+// Status codes common to all execution phases
+//
+typedef UINTN RETURN_STATUS;
+</code></pre><p>なので<code>EFI_STATUS</code>は<code>UINTN</code>である．
+x64では<code>UINTN</code>は<code>UINT64</code>となっている．</p><pre tabindex=0><code class=language-c:MdePkg/Include/Uefi/UefiBaseType.h:109 data-lang=c:MdePkg/Include/Uefi/UefiBaseType.h:109>///
+/// Enumeration of EFI_STATUS.
+///@{
+#define EFI_SUCCESS               RETURN_SUCCESS
+#define EFI_LOAD_ERROR            RETURN_LOAD_ERROR
+#define EFI_INVALID_PARAMETER     RETURN_INVALID_PARAMETER
+#define EFI_UNSUPPORTED           RETURN_UNSUPPORTED
+#define EFI_BAD_BUFFER_SIZE       RETURN_BAD_BUFFER_SIZE
+#define EFI_BUFFER_TOO_SMALL      RETURN_BUFFER_TOO_SMALL
+#define EFI_NOT_READY             RETURN_NOT_READY
+#define EFI_DEVICE_ERROR          RETURN_DEVICE_ERROR
+#define EFI_WRITE_PROTECTED       RETURN_WRITE_PROTECTED
+#define EFI_OUT_OF_RESOURCES      RETURN_OUT_OF_RESOURCES
+#define EFI_VOLUME_CORRUPTED      RETURN_VOLUME_CORRUPTED
+#define EFI_VOLUME_FULL           RETURN_VOLUME_FULL
+#define EFI_NO_MEDIA              RETURN_NO_MEDIA
+#define EFI_MEDIA_CHANGED         RETURN_MEDIA_CHANGED
+#define EFI_NOT_FOUND             RETURN_NOT_FOUND
+#define EFI_ACCESS_DENIED         RETURN_ACCESS_DENIED
+#define EFI_NO_RESPONSE           RETURN_NO_RESPONSE
+#define EFI_NO_MAPPING            RETURN_NO_MAPPING
+#define EFI_TIMEOUT               RETURN_TIMEOUT
+#define EFI_NOT_STARTED           RETURN_NOT_STARTED
+#define EFI_ALREADY_STARTED       RETURN_ALREADY_STARTED
+#define EFI_ABORTED               RETURN_ABORTED
+#define EFI_ICMP_ERROR            RETURN_ICMP_ERROR
+#define EFI_TFTP_ERROR            RETURN_TFTP_ERROR
+#define EFI_PROTOCOL_ERROR        RETURN_PROTOCOL_ERROR
+#define EFI_INCOMPATIBLE_VERSION  RETURN_INCOMPATIBLE_VERSION
+#define EFI_SECURITY_VIOLATION    RETURN_SECURITY_VIOLATION
+#define EFI_CRC_ERROR             RETURN_CRC_ERROR
+#define EFI_END_OF_MEDIA          RETURN_END_OF_MEDIA
+#define EFI_END_OF_FILE           RETURN_END_OF_FILE
+#define EFI_INVALID_LANGUAGE      RETURN_INVALID_LANGUAGE
+#define EFI_COMPROMISED_DATA      RETURN_COMPROMISED_DATA
+#define EFI_HTTP_ERROR            RETURN_HTTP_ERROR
+
+#define EFI_WARN_UNKNOWN_GLYPH    RETURN_WARN_UNKNOWN_GLYPH
+#define EFI_WARN_DELETE_FAILURE   RETURN_WARN_DELETE_FAILURE
+#define EFI_WARN_WRITE_FAILURE    RETURN_WARN_WRITE_FAILURE
+#define EFI_WARN_BUFFER_TOO_SMALL RETURN_WARN_BUFFER_TOO_SMALL
+#define EFI_WARN_STALE_DATA       RETURN_WARN_STALE_DATA
+#define EFI_WARN_FILE_SYSTEM      RETURN_WARN_FILE_SYSTEM
+///@}
+
+///
+/// Define macro to encode the status code.
+///
+#define EFIERR(_a)                ENCODE_ERROR(_a)
+
+#define EFI_ERROR(A)              RETURN_ERROR(A)
+
+///
+/// ICMP error definitions
+///@{
+#define EFI_NETWORK_UNREACHABLE   EFIERR(100)
+#define EFI_HOST_UNREACHABLE      EFIERR(101)
+#define EFI_PROTOCOL_UNREACHABLE  EFIERR(102)
+#define EFI_PORT_UNREACHABLE      EFIERR(103)
+///@}
+
+///
+/// Tcp connection status definitions
+///@{
+#define EFI_CONNECTION_FIN        EFIERR(104)
+#define EFI_CONNECTION_RESET      EFIERR(105)
+#define EFI_CONNECTION_REFUSED    EFIERR(106)
+///@}
+</code></pre><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>#define RETURN_SUCCESS               0
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_LOAD_ERROR            ENCODE_ERROR (1)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_INVALID_PARAMETER     ENCODE_ERROR (2)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_UNSUPPORTED           ENCODE_ERROR (3)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_BAD_BUFFER_SIZE       ENCODE_ERROR (4)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_BUFFER_TOO_SMALL      ENCODE_ERROR (5)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NOT_READY             ENCODE_ERROR (6)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_DEVICE_ERROR          ENCODE_ERROR (7)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WRITE_PROTECTED       ENCODE_ERROR (8)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_OUT_OF_RESOURCES      ENCODE_ERROR (9)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_VOLUME_CORRUPTED      ENCODE_ERROR (10)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_VOLUME_FULL           ENCODE_ERROR (11)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NO_MEDIA              ENCODE_ERROR (12)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_MEDIA_CHANGED         ENCODE_ERROR (13)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NOT_FOUND             ENCODE_ERROR (14)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_ACCESS_DENIED         ENCODE_ERROR (15)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NO_RESPONSE           ENCODE_ERROR (16)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NO_MAPPING            ENCODE_ERROR (17)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_TIMEOUT               ENCODE_ERROR (18)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_NOT_STARTED           ENCODE_ERROR (19)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_ALREADY_STARTED       ENCODE_ERROR (20)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_ABORTED               ENCODE_ERROR (21)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_ICMP_ERROR            ENCODE_ERROR (22)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_TFTP_ERROR            ENCODE_ERROR (23)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_PROTOCOL_ERROR        ENCODE_ERROR (24)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_INCOMPATIBLE_VERSION  ENCODE_ERROR (25)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_SECURITY_VIOLATION    ENCODE_ERROR (26)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_CRC_ERROR             ENCODE_ERROR (27)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_END_OF_MEDIA          ENCODE_ERROR (28)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_END_OF_FILE           ENCODE_ERROR (31)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_INVALID_LANGUAGE      ENCODE_ERROR (32)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_COMPROMISED_DATA      ENCODE_ERROR (33)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_HTTP_ERROR            ENCODE_ERROR (35)
+</span></span></span></code></pre></div><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_UNKNOWN_GLYPH    ENCODE_WARNING (1)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_DELETE_FAILURE   ENCODE_WARNING (2)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_WRITE_FAILURE    ENCODE_WARNING (3)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_BUFFER_TOO_SMALL ENCODE_WARNING (4)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_STALE_DATA       ENCODE_WARNING (5)
+</span></span></span><span style=display:flex><span><span style=color:#75715e>#define RETURN_WARN_FILE_SYSTEM      ENCODE_WARNING (6)
+</span></span></span></code></pre></div><pre tabindex=0><code class=language-c:MdePkg/Include/Base.h:973 data-lang=c:MdePkg/Include/Base.h:973>#define ENCODE_ERROR(StatusCode)     ((RETURN_STATUS)(MAX_BIT | (StatusCode)))
+</code></pre><pre tabindex=0><code class=language-c:MdePkg/Include/Base.h:984 data-lang=c:MdePkg/Include/Base.h:984>#define ENCODE_WARNING(StatusCode)   ((RETURN_STATUS)(StatusCode))
+</code></pre><p>ここで<code>MAX_BIT</code>はx64では次のようになっている．</p><pre tabindex=0><code class=language-c:MdePkg/Include/X64/ProcessorBind.h:246 data-lang=c:MdePkg/Include/X64/ProcessorBind.h:246>#define MAX_BIT     0x8000000000000000ULL
+</code></pre><p>以上をまとめるとx64では<code>EFI_STATUS</code>の値は最初に示した表のようになる．
+以下は表の生成に利用したスクリプトである．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-python data-lang=python><span style=display:flex><span><span style=color:#75715e>#!/usr/bin/env python</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#f92672>import</span> sys
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>MAX_BIT <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x8000000000000000</span>
+</span></span><span style=display:flex><span><span style=color:#75715e># MAX_BIT = 0x80000000</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>print_row</span>(status, val, status_width, val_width):
+</span></span><span style=display:flex><span>    status_padding <span style=color:#f92672>=</span> status_width <span style=color:#f92672>-</span> len(status)
+</span></span><span style=display:flex><span>    val_padding <span style=color:#f92672>=</span> val_width <span style=color:#f92672>-</span> len(val)
+</span></span><span style=display:flex><span>    print(<span style=color:#e6db74>&#39;| &#39;</span> <span style=color:#f92672>+</span> status <span style=color:#f92672>+</span> <span style=color:#e6db74>&#39; &#39;</span> <span style=color:#f92672>*</span> status_padding <span style=color:#f92672>+</span> <span style=color:#e6db74>&#39; | &#39;</span> \
+</span></span><span style=display:flex><span>            <span style=color:#f92672>+</span> val <span style=color:#f92672>+</span> <span style=color:#e6db74>&#39; &#39;</span> <span style=color:#f92672>*</span> val_padding <span style=color:#f92672>+</span> <span style=color:#e6db74>&#39; |&#39;</span>)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>def</span> <span style=color:#a6e22e>main</span>():
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> len(sys<span style=color:#f92672>.</span>argv) <span style=color:#f92672>&lt;</span> <span style=color:#ae81ff>3</span>:
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>return</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    efi_status_path <span style=color:#f92672>=</span> sys<span style=color:#f92672>.</span>argv[<span style=color:#ae81ff>1</span>]
+</span></span><span style=display:flex><span>    efi_to_return <span style=color:#f92672>=</span> dict()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(efi_status_path, <span style=color:#e6db74>&#39;r&#39;</span>) <span style=color:#66d9ef>as</span> fp: 
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> line <span style=color:#f92672>in</span> fp: 
+</span></span><span style=display:flex><span>            [_, efi_status, return_status] <span style=color:#f92672>=</span> line<span style=color:#f92672>.</span>strip()<span style=color:#f92672>.</span>split()
+</span></span><span style=display:flex><span>            efi_to_return[efi_status] <span style=color:#f92672>=</span> return_status
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    return_status_path <span style=color:#f92672>=</span> sys<span style=color:#f92672>.</span>argv[<span style=color:#ae81ff>2</span>]
+</span></span><span style=display:flex><span>    return_to_val <span style=color:#f92672>=</span> dict()
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>with</span> open(return_status_path, <span style=color:#e6db74>&#39;r&#39;</span>) <span style=color:#66d9ef>as</span> fp: 
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>for</span> line <span style=color:#f92672>in</span> fp: 
+</span></span><span style=display:flex><span>            [_, return_status, val] <span style=color:#f92672>=</span> line<span style=color:#f92672>.</span>strip()<span style=color:#f92672>.</span>split()
+</span></span><span style=display:flex><span>            return_to_val[return_status] <span style=color:#f92672>=</span> val 
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    status_width <span style=color:#f92672>=</span> max(map(len, efi_to_return<span style=color:#f92672>.</span>keys()))
+</span></span><span style=display:flex><span>    val_width <span style=color:#f92672>=</span> len(hex(MAX_BIT))
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    print_row(<span style=color:#e6db74>&#39;EFI_STATUS&#39;</span>, <span style=color:#e6db74>&#39;Value (64-bit)&#39;</span>, status_width, val_width)
+</span></span><span style=display:flex><span>    print_row(<span style=color:#e6db74>&#39;-&#39;</span> <span style=color:#f92672>*</span> status_width, <span style=color:#e6db74>&#39;-&#39;</span> <span style=color:#f92672>*</span> val_width, status_width, val_width)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>for</span> (efi_status, return_status) <span style=color:#f92672>in</span> efi_to_return<span style=color:#f92672>.</span>items():
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> return_status<span style=color:#f92672>.</span>startswith(<span style=color:#e6db74>&#39;EFIERR&#39;</span>):
+</span></span><span style=display:flex><span>            v <span style=color:#f92672>=</span> return_status
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>            v <span style=color:#f92672>=</span> return_to_val[return_status]
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>if</span> v<span style=color:#f92672>.</span>startswith(<span style=color:#e6db74>&#39;ENCODE_ERROR&#39;</span>) <span style=color:#f92672>or</span> v<span style=color:#f92672>.</span>startswith(<span style=color:#e6db74>&#39;EFIERR&#39;</span>):
+</span></span><span style=display:flex><span>            val <span style=color:#f92672>=</span> MAX_BIT <span style=color:#f92672>|</span> int(v[v<span style=color:#f92672>.</span>index(<span style=color:#e6db74>&#39;(&#39;</span>)<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>:v<span style=color:#f92672>.</span>index(<span style=color:#e6db74>&#39;)&#39;</span>)])
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>elif</span> v<span style=color:#f92672>.</span>startswith(<span style=color:#e6db74>&#39;ENCODE_WARNING&#39;</span>):
+</span></span><span style=display:flex><span>            val <span style=color:#f92672>=</span> int(v[v<span style=color:#f92672>.</span>index(<span style=color:#e6db74>&#39;(&#39;</span>)<span style=color:#f92672>+</span><span style=color:#ae81ff>1</span>:v<span style=color:#f92672>.</span>index(<span style=color:#e6db74>&#39;)&#39;</span>)])
+</span></span><span style=display:flex><span>        <span style=color:#66d9ef>else</span>:
+</span></span><span style=display:flex><span>            val <span style=color:#f92672>=</span> int(v) <span style=color:#75715e># 0 is expected</span>
+</span></span><span style=display:flex><span>        print_row(efi_status, hex(val), status_width, val_width)
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>return</span> <span style=color:#ae81ff>0</span>
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span><span style=color:#66d9ef>if</span> __name__ <span style=color:#f92672>==</span> <span style=color:#e6db74>&#39;__main__&#39;</span>:
+</span></span><span style=display:flex><span>    sys<span style=color:#f92672>.</span>exit(main())
+</span></span></code></pre></div></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/12/05/debugging-ovmf-en.html/><span class=mr-1.5>←</span><span>Debugging OVMF with GDB</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/11/05/debugging-ovmf.html/><span>OVMFのデバッグ</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

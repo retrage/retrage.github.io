@@ -1,0 +1,132 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>VisionFive 2をJTAGデバッグ - retrage.github.io</title><meta name=theme-color><meta name=description content="VisionFive 2 (以下、VF2) はStarFive Technologyが開発したSBCである。名前からわかるように、RISC-VのSoCを搭載している。"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="VisionFive 2をJTAGデバッグ"><meta itemprop=description content="VisionFive 2 (以下、VF2) はStarFive Technologyが開発したSBCである。名前からわかるように、RISC-VのSoCを搭載している。"><meta itemprop=datePublished content="2023-03-25T07:34:56+00:00"><meta itemprop=dateModified content="2023-03-25T07:34:56+00:00"><meta itemprop=wordCount content="1333"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="VisionFive 2をJTAGデバッグ"><meta name=twitter:description content="VisionFive 2 (以下、VF2) はStarFive Technologyが開発したSBCである。名前からわかるように、RISC-VのSoCを搭載している。"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">VisionFive 2をJTAGデバッグ</h1><div class="text-sm antialiased opacity-60"><time>Mar 25, 2023</time></div></header><section><p>VisionFive 2 (以下、VF2) はStarFive Technologyが開発したSBCである。名前からわかるように、RISC-VのSoCを搭載している。ここではVF2をJTAGデバッグする方法を簡単にまとめる。</p><p>なお、この記事の内容は以下のVF2のフォーラムの投稿を参考に、具体的な手順を整理したものである。</p><ul><li><a href=https://forum.rvspace.org/t/openocd-config-for-visionfive-2/1452>https://forum.rvspace.org/t/openocd-config-for-visionfive-2/1452</a></li><li><a href=https://forum.rvspace.org/t/using-jlink-edu-jtag-with-visionfive-2/1943>https://forum.rvspace.org/t/using-jlink-edu-jtag-with-visionfive-2/1943</a></li></ul><h3 id=jtagインターフェースのピン配置>JTAGインターフェースのピン配置</h3><p>まずピンヘッダ上でのJTAGインターフェースの配置を確認する。以下の通りである。</p><pre tabindex=0><code>JTAG:       Header Number
+U74_TMS:    35
+U74_TCK:    37
+U74_TRSTN:  36
+U74_TDI:    38
+U74_TDO:    40
+</code></pre><p>上記の通り接続すると以下の写真のようになる。</p><p><img src=/img/visionfive2-jtag.jpeg alt="VisionFive 2 JTAG PinOut"></p><p>今回は手元にあったSipeed <a href=https://github.com/sipeed/RV-Debugger-BL702>RV-Debugger-BL702</a>というRISC-Vベースのデバッガを利用した。</p><h3 id=openocdを使ったjtagデバッグの設定>OpenOCDを使ったJTAGデバッグの設定</h3><p>次にデバッガをPCに接続してOpenOCDを起動する。</p><p>OpenOCDの設定ファイルは利用するJTAGデバッガに合わせて用意する必要がある。以下に一例として、RV-Debugger-BL702向けの設定を掲載する。</p><pre tabindex=0><code># REF: https://github.com/orangecms/RV-Debugger-BL702/blob/nezha/tools/openocd/openocd-usb-sipeed.cfg
+# REF: https://github.com/strangerover2002/visionfive2-/blob/main/u74.cfg
+# SiPEED USB-JTAG/TTL based on FT2232D
+adapter driver ftdi
+ftdi vid_pid 0x0403 0x6010
+# http://blog.sipeed.com/p/727.html
+ftdi channel 0
+reset_config trst_only
+transport select jtag
+adapter speed     1000
+
+ftdi layout_init 0x0508 0x0f1b
+ftdi layout_signal nTRST -data 0x0200 -noe 0x0100
+ftdi layout_signal nSRST -data 0x0800 -noe 0x0400
+
+jtag newtap e24 cpu -irlen 5 -expected-id 0x07110cfd
+jtag newtap u74 cpu -irlen 5 -expected-id 0x07110cfd
+
+target create e24.cpu0 riscv -chain-position u74.cpu -coreid 0 -rtos hwthread
+target create u74.cpu1 riscv -chain-position u74.cpu -coreid 1 
+target create u74.cpu2 riscv -chain-position u74.cpu -coreid 2
+target create u74.cpu3 riscv -chain-position u74.cpu -coreid 3
+target create u74.cpu4 riscv -chain-position u74.cpu -coreid 4
+target smp e24.cpu0 u74.cpu1 u74.cpu2 u74.cpu3 u74.cpu4        #remove for separate harts gdb
+
+init
+</code></pre><p>この設定をファイルに保存した上で、以下のようにOpenOCDを起動する。</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-shell data-lang=shell><span style=display:flex><span>openocd -f openocd-usb-sipeed-visionfive2.cfg
+</span></span></code></pre></div><p>OpenOCDが起動してVF2側のJTAGが認識されれば、以下のようにOpenOCDがGDBを待ち受ける。</p><pre tabindex=0><code>Open On-Chip Debugger 0.12.0
+Licensed under GNU GPL v2
+For bug reports, read
+	http://openocd.org/doc/doxygen/bugs.html
+Info : Hardware thread awareness created
+Error: Invalid command argument
+Error: Invalid command argument
+Error: Invalid command argument
+Error: Invalid command argument
+Error: Invalid command argument
+Warn : libusb_detach_kernel_driver() failed with LIBUSB_ERROR_ACCESS, trying to continue anyway
+Info : clock speed 1000 kHz
+Info : JTAG tap: e24.cpu tap/device found: 0x07110cfd (mfg: 0x67e (Guangdong StarFive Technology Co), part: 0x7110, ver: 0x0)
+Info : JTAG tap: u74.cpu tap/device found: 0x07110cfd (mfg: 0x67e (Guangdong StarFive Technology Co), part: 0x7110, ver: 0x0)
+Info : datacount=2 progbufsize=16
+Info : Disabling abstract command reads from CSRs.
+Info : Examined RISC-V core; found 5 harts
+Info :  hart 0: XLEN=64, misa=0x8000000000901107
+Info : datacount=2 progbufsize=16
+Info : Disabling abstract command reads from CSRs.
+Info : Core 1 made part of halt group 1.
+Info : Examined RISC-V core; found 5 harts
+Info :  hart 1: XLEN=64, misa=0x800000000094112f
+Info : datacount=2 progbufsize=16
+Info : Disabling abstract command reads from CSRs.
+Info : Core 2 made part of halt group 1.
+Info : Examined RISC-V core; found 5 harts
+Info :  hart 2: XLEN=64, misa=0x800000000094112f
+Info : datacount=2 progbufsize=16
+Info : Disabling abstract command reads from CSRs.
+Info : Core 3 made part of halt group 1.
+Info : Examined RISC-V core; found 5 harts
+Info :  hart 3: XLEN=64, misa=0x800000000094112f
+Info : datacount=2 progbufsize=16
+Info : Disabling abstract command reads from CSRs.
+Info : Core 4 made part of halt group 1.
+Info : Examined RISC-V core; found 5 harts
+Info :  hart 4: XLEN=64, misa=0x800000000094112f
+Info : starting gdb server for e24.cpu0 on 3333
+Info : Listening on port 3333 for gdb connections
+Info : starting gdb server for u74.cpu1 on 3334
+Info : Listening on port 3334 for gdb connections
+Info : Listening on port 6666 for tcl connections
+Info : Listening on port 4444 for telnet connections
+</code></pre><p>待ち受けているポートに対してGDBをアタッチすると、以下のようにVF2をGDBでデバッグできるようになる。</p><pre tabindex=0><code>(gdb) target extended-remote :3334
+Remote debugging using :3334
+warning: No executable has been specified and target does not support
+determining executable automatically.  Try using the &#34;file&#34; command.
+0xffffffff8000329a in ?? ()
+(gdb) i r
+ra             0xffffffff800322d2	0xffffffff800322d2
+sp             0xffffffff81403ed0	0xffffffff81403ed0
+gp             0xffffffff815006b8	0xffffffff815006b8
+tp             0xffffffff81411fc0	0xffffffff81411fc0
+t0             0x1b057	110679
+t1             0x8	8
+t2             0x1b057	110679
+fp             0xffffffff81403ee0	0xffffffff81403ee0
+s1             0x0	0
+a0             0x0	0
+a1             0x200000020	8589934624
+a2             0x1	1
+a3             0x1b7df	112607
+a4             0x1b7df	112607
+a5             0xffffffe1f89776e0	-128973310240
+a6             0x0	0
+a7             0x54494d45	1414090053
+s2             0xffffffff815021c0	-2125454912
+s3             0xffffffff81502374	-2125454476
+s4             0xffffffff80c21778	-2134763656
+s5             0xffffffff815020a8	-2125455192
+s6             0xffffffff81535218	-2125245928
+s7             0x1	1
+s8             0x0	0
+s9             0x0	0
+s10            0x0	0
+s11            0xfffb9cd0	4294679760
+t3             0x0	0
+t4             0x23a	570
+t5             0xc5672a10	3311872528
+t6             0x2	2
+pc             0xffffffff8000329a	0xffffffff8000329a
+(gdb) x/8i $pc
+=&gt; 0xffffffff8000329a:	csrsi	sstatus,2
+   0xffffffff8000329e:	ld	s0,8(sp)
+   0xffffffff800032a0:	addi	sp,sp,16
+   0xffffffff800032a2:	ret
+   0xffffffff800032a4:	addi	sp,sp,-32
+   0xffffffff800032a6:	sd	s0,16(sp)
+   0xffffffff800032a8:	sd	s1,8(sp)
+   0xffffffff800032aa:	sd	ra,24(sp)
+</code></pre><h2 id=jtagデバッグで気になる点>JTAGデバッグで気になる点</h2><p>以上の手順でJTAGデバッグができるが、一点だけ気になることがある。それは、電源投入直後の待ち受け方法についてである。JTAGが使いたくなる場面の多くはUARTも使えない起動初期のタイミングだが、VF2で待ち受けさせる方法がわからない。</p><p>この点については、何かわかったことがあれば追記したい。</p><h2 id=参考文献>参考文献</h2><ul><li><a href=https://forum.rvspace.org/t/openocd-config-for-visionfive-2/1452>https://forum.rvspace.org/t/openocd-config-for-visionfive-2/1452</a></li><li><a href=https://forum.rvspace.org/t/using-jlink-edu-jtag-with-visionfive-2/1943>https://forum.rvspace.org/t/using-jlink-edu-jtag-with-visionfive-2/1943</a></li><li><a href=https://github.com/riscv/riscv-debug-spec>https://github.com/riscv/riscv-debug-spec</a></li><li><a href=https://github.com/sipeed/RV-Debugger-BL702>https://github.com/sipeed/RV-Debugger-BL702</a></li><li><a href=https://github.com/orangecms/RV-Debugger-BL702/blob/nezha/tools/openocd/openocd-usb-sipeed.cfg>https://github.com/orangecms/RV-Debugger-BL702/blob/nezha/tools/openocd/openocd-usb-sipeed.cfg</a></li><li><a href=https://github.com/strangerover2002/visionfive2-/blob/main/u74.cfg>https://github.com/strangerover2002/visionfive2-/blob/main/u74.cfg</a></li><li><a href=https://gist.github.com/retrage/e0377380dfdbcd9aebe68ee360908d3d>https://gist.github.com/retrage/e0377380dfdbcd9aebe68ee360908d3d</a></li></ul></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2023/08/20/intel-hfi.html/><span class=mr-1.5>←</span><span>OSはどうやってP-coreとE-coreを使い分けているのか</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2022/12/31/2022-review.html/><span>2022年にやったこと</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

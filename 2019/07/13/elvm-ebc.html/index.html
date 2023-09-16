@@ -1,0 +1,206 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>ELVMのEFI Byte Codeバックエンドを作る - retrage.github.io</title><meta name=theme-color><meta name=description content="ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する． EFI Byte Code"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="ELVMのEFI Byte Codeバックエンドを作る"><meta itemprop=description content="ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する． EFI Byte Code"><meta itemprop=datePublished content="2019-07-13T17:23:26+00:00"><meta itemprop=dateModified content="2019-07-13T17:23:26+00:00"><meta itemprop=wordCount content="3681"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="ELVMのEFI Byte Codeバックエンドを作る"><meta name=twitter:description content="ここでは ELVM のEFI Byte Codeバックエンドについて紹介する． 特にELVM IRとEFI Byte Codeのsemantic gapに注目する． EFI Byte Code"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">ELVMのEFI Byte Codeバックエンドを作る</h1><div class="text-sm antialiased opacity-60"><time>Jul 13, 2019</time></div></header><section><p>ここでは
+<a href=https://github.com/shinh/elvm>ELVM</a>
+のEFI Byte Codeバックエンドについて紹介する．
+特にELVM IRとEFI Byte Codeのsemantic gapに注目する．</p><h2 id=efi-byte-codeについて>EFI Byte Codeについて</h2><p>EFI Byte Code (EBC)はUEFI Specificationで定義されている
+アーキテクチャ非依存なUEFI向けデバイスドライバのための仮想マシンである，
+EBCの詳細については過去の記事である
+<a href=https://retrage.github.io/2018/11/11/efi-byte-code-myth.html>EFI Byte Code解説</a>
+を参考にしたい．</p><h2 id=ebcバックエンドのビルドとテスト>EBCバックエンドのビルドとテスト</h2><p>コードは以下で公開している．</p><ul><li><a href=https://github.com/retrage/elvm/tree/retrage/ebcvm>https://github.com/retrage/elvm/tree/retrage/ebcvm</a></li></ul><p>以下でビルドとebcvmによるテストが行える．</p><pre tabindex=0><code>$ git clone https://github.com/retrage/elvm.git
+$ cd elvm &amp;&amp; git checkout retrage/ebcvm
+$ make ebc
+</code></pre><h2 id=バックエンドの概要>バックエンドの概要</h2><p>EBCは64-bitなlittle endianなアーキテクチャであり，
+UEFIの仕様ではEBCのバイナリフォーマットはPE32+である．
+ELVMにはLinux向けのx86_32とARMのバックエンドが存在し，これらは直接ELFを出力する．
+一方でPEのサポートがないため新たにPEの出力をELVMに追加した．</p><p>EBCバックエンドの構成は既存のx86_32やARMのバックエンドを参考にしている．
+出力されるPEは<code>.text</code>セクションと<code>.rodata</code>セクションの2つのセクションを持つ．
+<code>.text</code>セクションにはELVM IRから変換したコードが配置され，
+<code>.rodata</code>セクションには後述のELVM IRでのプログラムカウンタと実アドレスのテーブルが配置される．</p><h2 id=pc2addrの作成>pc2addrの作成</h2><p>ELVM IRでは<code>JMP</code>命令などのターゲットのアドレスを
+ELVM IRにおけるプログラムカウンタの値で保持している．
+一方でEBCではターゲットのアドレスは実アドレスでなければならない．
+このため，ELVM IRでのプログラムカウンタの値と実アドレスの対応表を作成する必要がある．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>  <span style=color:#75715e>// pc_cnt: get program counter count
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>int</span> pc_cnt <span style=color:#f92672>=</span> <span style=color:#ae81ff>0</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> (Inst<span style=color:#f92672>*</span> inst <span style=color:#f92672>=</span> module<span style=color:#f92672>-&gt;</span>text; inst; inst <span style=color:#f92672>=</span> inst<span style=color:#f92672>-&gt;</span>next) {
+</span></span><span style=display:flex><span>    pc_cnt<span style=color:#f92672>++</span>;
+</span></span><span style=display:flex><span>  }
+</span></span></code></pre></div><p>最初にELVM IRのtextの命令数を<code>pc_cnt</code>に数え上げる．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>  <span style=color:#75715e>// pc2addr: table from pc to addr
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#66d9ef>int</span><span style=color:#f92672>*</span> pc2addr <span style=color:#f92672>=</span> <span style=color:#a6e22e>calloc</span>(pc_cnt, <span style=color:#66d9ef>sizeof</span>(<span style=color:#66d9ef>int</span>));
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> prev_pc <span style=color:#f92672>=</span> <span style=color:#f92672>-</span><span style=color:#ae81ff>1</span>;
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>for</span> (Inst<span style=color:#f92672>*</span> inst <span style=color:#f92672>=</span> module<span style=color:#f92672>-&gt;</span>text; inst; inst <span style=color:#f92672>=</span> inst<span style=color:#f92672>-&gt;</span>next) {
+</span></span><span style=display:flex><span>    <span style=color:#66d9ef>if</span> (prev_pc <span style=color:#f92672>!=</span> inst<span style=color:#f92672>-&gt;</span>pc) {
+</span></span><span style=display:flex><span>      pc2addr[inst<span style=color:#f92672>-&gt;</span>pc] <span style=color:#f92672>=</span> <span style=color:#a6e22e>emit_cnt</span>();
+</span></span><span style=display:flex><span>    }
+</span></span><span style=display:flex><span>    prev_pc <span style=color:#f92672>=</span> inst<span style=color:#f92672>-&gt;</span>pc;
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>ebc_emit_inst</span>(inst, pc2addr);
+</span></span><span style=display:flex><span>  }
+</span></span></code></pre></div><p>次に<code>pc2addr</code>にプログラムカウンタの値をインデックスとして
+実アドレスの値のテーブルを作成する．
+ここで<code>ebc_emit_inst()</code>を呼んでいるが，
+実際にEBCの命令を出力しているのではなく出力される命令の大きさ分
+<code>g_emit_cnt</code>をインクリメントしているだけである．</p><h2 id=ヘッダの生成>ヘッダの生成</h2><p>ELFやPEなどのバイナリフォーマットでは各セクションの大きさが
+正しくヘッダに書き込まれている必要がある．
+このため，実際にバイナリを出力する前に必ず先にセクションの大きさを計算して置く必要がある．
+既に<code>g_emit_cnt</code>と<code>pc_cnt</code>に必要な値が取得できているので，
+これらを元に出力する．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>  <span style=color:#a6e22e>strcpy</span>(text.name, <span style=color:#e6db74>&#34;.text&#34;</span>);
+</span></span><span style=display:flex><span>  text.vaddr <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(PE_HEADER_SIZE, PE_SEC_ALIGN);
+</span></span><span style=display:flex><span>  text.vsize <span style=color:#f92672>=</span> <span style=color:#a6e22e>emit_cnt</span>();
+</span></span><span style=display:flex><span>  text.raddr <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(PE_HEADER_SIZE, PE_FILE_ALIGN) <span style=color:#f92672>-</span> PE_FILE_ALIGN;
+</span></span><span style=display:flex><span>  text.rsize <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(text.vsize, PE_FILE_ALIGN);
+</span></span><span style=display:flex><span>  text.chars <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x60000020</span>; <span style=color:#75715e>// r-x exec
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>  <span style=color:#a6e22e>strcpy</span>(rodata.name, <span style=color:#e6db74>&#34;.rodata&#34;</span>);
+</span></span><span style=display:flex><span>  rodata.vaddr <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(text.vaddr <span style=color:#f92672>+</span> text.vsize, PE_SEC_ALIGN);
+</span></span><span style=display:flex><span>  rodata.vsize <span style=color:#f92672>=</span> pc_cnt <span style=color:#f92672>*</span> <span style=color:#ae81ff>4</span>;
+</span></span><span style=display:flex><span>  rodata.raddr <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(text.raddr <span style=color:#f92672>+</span> text.rsize, PE_FILE_ALIGN)
+</span></span><span style=display:flex><span>                                                    <span style=color:#f92672>-</span> PE_FILE_ALIGN;
+</span></span><span style=display:flex><span>  rodata.rsize <span style=color:#f92672>=</span> <span style=color:#a6e22e>aligned</span>(rodata.vsize, PE_FILE_ALIGN);
+</span></span><span style=display:flex><span>  rodata.chars <span style=color:#f92672>=</span> <span style=color:#ae81ff>0x40000040</span>; <span style=color:#75715e>// r-- inited
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>
+</span></span><span style=display:flex><span>  <span style=color:#66d9ef>int</span> imagesz <span style=color:#f92672>=</span> PE_SEC_ALIGN;
+</span></span><span style=display:flex><span>  imagesz <span style=color:#f92672>+=</span> <span style=color:#a6e22e>aligned</span>(text.vsize, PE_SEC_ALIGN);
+</span></span><span style=display:flex><span>  imagesz <span style=color:#f92672>+=</span> <span style=color:#a6e22e>aligned</span>(rodata.vsize, PE_SEC_ALIGN);
+</span></span><span style=display:flex><span>
+</span></span><span style=display:flex><span>  <span style=color:#75715e>// generate PE header
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#a6e22e>emit_headers</span>(imagesz);
+</span></span></code></pre></div><h2 id=elvm-irとebcの対応>ELVM IRとEBCの対応</h2><p>ELVM IRはA, B, C, D, SP, BPの6個のレジスタを持つ．
+一方EBCはR0, R1, R2, R3, R4, R5, R6, R7, IP, FLAGSの10個のレジスタを持つ．
+このうちR0はスタックポインタとして予約されているため，
+以下のように対応させる．
+なお，R7は保存する必要のないレジスタとした．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>static</span> <span style=color:#66d9ef>int</span> EBCREG[] <span style=color:#f92672>=</span> { 
+</span></span><span style=display:flex><span>  <span style=color:#ae81ff>1</span>, <span style=color:#75715e>// A - R1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>2</span>, <span style=color:#75715e>// B - R2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>3</span>, <span style=color:#75715e>// C - R3
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>4</span>, <span style=color:#75715e>// D - R4
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>5</span>, <span style=color:#75715e>// BP - R5
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>6</span>, <span style=color:#75715e>// SP - R6
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>7</span>, <span style=color:#75715e>// R7 - free register
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>  <span style=color:#ae81ff>0</span>, <span style=color:#75715e>// R0 - stack pointer
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>};
+</span></span></code></pre></div><p>前述の通り，ELVM IRとEBCにはsemantic gapが存在するため，
+これを埋めるように実装を行う．</p><h3 id=setcc>setcc</h3><p>ELVM IRにおいてEQ, NE, LT, GT, LE, GEなどのsetcc命令は
+srcとdstの2つのオペランドを持ち，
+dstとsrcを比較し結果をdstに0, 1で代入するというものである．</p><p>一方EBCではCMP命令が存在するが，
+これはOperand1とOperand2の2つオペランドを持ち，
+これらを比較して結果をFLAGSの0-bitにあるCフラグを設定するというものである．
+ELVM IRのsetccと対応させるためには次の2つの問題がある．</p><ol><li>CMP命令の結果をOperand1に代入する必要がある．</li><li>ELVM IRにあるLT, GTに相当するものが存在しない．</li></ol><p>1つ目の問題については以下のようなコードを生成することで対応させる．
+CMP命令の結果によって設定されたCフラグを元にconditional branchを行い
+それぞれ飛んだ先でdstの値を設定する．
+なお，CMP命令にはELVM IRのNEに相当するものが存在しないが，
+conditional branchの設定を変えることでこれに対応できる．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-asm data-lang=asm><span style=display:flex><span>    <span style=color:#a6e22e>CMP32</span> <span style=color:#66d9ef>dst</span>, <span style=color:#66d9ef>src</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8</span>[<span style=color:#66d9ef>cc</span><span style=color:#960050;background-color:#1e0010>/</span><span style=color:#66d9ef>cs</span>] <span style=color:#66d9ef>.L1</span>
+</span></span><span style=display:flex><span>.L0:
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>MOVIdd</span> <span style=color:#66d9ef>dst</span>, <span style=color:#ae81ff>0x01</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8</span> <span style=color:#66d9ef>.L2</span>
+</span></span><span style=display:flex><span>.L1:
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>MOVIdd</span> <span style=color:#66d9ef>dst</span>, <span style=color:#ae81ff>0x00</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8</span> <span style=color:#66d9ef>.L2</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>.L2</span>
+</span></span></code></pre></div><p>2つ目の問題についてELVM IRでは扱う値が整数のみであるため，
+以下のようなコードで対応できる．
+まずGTであればGE，LTであればLEで比較を行い
+その結果が0であればそのまま0をdstに代入する．
+結果が1であればさらにEQで比較を行う．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-asm data-lang=asm><span style=display:flex><span>    <span style=color:#a6e22e>CMP32</span> <span style=color:#66d9ef>dst</span>, <span style=color:#66d9ef>src</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8cc</span> <span style=color:#66d9ef>.L1</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>CMPeq</span> <span style=color:#66d9ef>dst</span>, <span style=color:#66d9ef>src</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8cs</span> <span style=color:#66d9ef>.L1</span>
+</span></span><span style=display:flex><span>.L0:
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>MOVIdd</span> <span style=color:#66d9ef>dst</span>, <span style=color:#ae81ff>0x01</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8</span> <span style=color:#66d9ef>.L2</span>
+</span></span><span style=display:flex><span>.L1:
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>MOVIdd</span> <span style=color:#66d9ef>dst</span>, <span style=color:#ae81ff>0x00</span>
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>JMP8</span> <span style=color:#66d9ef>.L2</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>.L2</span>
+</span></span></code></pre></div><h3 id=jcc>jcc</h3><p>ELVM IRのJEQ, JNE, JLT, JGT, GLE, JGEなどのjcc命令についても
+setcc命令と同様である．
+ただし，ジャンプを行う点で大きく異なり，前述の<code>pc2addr</code>テーブルを用いる．
+<code>pc2addr</code>は<code>.rodata</code>に存在するため<code>.rodata</code>の先頭アドレスを取得し
+ELVM IRのプログラムカウンタの値を添字として目的のアドレスの値を取得する．
+以下が該当部分のコードである．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>    <span style=color:#75715e>// MOVREL R1, rodata
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0xb9</span>, EBCREG[R1]);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>emit_le</span>(rodata.vaddr <span style=color:#f92672>-</span> (text.vaddr <span style=color:#f92672>+</span> <span style=color:#a6e22e>emit_cnt</span>() <span style=color:#f92672>+</span> <span style=color:#ae81ff>4</span>));
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>emit_ebc_mov_imm</span>(R2, <span style=color:#ae81ff>0x04</span>);
+</span></span><span style=display:flex><span>    <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x4e</span>, (EBCREG[R2] <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>4</span>) <span style=color:#f92672>+</span> EBCREG[R7]); <span style=color:#75715e>// MUL64 R7, R2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x4c</span>, (EBCREG[R1] <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>4</span>) <span style=color:#f92672>+</span> EBCREG[R7]); <span style=color:#75715e>// ADD64 R7, R1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>    <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x23</span>, <span style=color:#ae81ff>0x80</span> <span style=color:#f92672>+</span> (EBCREG[R7] <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>4</span>) <span style=color:#f92672>+</span> EBCREG[R7]); <span style=color:#75715e>// MOVdd R7, @R7
+</span></span></span></code></pre></div><h2 id=putcgetc>PUTC/GETC</h2><p>EBCは単体では外部にアクセスすることができない．
+そのため，UEFIのnativeの機能を<code>CALLex</code>により呼び出すことで
+文字の読み書きを実現する．ここではPUTCを例に挙げる．</p><p>UEFIでは文字の出力はSystemTableに含まれるConOutがStdErrを利用する．
+これらはSimple Text Output Protocolであり，実際に文字の出力を行うのは
+<code>OutputString()</code>である，</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span><span style=color:#66d9ef>typedef</span>
+</span></span><span style=display:flex><span><span style=color:#a6e22e>EFI_STATUS</span>
+</span></span><span style=display:flex><span>(EFIAPI <span style=color:#f92672>*</span>EFI_TEXT_STRING) (
+</span></span><span style=display:flex><span>    IN EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL  <span style=color:#f92672>*</span>This,
+</span></span><span style=display:flex><span>    IN CHAR16                           <span style=color:#f92672>*</span>String
+</span></span><span style=display:flex><span>);
+</span></span></code></pre></div><p>ここに示すように第2引数に出力したい文字列へのポインタを渡すようになっている．
+EBCの呼出規約はCDECLであり，
+関数の引数は全てスタック経由で渡すように定められている．
+この場合，逆順に<code>String</code>が先にスタックにプッシュされることとなる，
+ここで<code>String</code>はCHAR16のポインタであることに注意したい．</p><p>渡される<code>String</code>はEBCのバックエンドではスタック上に確保した8-byteの領域となっている．
+以下に対応するコードを示す．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>      <span style=color:#a6e22e>emit_ebc_mov</span>(R7, <span style=color:#f92672>&amp;</span>inst<span style=color:#f92672>-&gt;</span>src);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>emit_ebc_mov_imm</span>(R2, <span style=color:#ae81ff>0xff00</span>);
+</span></span><span style=display:flex><span>      <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x6b</span>, EBCREG[R2]); <span style=color:#75715e>// PUSH64 R2; String
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_ebc_mov_reg</span>(R2, R0);
+</span></span><span style=display:flex><span>      <span style=color:#75715e>// MOVbw @R2, R7
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x1d</span>, (EBCREG[R7] <span style=color:#f92672>&lt;&lt;</span> <span style=color:#ae81ff>4</span>) <span style=color:#f92672>+</span> <span style=color:#ae81ff>0x08</span> <span style=color:#f92672>+</span> EBCREG[R2]);
+</span></span></code></pre></div><p>最初にR7に出力したい文字を代入し，R2に0xff00を代入する．
+R2をプッシュしスタック上に<code>String</code>となる領域を確保する．
+R2にスタックポインタR0の値を代入しR7の値を確保した領域にコピーする．
+以上の操作でR2の指すスタック上の領域は次のようになる．</p><pre tabindex=0><code>00 00 00 00 00 00 ff xx
+</code></pre><p>ここでxxは出力される文字であり，ff以降の00 00は終端文字として扱われる．
+間にffを入れている理由については後述する．</p><p>次に<code>CALLex</code>を呼ぶためにConOutの<code>OutputString()</code>のアドレスを計算する．
+ここで注意したいのはSystemTableのアドレスはnativeなものであり，
+アドレスは環境依存である点である．
+EBCにはNatural Indexと呼ばれる環境依存のアドレスに対応するための仕様が存在するため
+これを用いてアドレスを計算する．</p><p>UEFIのイメージのエントリポイントからConOutの<code>OutputString()</code>までは
+SystemTable->ConOut->OutputStringとたどれるようになっている．</p><p>R1に<code>OutputString()</code>のアドレス，R2に<code>String</code>のアドレスが代入されたので
+これらをプッシュして<code>CALLex</code>を呼ぶ．</p><div class=highlight><pre tabindex=0 style=color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-c data-lang=c><span style=display:flex><span>      <span style=color:#a6e22e>emit_4</span>(<span style=color:#ae81ff>0x60</span>, <span style=color:#ae81ff>0x07</span>, <span style=color:#ae81ff>0x28</span>, <span style=color:#ae81ff>0x00</span>); <span style=color:#75715e>// MOVqw R7, R0 (0, +40)
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_4</span>(<span style=color:#ae81ff>0x72</span>, <span style=color:#ae81ff>0xf1</span>, <span style=color:#ae81ff>0x41</span>, <span style=color:#ae81ff>0x10</span>); <span style=color:#75715e>// MOVn R1, @R7(.SystemTable)
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_4</span>(<span style=color:#ae81ff>0x72</span>, <span style=color:#ae81ff>0x91</span>, <span style=color:#ae81ff>0x85</span>, <span style=color:#ae81ff>0x21</span>); <span style=color:#75715e>// MOVn R1, @R1(.ConOut)
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x35</span>, <span style=color:#ae81ff>0x02</span>); <span style=color:#75715e>// PUSHn R2
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_2</span>(<span style=color:#ae81ff>0x35</span>, <span style=color:#ae81ff>0x01</span>); <span style=color:#75715e>// PUSHn R1
+</span></span></span><span style=display:flex><span><span style=color:#75715e></span>      <span style=color:#a6e22e>emit_6</span>(<span style=color:#ae81ff>0x83</span>, <span style=color:#ae81ff>0x29</span>, <span style=color:#ae81ff>0x01</span>, <span style=color:#ae81ff>0x00</span>, <span style=color:#ae81ff>0x00</span>, <span style=color:#ae81ff>0x10</span>); <span style=color:#75715e>// CALLEX @R1(.OutputString)
+</span></span></span></code></pre></div><h3 id=終端文字の扱いについて>終端文字の扱いについて</h3><p>TianoCoreの実装では<code>CHAR_NULL</code>=0x0000を終端文字としているが，
+ELVMのテストでは標準入出力を用いてバイナリの入出力を行っている．
+このため，出力したいCHAR16文字の後半を0x00としてしまうと
+期待される出力が0x00だった場合に終端文字として扱われてしまう．
+そこで出力されるCHAR16の後半を0xffで埋めることでこれを回避する．
+実際に文字を出力する際には0x00ffでマスクをかけて文字を得る．</p><h2 id=テスト>テスト</h2><p>以上のように実装したEBCバックエンドだが，
+ELVMのテストはUnix-likeな環境を想定しており，UEFI Shellではテストができない．
+そこで以前に作成したユーザ空間で動作するEBCの実装である
+<a href=https://github.com/yabits/ebcvm>ebcvm</a>
+を用いてテストを行った．
+ebcvmについては
+<a href=https://retrage.github.io/2018/12/19/introduction-to-ebcvm.html>ebcvm: A Usermode EFI Byte Code Virtual Machine</a>
+で紹介している．</p><p>ELVMのテストで生成されたバイナリの一部はQEMU上のOVMFで実際に動作する．
+以下はCで書かれたfizzbuzzの実行結果の一部である．</p><pre tabindex=0><code>FS0:\bin\&gt; fizzbuzz_fast.c.eir.ebc
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+11
+Fizz
+13
+14
+FizzBuzz
+16
+17
+Fizz
+19
+Buzz
+Fizz
+22
+23
+</code></pre></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/07/14/bricked-minnowboard.html/><span class=mr-1.5>←</span><span>文鎮化したMinnowboardを復旧させる</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/06/02/lkl-on-unikraft-en.html/><span>Librarizing Linux kernel for Unikernels</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>

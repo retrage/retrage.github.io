@@ -1,0 +1,48 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>文鎮化したMinnowboardを復旧させる - retrage.github.io</title><meta name=theme-color><meta name=description content="MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェ"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script>
+<link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.118.2"><meta itemprop=name content="文鎮化したMinnowboardを復旧させる"><meta itemprop=description content="MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェ"><meta itemprop=datePublished content="2019-07-14T14:24:13+00:00"><meta itemprop=dateModified content="2019-07-14T14:24:13+00:00"><meta itemprop=wordCount content="1040"><meta itemprop=keywords content><meta name=twitter:card content="summary"><meta name=twitter:title content="文鎮化したMinnowboardを復旧させる"><meta name=twitter:description content="MinnowboardはIntel Atomを搭載した シングルボードコンピュータである． Minnowboardを使った実験で誤ったファームウェ"></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-3xl px-8 lg:justify-center"><div class="relative z-50 mr-auto flex items-center"><a class="-translate-x-[1px] -translate-y-[1px] text-2xl font-semibold" href=https://retrage.github.io>retrage.github.io</a><div class="btn-dark text-[0] ml-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 -mr-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-6"><a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-2xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 dark:invert lg:ml-12 lg:mt-0 lg:items-center lg:space-x-6"><a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github</a>
+<a class="h-8 w-8 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-3xl px-8 pb-16 pt-12 dark:prose-invert"><article><header class=mb-16><h1 class="!my-0 pb-2.5">文鎮化したMinnowboardを復旧させる</h1><div class="text-sm antialiased opacity-60"><time>Jul 14, 2019</time></div></header><section><p>MinnowboardはIntel Atomを搭載した
+シングルボードコンピュータである．
+Minnowboardを使った実験で誤ったファームウェアを書き込んでしまい
+brick (文鎮化) させてしまったので
+SPI Flashを外部から書き換えることで復旧させる．</p><p>今回対象とするのは</p><ul><li>Minnowboard MAX (MAX)</li><li>Minnowboard Turbot Dual-Core (Turbot)</li></ul><p>である．
+基本的にはこれらは同じ仕様であるが，
+後述するような差異がSPI Flashに存在する．</p><h3 id=spi-flash-programmerを使った書き込み>SPI Flash Programmerを使った書き込み</h3><p><a href=https://minnowboard.org/tutorials/updating-firmware-via-spi-flash-programmer>Updating Firmware via SPI Flash Programmer</a>
+を参考にする．
+このチュートリアルではDediProg SF100という
+書き込み機を用いているが
+手元にないため，他の書き込み機を利用する．</p><p>Minnowboardが搭載するSPI Flashには2種類存在する．
+<a href=https://github.com/MinnowBoard-org/bugs-and-help/issues/98>Issue #98</a>
+によればMAXや一部のTurbotでは1.8VをVccとするが
+大多数のTurbotではVccが3.3Vであるとのことである．
+これらの見分け方としてある抵抗が実装されているかで
+調べることができるとされている．</p><ul><li>抵抗R152があり，抵抗R818がない場合: 3.3V</li><li>抵抗R152がなく，抵抗R818がある場合: 1.8V</li></ul><p><a href=https://minnowboard.org/minnowboard-turbot/documentation>Minnowboard Turbot Domumentation</a>
+によればそれぞれ次のようなSPI Flashが搭載されている．</p><ul><li>3.3V: WINBOND W25Q64BVSSIG, MICRON N25Q064A13</li><li>1.8V: WINBOND W25Q64FWSSIG, MICRON N25Q064A11</li></ul><h3 id=minnowboard-max>Minnowboard MAX</h3><p>MAXは以前にcorebootのバイナリイメージを書き込んだが
+失敗したためbrickしていたものである．
+このボードでは1.8VのSPI Flashが搭載されていた．
+ここではEZP2010を用いて書き込みを行った．</p><h3 id=minnowboard-turbot-dual-core>Minnowboard Turbot Dual-Core</h3><p>Turbotに対して
+<a href=https://firmware.intel.com/projects/minnowboard-max>Intel Architecture Firmware Resource Center</a>
+のrelease noteにあるように
+UEFI Shell経由でファームウェアを書き換えた．
+これはIntelの配布するバイナリイメージでは問題なく動作した．
+一方で手元でビルドしたファームウェアを書き込んだ場合，
+UEFI Shellに入る直前に次のようなAssertion Errorにより
+ハングするようになってしまった．</p><pre tabindex=0><code>OSIndication Variable Value 0
+
+ASSERT_EFI_ERROR (Status = Not Found)
+ASSERT [ISPDxe] c:\minnowboard2closesource\Vlv2DeviceRefCodePkg\ValleyView2Soc\NorthCluster\ISPDxe\ISPDxe.c(273): !EFI_ERROR (Status)
+</code></pre><p>ここに書かれているソースコードは公開されておらず，
+バイナリファイルのみが配布されている．
+このため原因の特定は容易ではない．</p><h3 id=20190805-追記>2019/08/05 追記</h3><p>以上の記事について公開していたところ，
+Brian Delgadoさんから助言をいただき
+Assertion Errorについて解決できたので追記する．
+問題はファームウェアのビルドに使うiaslである．
+新しいiaslでは上記の問題が発生するため，
+<a href=https://acpica.org/node/124>VERSION 20160527</a>
+を利用してビルドする．
+手元ではこれでDebug, Relaseどちらも動作することを確認した．
+Brian Delgadoさん，情報をどうもありがとうございました．</p></section><nav class="mt-24 flex rounded-lg bg-black/[3%] text-lg dark:bg-white/[8%]"><a class="flex w-1/2 items-center rounded-l-md p-6 pr-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/07/20/llvm-backend-for-ebc.html/><span class=mr-1.5>←</span><span>LLVMのEFI Byte Codeバックエンドを作る</span></a>
+<a class="ml-auto flex w-1/2 items-center justify-end rounded-r-md p-6 pl-3 font-semibold no-underline hover:bg-black/[2%] dark:hover:bg-white/[3%]" href=https://retrage.github.io/2019/07/13/elvm-ebc.html/><span>ELVMのEFI Byte Codeバックエンドを作る</span><span class=ml-1.5>→</span></a></nav></article></main><footer class="opaco mx-auto flex h-[4.5rem] max-w-3xl items-center px-8 text-[0.9em] opacity-60"><div class=mr-auto>&copy; 2023
+<a class=link href=https://retrage.github.io>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>Powered by Hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>✎ Paper</a></footer></body></html>
