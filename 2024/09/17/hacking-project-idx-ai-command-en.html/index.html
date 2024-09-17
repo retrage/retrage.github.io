@@ -1,0 +1,81 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us dir=ltr><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>Creating Custom Gemini Commands in Project IDX - retrage.github.io</title>
+<meta name=theme-color><meta name=description content="Authors: @retrage @benevolent0505
+Translated by Gemini
+Project IDX is an experimental development environment provided by Google that can be accessed via a web browser. Built on top of VS Code, one of its key features is the integration of Gemini for development assistance.
+In this article, we will introduce a method we&rsquo;ve discovered to create custom Gemini commands in Project IDX, which is not documented in the official documentation.
+
+Gemini Integration in Project IDX
+In Project IDX, Gemini can be used to generate code, provide explanations, and more, similar to GitHub Copilot. While this functionality is integrated into Project IDX, it&rsquo;s actually implemented as an extension plugin. Like regular VS Code extensions, Gemini plugin logs can be found at the following path:"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.134.2"><meta itemprop=name content="Creating Custom Gemini Commands in Project IDX"><meta itemprop=description content="Authors: @retrage @benevolent0505
+Translated by Gemini
+Project IDX is an experimental development environment provided by Google that can be accessed via a web browser. Built on top of VS Code, one of its key features is the integration of Gemini for development assistance.
+In this article, we will introduce a method we’ve discovered to create custom Gemini commands in Project IDX, which is not documented in the official documentation.
+Gemini Integration in Project IDX In Project IDX, Gemini can be used to generate code, provide explanations, and more, similar to GitHub Copilot. While this functionality is integrated into Project IDX, it’s actually implemented as an extension plugin. Like regular VS Code extensions, Gemini plugin logs can be found at the following path:"><meta itemprop=datePublished content="2024-09-17T17:00:00+09:00"><meta itemprop=dateModified content="2024-09-17T17:00:00+09:00"><meta itemprop=wordCount content="564"><meta property="og:url" content="https://retrage.github.io/2024/09/17/hacking-project-idx-ai-command-en.html/"><meta property="og:site_name" content="retrage.github.io"><meta property="og:title" content="Creating Custom Gemini Commands in Project IDX"><meta property="og:description" content="Authors: @retrage @benevolent0505
+Translated by Gemini
+Project IDX is an experimental development environment provided by Google that can be accessed via a web browser. Built on top of VS Code, one of its key features is the integration of Gemini for development assistance.
+In this article, we will introduce a method we’ve discovered to create custom Gemini commands in Project IDX, which is not documented in the official documentation.
+Gemini Integration in Project IDX In Project IDX, Gemini can be used to generate code, provide explanations, and more, similar to GitHub Copilot. While this functionality is integrated into Project IDX, it’s actually implemented as an extension plugin. Like regular VS Code extensions, Gemini plugin logs can be found at the following path:"><meta property="og:locale" content="en_us"><meta property="og:type" content="article"><meta property="article:section" content="post"><meta property="article:published_time" content="2024-09-17T17:00:00+09:00"><meta property="article:modified_time" content="2024-09-17T17:00:00+09:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="Creating Custom Gemini Commands in Project IDX"><meta name=twitter:description content="Authors: @retrage @benevolent0505
+Translated by Gemini
+Project IDX is an experimental development environment provided by Google that can be accessed via a web browser. Built on top of VS Code, one of its key features is the integration of Gemini for development assistance.
+In this article, we will introduce a method we’ve discovered to create custom Gemini commands in Project IDX, which is not documented in the official documentation.
+Gemini Integration in Project IDX In Project IDX, Gemini can be used to generate code, provide explanations, and more, similar to GitHub Copilot. While this functionality is integrated into Project IDX, it’s actually implemented as an extension plugin. Like regular VS Code extensions, Gemini plugin logs can be found at the following path:"><link rel=canonical href=https://retrage.github.io/2024/09/17/hacking-project-idx-ai-command-en.html/></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-[--w] px-8 lg:justify-center"><div class="relative z-50 ltr:mr-auto rtl:ml-auto flex items-center"><a class="-translate-y-[1px] text-2xl font-medium" href=https://retrage.github.io/>retrage.github.io</a><div class="btn-dark text-[0] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 ltr:-mr-8 rtl:-ml-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"><a class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 rtl:space-x-reverse dark:invert ltr:lg:ml-14 rtl:lg:mr-14 lg:mt-0 lg:items-center"><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter
+</a><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github
+</a><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-[--w] px-8 pb-16 pt-14 dark:prose-invert"><article><header class=mb-14><h1 class="!my-0 pb-2.5">Creating Custom Gemini Commands in Project IDX</h1><div class="text-xs antialiased opacity-60"><time>Sep 17, 2024</time></div></header><section><p>Authors: <a href=https://github.com/retrage>@retrage</a> <a href=https://github.com/benevolent0505>@benevolent0505</a></p><p><strong>Translated by Gemini</strong></p><p><a href=https://idx.dev/>Project IDX</a> is an experimental development environment provided by Google that can be accessed via a web browser. Built on top of VS Code, one of its key features is the integration of Gemini for development assistance.</p><p>In this article, we will introduce a method we&rsquo;ve discovered to create custom Gemini commands in Project IDX, which is not documented in the official documentation.</p><hr><h2 id=gemini-integration-in-project-idx>Gemini Integration in Project IDX</h2><p>In Project IDX, Gemini can be used to generate code, provide explanations, and more, similar to GitHub Copilot. While this functionality is integrated into Project IDX, it&rsquo;s actually implemented as an extension plugin. Like regular VS Code extensions, Gemini plugin logs can be found at the following path:</p><pre tabindex=0><code>/home/user/.codeoss-cloudworkstations/data/logs/20240914T120048/exthost1/output_logging_20240914T120116/2-Gemini.log
+</code></pre><p>This log shows that prompts for Gemini are loaded from the following paths:</p><pre tabindex=0><code>/opt/code-oss/extensions/monospace-aida/ai/prompts
+/home/user/&lt;project-name&gt;/.idx/ai/prompts
+</code></pre><p>Importantly, the second path, <code>.idx/ai/prompts</code> within the workspace, is also searched. This suggests that by placing appropriate prompt files in this location, we might be able to add custom Gemini commands.</p><h2 id=prompt-format>Prompt Format</h2><p>To understand the file format, let&rsquo;s examine the first path mentioned above. Currently, files with the <code>.njk</code> extension are placed there. <code>.njk</code> is a template language called <a href=https://mozilla.github.io/nunjucks/>NunJucks</a>.</p><pre tabindex=0><code>chat-add-comments.njk
+chat-clear.njk
+chat-create.njk
+chat-edit.njk
+chat-facts.njk
+chat-facts-selfaware.njk
+chat-idx.njk
+chat-name-thread.njk
+chat-preamble.njk
+chat-suggest-next-prompt.njk
+devtools-debug.njk
+error-help.njk
+explain-selection.njk
+sidekick-add-comments.njk
+sidekick-create.njk
+sidekick-edit.njk
+sidekick-error-fix.njk
+</code></pre><p>As an example of a prompt file, <code>chat-add-comments.njk</code> is shown below.</p><pre tabindex=0><code>---
+name: &#39;chat-add-comments&#39;
+description: &#39;Add comments to code&#39;
+command: &#39;addComments&#39;
+availability: [&#39;chat&#39;]
+action: &#39;chat&#39;
+stopSequences: [&#39;Explanation of changes:&#39;]
+requiredContext:
+  - selection
+---
+
+Please add code comments to the following block of code.
+
+{% if prompt -%}
+Follow these additional instructions: &#34;{{ prompt }}&#34;
+{% endif %}
+
+```
+{{ selectedCode }}
+```
+</code></pre><p>Based on this, we can infer that the upper part is metadata for the command, providing information such as:</p><ul><li>Name</li><li>Description</li><li>Where it can be used</li><li>Strings to stop Gemini&rsquo;s generation</li><li>Required context The part below is a NunJucks template representing the prompt given to the actual Gemini.</li></ul><p>Based on this, let&rsquo;s try adding a custom Gemini command.</p><h2 id=adding-a-custom-gemini-command>Adding a Custom Gemini Command</h2><p>Let&rsquo;s try adding a command to &ldquo;translate selected code into an arbitrary programming language.&rdquo; Create a file named <code>chat-translate-comments.njk</code> in the <code>.idx/ai/prompts</code> directory within the workspace.</p><pre tabindex=0><code>---
+name: &#39;chat-translate-comments&#39;
+description: &#39;Translate comments&#39;
+command: &#39;myTranlateComments&#39;
+availability: [&#39;chat&#39;]
+action: &#39;chat&#39;
+stopSequences: [&#39;Explanation of changes:&#39;]
+requiredContext: 
+  - selection
+---
+
+Please translate the comments in English below to the following language: &#34;{{ prompt }}&#34;
+
+```
+{{ selectedCode }}
+```
+</code></pre><p>After saving this, close the Project IDX tab in the browser once. This is because the commands are loaded at startup.</p><h2 id=executing-the-custom-gemini-command>Executing the Custom Gemini Command</h2><p>Reopen Project IDX, open the target workspace, and try executing the Gemini command we just added. Here, let&rsquo;s try translating some English comments into Japanese. Select the code, open the Gemini command palette with Cmd+I, and type <code>/myTranslateComments Japanese</code>.</p><p><img src=/img/project-idx-gemini-command-translate-comments.png alt="Project IDX Custom Gemini Command"></p><p>As you can see, the Gemini-suggested changes appear, indicating that the custom Gemini command we added has been executed and the comments have been translated into the specified natural language as per the prompt.</p><h2 id=summary>Summary</h2><p>In this article, we introduced a method for adding Gemini commands in Project IDX that is not documented. While the output is not always stable and may not always produce the expected results, the ability to customize AI-assisted coding is attractive. It is likely that this feature will eventually be documented, allowing users to freely create Gemini commands.</p></section><nav class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg !leading-[1.2] *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"><a class="ltr:ml-auto rtl:mr-auto justify-end pl-3" href=https://retrage.github.io/2024/09/17/hacking-project-idx-ai-command.html/><span>Project IDXでカスタムのGeminiコマンドを作る方法を見つけた</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a></nav></article></main><footer class="mx-auto flex h-[4.5rem] max-w-[--w] items-center px-8 text-xs uppercase tracking-wider opacity-60"><div class=mr-auto>&copy; 2024
+<a class=link href=https://retrage.github.io/>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>powered by hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>hugo-paper</a></footer></body></html>
