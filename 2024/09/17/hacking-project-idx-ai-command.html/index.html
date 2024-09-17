@@ -1,0 +1,80 @@
+<!doctype html><html class="not-ready lg:text-base" style=--bg:#faf8f1 lang=en-us dir=ltr><head><meta charset=utf-8><meta http-equiv=X-UA-Compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1,shrink-to-fit=no"><title>Project IDXでカスタムのGeminiコマンドを作る方法を見つけた - retrage.github.io</title>
+<meta name=theme-color><meta name=description content="著者: @retrage @benevolent0505
+Project IDXとは、Googleが実験的に提供している、Webブラウザから利用できる開発環境である。VSCodeをベースとしており、Geminiを使った開発支援機能が統合されているのが売りの一つとなっている。"><meta name=author content="Akira Moroo"><link rel="preload stylesheet" as=style href=https://retrage.github.io/main.min.css><link rel=preload as=image href=https://retrage.github.io/theme.png><link rel=preload as=image href=https://github.com/retrage.png><link rel=preload as=image href=https://retrage.github.io/twitter.svg><link rel=preload as=image href=https://retrage.github.io/github.svg><link rel=preload as=image href=https://retrage.github.io/rss.svg><script defer src=https://retrage.github.io/highlight.min.js onload=hljs.initHighlightingOnLoad()></script><link rel=icon href=https://retrage.github.io/favicon.ico><link rel=apple-touch-icon href=https://retrage.github.io/apple-touch-icon.png><meta name=generator content="Hugo 0.134.2"><meta itemprop=name content="Project IDXでカスタムのGeminiコマンドを作る方法を見つけた"><meta itemprop=description content="著者: @retrage @benevolent0505
+Project IDXとは、Googleが実験的に提供している、Webブラウザから利用できる開発環境である。VSCodeをベースとしており、Geminiを使った開発支援機能が統合されているのが売りの一つとなっている。"><meta itemprop=datePublished content="2024-09-17T17:00:00+09:00"><meta itemprop=dateModified content="2024-09-17T17:00:00+09:00"><meta itemprop=wordCount content="1981"><meta property="og:url" content="https://retrage.github.io/2024/09/17/hacking-project-idx-ai-command.html/"><meta property="og:site_name" content="retrage.github.io"><meta property="og:title" content="Project IDXでカスタムのGeminiコマンドを作る方法を見つけた"><meta property="og:description" content="著者: @retrage @benevolent0505
+Project IDXとは、Googleが実験的に提供している、Webブラウザから利用できる開発環境である。VSCodeをベースとしており、Geminiを使った開発支援機能が統合されているのが売りの一つとなっている。"><meta property="og:locale" content="en_us"><meta property="og:type" content="article"><meta property="article:section" content="post"><meta property="article:published_time" content="2024-09-17T17:00:00+09:00"><meta property="article:modified_time" content="2024-09-17T17:00:00+09:00"><meta name=twitter:card content="summary"><meta name=twitter:title content="Project IDXでカスタムのGeminiコマンドを作る方法を見つけた"><meta name=twitter:description content="著者: @retrage @benevolent0505
+Project IDXとは、Googleが実験的に提供している、Webブラウザから利用できる開発環境である。VSCodeをベースとしており、Geminiを使った開発支援機能が統合されているのが売りの一つとなっている。"><link rel=canonical href=https://retrage.github.io/2024/09/17/hacking-project-idx-ai-command.html/></head><body class="text-black duration-200 ease-out dark:text-white"><header class="mx-auto flex h-[4.5rem] max-w-[--w] px-8 lg:justify-center"><div class="relative z-50 ltr:mr-auto rtl:ml-auto flex items-center"><a class="-translate-y-[1px] text-2xl font-medium" href=https://retrage.github.io/>retrage.github.io</a><div class="btn-dark text-[0] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.png)_left_center/_auto_theme('spacing.6')_no-repeat] [transition:_background-position_0.4s_steps(5)] dark:[background-position:right]" role=button aria-label=Dark></div></div><div class="btn-menu relative z-50 ltr:-mr-8 rtl:-ml-8 flex h-[4.5rem] w-[5rem] shrink-0 cursor-pointer flex-col items-center justify-center gap-2.5 lg:hidden" role=button aria-label=Menu></div><script>const htmlClass=document.documentElement.classList;setTimeout(()=>{htmlClass.remove("not-ready")},10);const btnMenu=document.querySelector(".btn-menu");btnMenu.addEventListener("click",()=>{htmlClass.toggle("open")});const metaTheme=document.querySelector('meta[name="theme-color"]'),lightBg="#faf8f1".replace(/"/g,""),setDark=e=>{metaTheme.setAttribute("content",e?"#000":lightBg),htmlClass[e?"add":"remove"]("dark"),localStorage.setItem("dark",e)},darkScheme=window.matchMedia("(prefers-color-scheme: dark)");if(htmlClass.contains("dark"))setDark(!0);else{const e=localStorage.getItem("dark");setDark(e?e==="true":darkScheme.matches)}darkScheme.addEventListener("change",e=>{setDark(e.matches)});const btnDark=document.querySelector(".btn-dark");btnDark.addEventListener("click",()=>{setDark(localStorage.getItem("dark")!=="true")})</script><div class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full select-none flex-col justify-center pb-16 duration-200 dark:bg-black lg:static lg:h-auto lg:flex-row lg:!bg-transparent lg:pb-0 lg:transition-none"><nav class="lg:ml-12 lg:flex lg:flex-row lg:items-center lg:space-x-10 rtl:space-x-reverse"><a class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal" href=/about/>About</a>
+<a class="block text-center text-xl leading-[5rem] lg:text-base lg:font-normal" href=/>Posts</a></nav><nav class="mt-12 flex justify-center space-x-10 rtl:space-x-reverse dark:invert ltr:lg:ml-14 rtl:lg:mr-14 lg:mt-0 lg:items-center"><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./twitter.svg) href=https://twitter.com/retrage target=_blank rel=me>twitter
+</a><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./github.svg) href=https://github.com/retrage target=_blank rel=me>github
+</a><a class="h-7 w-7 text-[0] [background:var(--url)_center_center/cover_no-repeat] lg:h-6 lg:w-6" style=--url:url(./rss.svg) href=https://retrage.github.io/index.xml target=_blank rel=alternate>rss</a></nav></div></header><main class="prose prose-neutral relative mx-auto min-h-[calc(100%-9rem)] max-w-[--w] px-8 pb-16 pt-14 dark:prose-invert"><article><header class=mb-14><h1 class="!my-0 pb-2.5">Project IDXでカスタムのGeminiコマンドを作る方法を見つけた</h1><div class="text-xs antialiased opacity-60"><time>Sep 17, 2024</time></div></header><section><p>著者: <a href=https://github.com/retrage>@retrage</a> <a href=https://github.com/benevolent0505>@benevolent0505</a></p><p><a href=https://idx.dev>Project IDX</a>とは、Googleが実験的に提供している、Webブラウザから利用できる開発環境である。VSCodeをベースとしており、Geminiを使った開発支援機能が統合されているのが売りの一つとなっている。</p><p>我々はProject IDXで、ドキュメントにないカスタムGeminiコマンドを作る方法を発見したので、ここで紹介する。</p><hr><h2 id=project-idxでのgemini-integrationについて>Project IDXでのGemini Integrationについて</h2><p>Project IDXでは、Geminiを使って、GitHub Copilotのようにコードを生成させたり、説明させたりすることができる。
+この機能は、Project IDXに統合されているが、実際は、機能拡張プラグインとして実装されている。
+通常のVSCodeのExtension同様に、Geminiのプラグインのログが以下のパスに見つかる。</p><pre tabindex=0><code>/home/user/.codeoss-cloudworkstations/data/logs/20240914T120048/exthost1/output_logging_20240914T120116/2-Gemini.log
+</code></pre><p>このログの中身は以下のようになっている。</p><pre tabindex=0><code>2024-09-14T12:01:23.800Z [INFO] do_not_track_region: false
+2024-09-14T12:01:24.063Z [INFO] early_access_commands_enabled: true
+2024-09-14T12:01:24.063Z [INFO] document_code_actions_enabled: false
+2024-09-14T12:01:24.063Z [INFO] add_unit_test_actions_enabled: false
+2024-09-14T12:01:24.065Z [INFO] loading ai prompts from /opt/code-oss/extensions/monospace-aida/ai/prompts
+2024-09-14T12:01:24.420Z [INFO] loading ai prompts from /home/user/gemini-test/.idx/ai/prompts
+</code></pre><p>これを見ると、Geminiに渡すプロンプトを以下のパスからロードしていることがわかる。</p><pre tabindex=0><code>/opt/code-oss/extensions/monospace-aida/ai/prompts
+/home/user/&lt;project-name&gt;/.idx/ai/prompts
+</code></pre><p>ここで重要なのは、二つ目の、ワークスペース内の <code>.idx/ai/prompts</code>も探索している点である。ここに、適切なプロンプトのファイルを配置すれば、カスタムのGeminiコマンドを追加できるのではないかと考えた。</p><h2 id=プロンプトの形式はどうなっているのか>プロンプトの形式はどうなっているのか</h2><p>与えるファイルの形式を知るために、先ほどのパスの1つ目を探してみる。現時点では以下のように <code>.njk</code>の拡張子のファイルが配置されている。</p><pre tabindex=0><code>chat-add-comments.njk
+chat-clear.njk
+chat-create.njk
+chat-edit.njk
+chat-facts.njk
+chat-facts-selfaware.njk
+chat-idx.njk
+chat-name-thread.njk
+chat-preamble.njk
+chat-suggest-next-prompt.njk
+devtools-debug.njk
+error-help.njk
+explain-selection.njk
+sidekick-add-comments.njk
+sidekick-create.njk
+sidekick-edit.njk
+sidekick-error-fix.njk
+</code></pre><p>調べると、 <code>.njk</code>は <a href=https://mozilla.github.io/nunjucks/>NunJucks</a>というテンプレート言語を使っているようである。
+プロンプトファイルの例として、 <code>chat-add-comments.njk</code> を以下に示す。</p><pre tabindex=0><code>---
+name: &#39;chat-add-comments&#39;
+description: &#39;Add comments to code&#39;
+command: &#39;addComments&#39;
+availability: [&#39;chat&#39;]
+action: &#39;chat&#39;
+stopSequences: [&#39;Explanation of changes:&#39;]
+requiredContext:
+  - selection
+---
+
+Please add code comments to the following block of code.
+
+{% if prompt -%}
+Follow these additional instructions: &#34;{{ prompt }}&#34;
+{% endif %}
+
+```
+{{ selectedCode }}
+```
+</code></pre><p>リファレンスがないので推測するしかないが、上がコマンドのメタデータになっており、以下のような情報を与えられるようである。</p><ul><li>名前</li><li>説明</li><li>どこで使えるのか</li><li>Geminiの生成をストップさせる文字列</li><li>必要なコンテキスト</li></ul><p>その下は、Gemini本体に与えるプロンプトをNunJucksでテンプレートとして表現したものである。</p><p>これを元に、カスタムのGeminiコマンドを追加してみる。</p><h2 id=カスタムgeminiコマンドの追加>カスタムGeminiコマンドの追加</h2><p>試しに、「選択したコードを任意のプログラミング言語に変換する」というコマンドを追加してみる。
+先ほど判明した、探索パスであるワークスペース内の <code>.idx/ai/prompts</code>以下に <code>chat-translate-comments.njk</code>を作成する。</p><pre tabindex=0><code>---
+name: &#39;chat-translate-comments&#39;
+description: &#39;Translate comments&#39;
+command: &#39;myTranlateComments&#39;
+availability: [&#39;chat&#39;]
+action: &#39;chat&#39;
+stopSequences: [&#39;Explanation of changes:&#39;]
+requiredContext: 
+  - selection
+---
+
+Please translate the comments in English below to the following language: &#34;{{ prompt }}&#34;
+
+```
+{{ selectedCode }}
+```
+</code></pre><p>これを保存してから、一度ブラウザのProject IDXのタブを閉じる。これは、起動時にコマンドをロードしているためである。</p><h2 id=カスタムgeminiコマンドの実行>カスタムGeminiコマンドの実行</h2><p>再度Project IDXを開き、対象のワークスペースを開いて、先ほど追加したGeminiコマンドを実行してみる。ここでは、適当な英語のコメントを日本語に翻訳させてみる。
+コードを選択して、Cmd+IでGeminiのコマンドパレットを開き、 <code>/myTranslateComments Japanese</code> と打ってみる。
+すると、以下のようにGeminiによる変更の提案が出てきた。</p><p><img src=/img/project-idx-gemini-command-translate-comments.png alt="Project IDX Custom Gemini Command"></p><p>確かに追加したカスタムのGeminiコマンドが実行され、プロンプト通りに指定した自然言語にコメントが翻訳されていることがわかる。</p><h2 id=まとめ>まとめ</h2><p>本稿では、Project IDXにおいて、我々が発見したドキュメント化されていないGeminiコマンドの追加方法を紹介した。試した範囲では出力が安定せず、必ずしも期待する結果が得られるわけではなかったが、生成AIによるコーディング支援をカスタマイズできるというのは、魅力的であると感じられた。
+おそらく、この機能はいずれドキュメント化され、ユーザは誰でも自由にGeminiコマンドを作成できるようになるはずである。</p><h2 id=おまけ>おまけ</h2><p>以下、Geminiに生成させた煽り文句</p><blockquote><p><strong>Project IDX</strong> は、Google が提供する次世代開発環境。<strong>Gemini</strong> という強力な AI を統合し、コード生成や説明、バグ修正など、開発を支援してくれるんだけど…</p><p>実は、公式ドキュメントには載っていない、<strong>隠された Gemini コマンド</strong> が存在することを知ってる？</p><p>この記事では、私たちが独自に見つけた <strong>Project IDX 用のカスタム Gemini コマンドの作成方法</strong> を公開するよ！この方法を使えば、あなたの開発フローに合わせた独自の AI 機能を追加できるんだ。</p><p><strong>この記事を読めば、あなたは:</strong></p><ul><li>Project IDX に隠された Gemini コマンドの仕組みを理解できる</li><li>独自の Gemini コマンドを作成し、開発を効率化できる</li><li>Project IDX の潜在能力を最大限に引き出すことができる</li></ul><p><strong>まだ Project IDX を試したことがない方も、ぜひこの機会に、カスタム Gemini コマンドの力を体験してみてください！</strong></p></blockquote></section><nav class="mt-24 flex overflow-hidden rounded-xl bg-black/[3%] text-lg !leading-[1.2] *:flex *:w-1/2 *:items-center *:p-5 *:font-medium *:no-underline dark:bg-white/[8%] [&>*:hover]:bg-black/[2%] dark:[&>*:hover]:bg-white/[3%]"><a class="ltr:ml-auto rtl:mr-auto justify-end pl-3" href=https://retrage.github.io/2024/07/31/svc-hook.html/><span>ARM64でptraceより2000倍以上速いシステムコールフック作った</span><span class="ltr:ml-1.5 rtl:mr-1.5">→</span></a></nav></article></main><footer class="mx-auto flex h-[4.5rem] max-w-[--w] items-center px-8 text-xs uppercase tracking-wider opacity-60"><div class=mr-auto>&copy; 2024
+<a class=link href=https://retrage.github.io/>retrage.github.io</a></div><a class="link mx-6" href=https://gohugo.io/ rel=noopener target=_blank>powered by hugo️️</a>️
+<a class=link href=https://github.com/nanxiaobei/hugo-paper rel=noopener target=_blank>hugo-paper</a></footer></body></html>
