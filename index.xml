@@ -452,6 +452,12 @@ Windows 7でのインストール手順を記している方がいらっしゃ�
 &lt;li&gt;&lt;a href="https://osfc.io/uploads/talk/paper/23/osfc2018.pdf"&gt;yabits: Yet Another UEFI coreboot Payload&lt;/a&gt;, Open Source Firmware Conference, September 13, 2018&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://speakerdeck.com/retrage/lkl-dot-js-running-linux-kernel-on-javascript-star-directly-star"&gt;LKL.js: Running Linux Kernel on JavaScript *Directly*&lt;/a&gt; Kernel/VM Tokyo 14, July 21, 2018&lt;/li&gt;
 &lt;/ul&gt;
+&lt;h2 id="vulnerabilities"&gt;Vulnerabilities&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2026-8913"&gt;CVE-2026-8913&lt;/a&gt;: A command injection vulnerability in the WireGuard configuration of TP-Link Archer MR600 v5&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-61554"&gt;CVE-2025-61554&lt;/a&gt;: A divide-by-zero vulnerability in the VirtIO network device emulation in BitVisor&lt;/li&gt;
+&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-61553"&gt;CVE-2025-61553&lt;/a&gt;: OOB write in VirtIO network device emulation in BitVisor&lt;/li&gt;
+&lt;/ul&gt;
 &lt;h2 id="software"&gt;Software&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href="https://github.com/yabits/9pfsPkg"&gt;9pfsPkg&lt;/a&gt;, 9P Client File System for UEFI&lt;/li&gt;
@@ -466,10 +472,4 @@ Windows 7でのインストール手順を記している方がいらっしゃ�
 &lt;li&gt;&lt;a href="https://github.com/retrage/elvm/tree/retrage/ll"&gt;LLVM IR Backend for ELVM&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://github.com/retrage/elvm/tree/retrage/lua"&gt;Lua Backend for ELVM&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href="https://github.com/retrage/mruby/tree/retrage/mruby_on_efi_shell"&gt;mruby 1.2.0 on UEFI Shell&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;
-&lt;h2 id="vulnerabilities"&gt;Vulnerabilities&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2026-8913"&gt;CVE-2026-8913&lt;/a&gt;: A command injection vulnerability in the WireGuard configuration of TP-Link Archer MR600 v5&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-61554"&gt;CVE-2025-61554&lt;/a&gt;: A divide-by-zero vulnerability in the VirtIO network device emulation in BitVisor&lt;/li&gt;
-&lt;li&gt;&lt;a href="https://www.cve.org/CVERecord?id=CVE-2025-61553"&gt;CVE-2025-61553&lt;/a&gt;: OOB write in VirtIO network device emulation in BitVisor&lt;/li&gt;
 &lt;/ul&gt;</description></item></channel></rss>
